@@ -1,0 +1,60 @@
+import React from 'react';
+import { Zap, Database, Globe, Shield } from 'lucide-react';
+
+const CyberNinjaSite = () => {
+  return (
+    <div className="bg-gradient-to-b from-slate-900 to-red-900 min-h-screen text-gray-100 font-sans">
+      <header className="bg-black bg-opacity-50 p-4 flex justify-between items-center">
+        <h1 className="text-3xl font-ninja text-red-500">サイバー忍道</h1>
+        <nav>
+          <ul className="flex space-x-6">
+            <li><a href="#" className="hover:text-red-400 transition-colors">ホーム</a></li>
+            <li><a href="#" className="hover:text-red-400 transition-colors">忍術</a></li>
+            <li><a href="#" className="hover:text-red-400 transition-colors">ミッション</a></li>
+            <li><a href="#" className="hover:text-red-400 transition-colors">ランキング</a></li>
+          </ul>
+        </nav>
+      </header>
+      
+      <main className="container mx-auto mt-12 px-4">
+        <div className="bg-black bg-opacity-60 rounded-lg p-8 mb-12 shadow-lg border border-red-500 relative overflow-hidden">
+          <div className="absolute inset-0 bg-circuit-pattern opacity-10"></div>
+          <h2 className="text-4xl font-ninja mb-4 text-red-500 relative z-10">未来忍者への道</h2>
+          <p className="mb-6 text-lg relative z-10">テクノロジーと伝統の融合。あなたの忍道を極め、サイバー世界の守護者となれ。</p>
+          <button className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full transition-colors relative z-10">
+            ミッション開始
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="bg-black bg-opacity-60 p-6 rounded-lg shadow-md border border-blue-400 hover:border-red-400 transition-colors">
+            <Zap className="text-blue-400 mb-4" size={48} />
+            <h3 className="text-xl font-ninja mb-2 text-red-400">サイバー忍術</h3>
+            <p>最新テクノロジーを駆使した忍術をマスターせよ。</p>
+          </div>
+          <div className="bg-black bg-opacity-60 p-6 rounded-lg shadow-md border border-blue-400 hover:border-red-400 transition-colors">
+            <Database className="text-blue-400 mb-4" size={48} />
+            <h3 className="text-xl font-ninja mb-2 text-red-400">データ収集</h3>
+            <p>ネットワークから重要な情報を収集し、解析せよ。</p>
+          </div>
+          <div className="bg-black bg-opacity-60 p-6 rounded-lg shadow-md border border-blue-400 hover:border-red-400 transition-colors">
+            <Globe className="text-blue-400 mb-4" size={48} />
+            <h3 className="text-xl font-ninja mb-2 text-red-400">グローバル作戦</h3>
+            <p>世界規模のサイバーミッションに挑戦せよ。</p>
+          </div>
+          <div className="bg-black bg-opacity-60 p-6 rounded-lg shadow-md border border-blue-400 hover:border-red-400 transition-colors">
+            <Shield className="text-blue-400 mb-4" size={48} />
+            <h3 className="text-xl font-ninja mb-2 text-red-400">ネット防衛</h3>
+            <p>サイバー攻撃から重要インフラを守れ。</p>
+          </div>
+        </div>
+      </main>
+      
+      <footer className="bg-black bg-opacity-50 mt-16 py-6 text-center">
+        <p>&copy; 2024 サイバー忍道. All rights reserved.</p>
+      </footer>
+    </div>
+  );
+};
+
+export default CyberNinjaSite;
