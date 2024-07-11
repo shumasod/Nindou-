@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+      "typeRoots": ["./node_modules/@types", "./node_modules"],
+      "jsx": "react",
+      "allowSyntheticDefaultImports": true,
+      "esModuleInterop": true,
+      // その他の設定
+    }
+  }
+  
