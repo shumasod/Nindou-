@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'React';
 import { useJutsu } from '../hooks/useJutsu';
 import JutsuList from '../components/JutsuList.vue';
 import ChakraEffect from '../components/ChakraEffect';
