@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'React';
 import { useJutsu } from '../hooks/useJutsu';
 import JutsuList from '../components/JutsuList.vue';
-import ChakraEffect from '../components/ChakraEffect';
+import Chakra from '../components/ChakraEffect';
 
 export default function JutsuCatalog() {
   const [jutsuList, setJutsuList] = useState([]);
