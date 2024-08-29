@@ -25,7 +25,7 @@ const CyberNinjaGame = () => {
         <h1 className="text-3xl font-ninja text-red-500">サイバー忍道</h1>
         <nav>
           <ul className="flex space-x-6">
-            {['ホーム', 'キャラクター', 'ミッション', 'スキル', '装備'].map((tab) => (
+            {['ホーム', 'キャラ', 'ミッション', 'スキル', '装備'].map((tab) => (
               <li key={tab}>
                 <button
                   onClick={() => setActiveTab(tab)}
