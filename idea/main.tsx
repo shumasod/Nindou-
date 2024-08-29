@@ -6,7 +6,7 @@ const CyberNinjaGame = () => {
 
   const renderContent = () => {
     switch(activeTab) {
-      case 'キャラクター':
+      case 'キャラ':
         return <CharacterPanel />;
       case 'ミッション':
         return <MissionPanel />;
