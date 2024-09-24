@@ -1,4 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import PropTypes from 'prop-types';
+
+// Types
+/**
+ * @typedef {Object} Jutsu
+ * @property {number} id - The unique identifier of the jutsu
+ * @property {string} name - The name of the jutsu
+ * @property {string} type - The type of the jutsu
+ * @property {string} description - A description of the jutsu
+ * @property {number} chakraCost - The chakra cost of the jutsu (1-5)
+ */
 
 // Mock data
 const mockJutsuList = [
@@ -10,14 +21,14 @@ const mockJutsuList = [
 ];
 
 // Mock data fetching function
-const fetchJutsuList = () => new Promise(resolve => {
+const fetchJutsuList = () => new Promise((resolve) => {
   setTimeout(() => resolve(mockJutsuList), 1000);
 });
 
 const ChakraEffect = React.memo(() => (
   <div className="chakra-effect">
     {[...Array(5)].map((_, i) => (
-      <div key={i} className="chakra-particle"></div>
+      <div key={i} className="chakra-particle" />
     ))}
   </div>
 ));
@@ -33,33 +44,56 @@ const JutsuCard = React.memo(({ jutsu }) => (
   </div>
 ));
 
+JutsuCard.propTypes = {
+  jutsu: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    name: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired,
+    chakraCost: PropTypes.number.isRequired,
+  }).isRequired,
+};
+
 const JutsuList = React.memo(({ jutsuList }) => (
   <div className="jutsu-list">
-    {jutsuList.map(jutsu => (
+    {jutsuList.map((jutsu) => (
       <JutsuCard key={jutsu.id} jutsu={jutsu} />
     ))}
   </div>
 ));
 
-export default function JutsuCatalog() {
+JutsuList.propTypes = {
+  jutsuList: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    name: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired,
+    chakraCost: PropTypes.number.isRequired,
+  })).isRequired,
+};
+
+const JutsuCatalog = () => {
   const [jutsuList, setJutsuList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function loadJutsuList() {
-      try {
-        setIsLoading(true);
-        const data = await fetchJutsuList();
-        setJutsuList(data);
-      } catch (err) {
-        setError('忍術リストの取得に失敗しました。');
-      } finally {
-        setIsLoading(false);
-      }
+  const loadJutsuList = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await fetchJutsuList();
+      setJutsuList(data);
+    } catch (err) {
+      setError('忍術リストの取得に失敗しました。');
+      console.error('Error fetching jutsu list:', err);
+    } finally {
+      setIsLoading(false);
     }
-    loadJutsuList();
   }, []);
+
+  useEffect(() => {
+    loadJutsuList();
+  }, [loadJutsuList]);
 
   const memoizedJutsuList = useMemo(() => jutsuList, [jutsuList]);
 
@@ -68,10 +102,12 @@ export default function JutsuCatalog() {
 
   return (
     <div className="jutsu-catalog">
-      <div className="background"></div>
+      <div className="background" />
       <h1 className="ninja-font">忍術カタログ</h1>
       <ChakraEffect />
       <JutsuList jutsuList={memoizedJutsuList} />
     </div>
   );
-}
+};
+
+export default JutsuCatalog;
