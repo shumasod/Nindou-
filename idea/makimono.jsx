@@ -41,45 +41,32 @@ const fetchNinjaToolList = () => new Promise<NinjaTool[]>((resolve) => {
   setTimeout(() => resolve(mockNinjaToolList), 1000);
 });
 
-const ChakraEffect = React.memo(() => (
-  <div className="chakra-effect">
-    {[...Array(5)].map((_, i) => (
-      <div key={i} className="chakra-particle" />
-    ))}
-  </div>
-));
-
 const JutsuCard: React.FC<{ jutsu: Jutsu }> = React.memo(({ jutsu }) => (
-  <div className="jutsu-card">
-    <h3>{jutsu.name}</h3>
-    <p>種類: {jutsu.type}</p>
-    <p>説明: {jutsu.description}</p>
-    <div className="chakra-cost">
+  <div className="bg-amber-100 rounded-lg p-4 shadow-md mb-4">
+    <h3 className="text-lg font-semibold mb-2">{jutsu.name}</h3>
+    <p className="text-sm mb-1">種類: {jutsu.type}</p>
+    <p className="text-sm mb-2">{jutsu.description}</p>
+    <div className="text-sm">
       チャクラ消費: {'★'.repeat(jutsu.chakraCost)}{'☆'.repeat(5 - jutsu.chakraCost)}
     </div>
   </div>
 ));
 
 const NinjaToolCard: React.FC<{ tool: NinjaTool }> = React.memo(({ tool }) => (
-  <div className="ninja-tool-card">
-    <h3>{tool.name}</h3>
-    <p>説明: {tool.description}</p>
-    <p>所持数: {tool.quantity}</p>
+  <div className="bg-amber-100 rounded-lg p-4 shadow-md mb-4">
+    <h3 className="text-lg font-semibold mb-2">{tool.name}</h3>
+    <p className="text-sm mb-2">{tool.description}</p>
+    <p className="text-sm">所持数: {tool.quantity}</p>
   </div>
 ));
 
-const JutsuList: React.FC<{ jutsuList: Jutsu[] }> = React.memo(({ jutsuList }) => (
-  <div className="jutsu-list">
-    <h2>忍術リスト</h2>
+const ScrollContent: React.FC<{ jutsuList: Jutsu[], toolList: NinjaTool[] }> = React.memo(({ jutsuList, toolList }) => (
+  <div className="scroll-content p-8">
+    <h2 className="text-2xl font-bold mb-4">忍術リスト</h2>
     {jutsuList.map((jutsu) => (
       <JutsuCard key={jutsu.id} jutsu={jutsu} />
     ))}
-  </div>
-));
-
-const NinjaToolList: React.FC<{ toolList: NinjaTool[] }> = React.memo(({ toolList }) => (
-  <div className="ninja-tool-list">
-    <h2>忍具リスト</h2>
+    <h2 className="text-2xl font-bold mb-4 mt-8">忍具リスト</h2>
     {toolList.map((tool) => (
       <NinjaToolCard key={tool.id} tool={tool} />
     ))}
@@ -117,16 +104,19 @@ const JutsuCatalog: React.FC = () => {
   const memoizedJutsuList = useMemo(() => jutsuList, [jutsuList]);
   const memoizedToolList = useMemo(() => toolList, [toolList]);
 
-  if (isLoading) return <div className="loading">巻物を展開中...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (isLoading) return <div className="loading text-center py-8">巻物を展開中...</div>;
+  if (error) return <div className="error text-center py-8 text-red-600">{error}</div>;
 
   return (
-    <div className="jutsu-catalog">
-      <div className="background" />
-      <h1 className="ninja-font">忍術・忍具カタログ</h1>
-      <ChakraEffect />
-      <JutsuList jutsuList={memoizedJutsuList} />
-      <NinjaToolList toolList={memoizedToolList} />
+    <div className="jutsu-catalog flex justify-center items-center min-h-screen bg-gray-100 p-4">
+      <div className="scroll-container relative w-full max-w-3xl">
+        <div className="scroll-top h-16 bg-amber-700 rounded-t-full"></div>
+        <div className="scroll-middle bg-amber-200 p-4 overflow-y-auto max-h-[70vh]">
+          <h1 className="text-3xl font-bold text-center mb-6">忍術・忍具カタログ</h1>
+          <ScrollContent jutsuList={memoizedJutsuList} toolList={memoizedToolList} />
+        </div>
+        <div className="scroll-bottom h-16 bg-amber-700 rounded-b-full"></div>
+      </div>
     </div>
   );
 };
