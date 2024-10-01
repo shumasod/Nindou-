@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>忍者の避けゲーム</title>
+    <title>忍者の火避けゲーム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -14,15 +14,15 @@
             margin: 0;
             font-family: Arial, sans-serif;
             touch-action: manipulation;
-            background-color: #f0f0f0;
+            background-color: #2C3E50;
         }
         #game-container {
             width: 300px;
             height: 200px;
-            border: 2px solid black;
+            border: 2px solid #E74C3C;
             position: relative;
             overflow: hidden;
-            background-color: white;
+            background-color: #ECF0F1;
         }
         #player {
             font-size: 40px;
@@ -41,15 +41,16 @@
             top: 10px;
             left: 10px;
             font-size: 16px;
+            color: #2980B9;
         }
     </style>
 </head>
 <body>
     <div id="game-container">
         <div id="player">🥷</div>
-        <div id="score">スコア: 0</div>
+        <div id="score">水: 0</div>
     </div>
-    <button id="jump-button" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+    <button id="jump-button" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
         ジャンプ
     </button>
 
@@ -100,7 +101,7 @@
         function createItem(type) {
             const item = document.createElement('div');
             item.className = 'item';
-            item.textContent = type === 'obstacle' ? '🤛' : '🥦';
+            item.textContent = type === 'obstacle' ? '🔥' : '💧';
             item.style.right = '-30px';
             item.style.bottom = `${Math.random() * 160}px`;
             gameContainer.appendChild(item);
@@ -130,22 +131,22 @@
                 playerRect.right > itemRect.left &&
                 playerRect.top < itemRect.bottom &&
                 playerRect.bottom > itemRect.top) {
-                if (item.textContent === '🥦') {
-                    score += 5;
+                if (item.textContent === '💧') {
+                    score += 1;
                     updateScore();
                     gameContainer.removeChild(item);
-                } else if (item.textContent === '🤛') {
+                } else if (item.textContent === '🔥') {
                     gameOver();
                 }
             }
         }
 
         function updateScore() {
-            scoreElement.textContent = `スコア: ${score}`;
+            scoreElement.textContent = `水: ${score}`;
         }
 
         function gameOver() {
-            alert(`ゲームオーバー！ スコア: ${score}`);
+            alert(`ゲームオーバー！ 集めた水: ${score}`);
             location.reload();
         }
 
@@ -154,7 +155,7 @@
 
             function createAndMoveItems() {
                 if (Math.random() < 0.03) {
-                    items.push(createItem(Math.random() < 0.7 ? 'obstacle' : 'broccoli'));
+                    items.push(createItem(Math.random() < 0.7 ? 'obstacle' : 'water'));
                 }
                 items = items.filter(item => item());
                 requestAnimationFrame(createAndMoveItems);
