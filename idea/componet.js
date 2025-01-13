@@ -17,7 +17,7 @@ export default function JutsuCatalog() {
 
   return (
     <div className="jutsu-catalog">
-      <h1 className="ninja-font">忍術カタログ</h1>
+      <h1 className="ninja-font">忍術リスト</h1>
       <ChakraEffect />
       <JutsuList jutsuList={jutsuList} />
     </div>
