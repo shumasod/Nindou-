@@ -1,0 +1,326 @@
+import type { ClanData, Skill, Enemy, Quest, Item } from "./types";
+
+// ===== 流派データ =====
+export const CLANS: Record<string, ClanData> = {
+  force: {
+    name: "剛忍流",
+    icon: "⚔️",
+    desc: "力と堅牢さを極める流派。HP・攻撃力ボーナス。近接戦闘に特化した豪快な術が使える。",
+    bonus: { maxHp: 30, attack: 5 },
+    starterSkill: "spin_slash",
+    color: "#c41e1e",
+  },
+  illusion: {
+    name: "幻忍流",
+    icon: "🌀",
+    desc: "幻術と補助に特化した流派。チャクラ・隠密ボーナス。敵を惑わす高度な幻術を操る。",
+    bonus: { maxChakra: 20, stealth: 5 },
+    starterSkill: "phantom_clone",
+    color: "#7a4bb5",
+  },
+  speed: {
+    name: "迅忍流",
+    icon: "⚡",
+    desc: "神速と回避を極める流派。素早さ・隠密ボーナス。誰よりも速く動き、影のように戦う。",
+    bonus: { speed: 8, stealth: 5 },
+    starterSkill: "flash_step",
+    color: "#4a9e5c",
+  },
+};
+
+// ===== スキルデータ =====
+export const SKILLS: Record<string, Skill> = {
+  spin_slash: {
+    name: "螺旋斬り",
+    cost: 15,
+    type: "damage",
+    desc: "回転しながら斬りつける。攻撃力の2.5倍ダメージ",
+    multiplier: 2.5,
+    clan: "force",
+  },
+  iron_stance: {
+    name: "鉄壁の構え",
+    cost: 20,
+    type: "buff",
+    desc: "3ターン防御力を50%上昇させる",
+    effect: { stat: "defense", mult: 1.5, turns: 3 },
+    clan: "force",
+  },
+  thousand_thrust: {
+    name: "千手突き",
+    cost: 30,
+    type: "damage",
+    desc: "超高速の連続突き。攻撃力の3.5倍ダメージ",
+    multiplier: 3.5,
+    clan: "force",
+  },
+  phantom_clone: {
+    name: "幻影分身",
+    cost: 20,
+    type: "dodge",
+    desc: "1ターンの間、次の攻撃を1回無効化する",
+    effect: { dodge: 1 },
+    clan: "illusion",
+  },
+  confusion_jutsu: {
+    name: "幻惑の術",
+    cost: 18,
+    type: "debuff",
+    desc: "敵の命中率を3ターン間40%低下させる",
+    effect: { stat: "accuracy", reduce: 0.4, turns: 3 },
+    clan: "illusion",
+  },
+  shinigami_illusion: {
+    name: "死神の幻",
+    cost: 35,
+    type: "stun",
+    desc: "敵を2ターン行動不能にする強力な幻術",
+    effect: { stun: 2 },
+    clan: "illusion",
+  },
+  flash_step: {
+    name: "瞬身の術",
+    cost: 15,
+    type: "buff",
+    desc: "素早さを1ターン2倍にし、追加行動を得る",
+    effect: { stat: "speed", mult: 2, extraAction: true },
+    clan: "speed",
+  },
+  smoke_escape: {
+    name: "煙遁",
+    cost: 10,
+    type: "escape",
+    desc: "煙幕を張って確実に戦闘から離脱する",
+    effect: { escape: 1.0 },
+    clan: "speed",
+  },
+  shadow_clone: {
+    name: "影分身",
+    cost: 25,
+    type: "dodge",
+    desc: "50%の確率でダメージを回避する分身を作る",
+    effect: { dodgeChance: 0.5, turns: 3 },
+    clan: "speed",
+  },
+};
+
+// スキル解放レベル定義
+export const SKILL_UNLOCK: Record<string, { level: number; clan: string }> = {
+  spin_slash:          { level: 1,  clan: "force" },
+  phantom_clone:       { level: 1,  clan: "illusion" },
+  flash_step:          { level: 1,  clan: "speed" },
+  iron_stance:         { level: 3,  clan: "force" },
+  confusion_jutsu:     { level: 3,  clan: "illusion" },
+  smoke_escape:        { level: 3,  clan: "speed" },
+  thousand_thrust:     { level: 7,  clan: "force" },
+  shinigami_illusion:  { level: 7,  clan: "illusion" },
+  shadow_clone:        { level: 7,  clan: "speed" },
+};
+
+// ===== 敵データ =====
+export const ENEMIES: Record<string, Omit<Enemy, "id" | "maxHp" | "phase2">> = {
+  forest_bandit: {
+    name: "山賊",
+    icon: "🗡️",
+    hp: 60,
+    attack: 12,
+    defense: 5,
+    speed: 8,
+    exp: 30,
+    gold: 20,
+    ai: "aggressive",
+    skills: ["basic_attack"],
+    drops: [{ id: "heal_scroll", rate: 0.3 }],
+  },
+  ninja_trainee: {
+    name: "下忍",
+    icon: "🥷",
+    hp: 80,
+    attack: 18,
+    defense: 10,
+    speed: 15,
+    exp: 50,
+    gold: 35,
+    ai: "balanced",
+    skills: ["basic_attack", "kunai_throw"],
+    drops: [{ id: "chakra_pill", rate: 0.4 }],
+  },
+  giant_spider: {
+    name: "大蜘蛛",
+    icon: "🕷️",
+    hp: 120,
+    attack: 20,
+    defense: 8,
+    speed: 12,
+    exp: 70,
+    gold: 45,
+    ai: "debuffer",
+    skills: ["poison_bite", "web_trap"],
+    drops: [{ id: "antidote", rate: 0.5 }],
+  },
+  cursed_samurai: {
+    name: "呪われた侍",
+    icon: "⚔️",
+    hp: 150,
+    attack: 25,
+    defense: 20,
+    speed: 10,
+    exp: 100,
+    gold: 70,
+    ai: "tank",
+    skills: ["heavy_slash", "iron_guard"],
+    drops: [{ id: "heal_scroll_large", rate: 0.2 }],
+  },
+  fog_ninja: {
+    name: "霧隠の忍",
+    icon: "🌫️",
+    hp: 100,
+    attack: 22,
+    defense: 12,
+    speed: 20,
+    exp: 120,
+    gold: 80,
+    ai: "speed",
+    skills: ["flash_attack", "vanish"],
+    drops: [{ id: "chakra_pill", rate: 0.3 }],
+  },
+  demon_lord: {
+    name: "魔忍王",
+    icon: "👹",
+    hp: 500,
+    attack: 45,
+    defense: 30,
+    speed: 25,
+    exp: 1000,
+    gold: 500,
+    ai: "boss",
+    phase2Threshold: 0.5,
+    skills: ["demon_slash", "curse_wave", "chaos_jutsu"],
+    drops: [{ id: "heal_scroll_large", rate: 1.0 }],
+  },
+};
+
+// ===== アイテムデータ =====
+export const ITEMS: Record<string, Item> = {
+  heal_scroll:       { name: "回復巻物",     type: "heal",   value: 40, icon: "📜", desc: "HPを40回復" },
+  chakra_pill:       { name: "チャクラ丹",   type: "chakra", value: 25, icon: "💊", desc: "チャクラを25回復" },
+  antidote:          { name: "毒消し",       type: "cure",           icon: "🧪", desc: "毒・麻痺を解除" },
+  smoke_bomb:        { name: "煙幕弾",       type: "escape",         icon: "💨", desc: "戦闘から100%逃走" },
+  heal_scroll_large: { name: "大回復巻物",   type: "heal",   value: 80, icon: "📜", desc: "HPを80回復" },
+};
+
+// ===== 装備データ =====
+export const WEAPONS: Record<string, { name: string; attack: number; speed: number; desc: string }> = {
+  kunai_basic:   { name: "基本苦無",   attack: 0,  speed: 0,  desc: "初心者用の苦無" },
+  katana_basic:  { name: "普通の刀",   attack: 5,  speed: -2, desc: "切れ味の良い刀" },
+  shuriken_set:  { name: "手裏剣セット", attack: 3, speed: 3, desc: "命中率の高い遠距離武器" },
+};
+
+export const ARMORS: Record<string, { name: string; defense: number; stealth: number; desc: string }> = {
+  cloth_basic:   { name: "基本忍装束", defense: 0,  stealth: 0,  desc: "標準的な忍装束" },
+  light_armor:   { name: "軽装甲",     defense: 3,  stealth: -2, desc: "防御重視の装甲" },
+  shadow_cloth:  { name: "影布",       defense: 1,  stealth: 5,  desc: "隠密性の高い装束" },
+};
+
+// ===== クエストデータ =====
+export const QUESTS: Quest[] = [
+  {
+    id: "q001",
+    title: "山賊の討伐",
+    rank: "D",
+    area: "forest",
+    desc: "近郊の森に現れた山賊を3体倒せ。里の民が怯えている。急ぎ成敗せよ。",
+    type: "kill",
+    target: "forest_bandit",
+    count: 3,
+    reward: { exp: 100, gold: 80, items: [] },
+    minLevel: 1,
+  },
+  {
+    id: "q002",
+    title: "下忍との試練",
+    rank: "C",
+    area: "dojo",
+    desc: "道場の訓練として下忍2体と戦い、腕を磨け。真剣勝負で己を鍛えろ。",
+    type: "kill",
+    target: "ninja_trainee",
+    count: 2,
+    reward: { exp: 200, gold: 150, items: [{ id: "chakra_pill", count: 2 }] },
+    minLevel: 3,
+  },
+  {
+    id: "q003",
+    title: "大蜘蛛の巣",
+    rank: "C",
+    area: "cave",
+    desc: "洞窟を塞ぐ大蜘蛛を退治し、商人の道を確保せよ。毒に注意しろ。",
+    type: "kill",
+    target: "giant_spider",
+    count: 1,
+    reward: { exp: 300, gold: 200, items: [{ id: "antidote", count: 2 }] },
+    minLevel: 5,
+  },
+  {
+    id: "q004",
+    title: "呪われた侍の成敗",
+    rank: "B",
+    area: "mountain",
+    desc: "呪いに蝕まれた元侍を成仏させよ。手加減は無用。慈悲をもって斬れ。",
+    type: "kill",
+    target: "cursed_samurai",
+    count: 1,
+    reward: { exp: 600, gold: 350, items: [{ id: "heal_scroll_large", count: 2 }] },
+    minLevel: 8,
+  },
+  {
+    id: "q005",
+    title: "魔忍王討伐",
+    rank: "S",
+    area: "ruins",
+    desc: "伝説の魔忍王が復活した。これが真の試練である。里の命運はお前に懸かっている。",
+    type: "kill",
+    target: "demon_lord",
+    count: 1,
+    reward: { exp: 5000, gold: 2000, items: [{ id: "heal_scroll_large", count: 3 }] },
+    minLevel: 15,
+  },
+];
+
+// ===== エリアデータ =====
+export const AREAS: Record<string, { name: string; desc: string; minLevel: number; quests: string[]; icon: string }> = {
+  forest: {
+    name: "木の葉の里近郊・深い森",
+    desc: "里に隣接する薄暗い森。山賊や小動物が潜む。",
+    minLevel: 1,
+    quests: ["q001"],
+    icon: "🌲",
+  },
+  dojo: {
+    name: "古い道場跡",
+    desc: "かつての忍が修行した廃道場。今は下忍の訓練場となっている。",
+    minLevel: 3,
+    quests: ["q002"],
+    icon: "🏯",
+  },
+  cave: {
+    name: "霧の山岳・滝の裏洞窟",
+    desc: "霧に包まれた山岳地帯の奥地。様々な魔物が住み着く。",
+    minLevel: 5,
+    quests: ["q003"],
+    icon: "🗻",
+  },
+  mountain: {
+    name: "霧隠の村",
+    desc: "かつて栄えた忍の村。今は廃村となり亡霊が彷徨う。",
+    minLevel: 8,
+    quests: ["q004"],
+    icon: "🌫️",
+  },
+  ruins: {
+    name: "禁呪の地・砂漠の遺跡",
+    desc: "立ち入り禁止の古代遺跡。最強の魔忍が眠るとされる。",
+    minLevel: 15,
+    quests: ["q005"],
+    icon: "🏚️",
+  },
+};
