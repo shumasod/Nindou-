@@ -259,9 +259,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case "SET_NAME": {
+      // 二重防衛: UIレイヤーのサニタイズをバイパスされた場合も reducer 側で安全化
+      const safeName = action.name
+        .replace(/[\u202A-\u202E\u2066-\u2069]/g, "") // 方向制御文字
+        .replace(/[<>"'`]/g, "")                       // HTML特殊文字
+        .replace(/[\x00-\x1F\x7F]/g, "")              // 制御文字
+        .trim()
+        .slice(0, 12); // 最大長を強制
+      // 空文字や無効名は受け付けない
+      if (safeName.length === 0) return state;
       return {
         ...state,
-        player: { ...state.player, name: action.name },
+        player: { ...state.player, name: safeName },
         ui: { ...state.ui, screen: "home" },
       };
     }
