@@ -377,6 +377,8 @@ describe("状態異常インタラクション", () => {
       player: { ...s.player, chakra: 30 },
       battle: {
         ...s.battle,
+        // 奇襲スタンをクリアして敵が確実に攻撃できるようにする
+        enemyStatus: [],
         enemy: { ...s.battle.enemy!, hp: 9999, maxHp: 9999 },
       },
     };
@@ -385,7 +387,7 @@ describe("状態異常インタラクション", () => {
     const afterSkill = gameReducer(s, { type: "PLAYER_SKILL", skillId: "phantom_clone" });
     expect(afterSkill.battle.playerDodge).toBe(1);
 
-    // 敵ターンで回避を消費
+    // 敵ターンで回避を消費（enemyStatusが空なのでスタンなく確実に攻撃する）
     const afterEnemy = gameReducer(afterSkill, { type: "ENEMY_TURN" });
     // playerDodgeが消費されているかログで確認
     const dodged = afterEnemy.battle.log[0]?.includes("無効化") ||
