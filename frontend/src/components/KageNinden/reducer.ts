@@ -98,13 +98,17 @@ function applyEnemyDamage(state: GameState, damage: number): GameState {
   return { ...state, battle: { ...state.battle, enemy: { ...state.battle.enemy, hp: newHp } } };
 }
 
+/** レベル上限: calcExpToNext が0以下を返す実装バグや外部改ざんによる無限ループを防止 */
+const MAX_LEVEL = 99;
+
 function checkLevelUp(state: GameState): GameState {
   let p = { ...state.player };
   let leveledUp = false;
-  while (p.exp >= p.expToNext) {
+  while (p.exp >= p.expToNext && p.level < MAX_LEVEL) {
     p.exp -= p.expToNext;
     p.level += 1;
-    p.expToNext = calcExpToNext(p.level);
+    // calcExpToNextが0以下を返した場合の安全策
+    p.expToNext = Math.max(1, calcExpToNext(p.level));
     p.statPoints += 3;
     p.maxHp = Math.floor(p.maxHp * 1.1 + 10);
     p.hp = p.maxHp;
@@ -160,8 +164,10 @@ function enemyDefeat(state: GameState): GameState {
       newProgress.activeQuest = null;
       newPlayer.exp += quest.reward.exp;
       newPlayer.gold += quest.reward.gold;
-      // アイテム追加
-      const itemNames: string[] = [];
+      // アイテム追加（push()を使わず純粋な関数型スタイルで）
+      const itemNames: string[] = quest.reward.items.map(
+        (ri) => ITEMS[ri.id]?.name ?? ri.id
+      );
       for (const ri of quest.reward.items) {
         const count = ri.count ?? 1;
         const idx = newPlayer.items.findIndex((it) => it.id === ri.id);
@@ -172,7 +178,6 @@ function enemyDefeat(state: GameState): GameState {
         } else {
           newPlayer.items = [...newPlayer.items, { id: ri.id, count }];
         }
-        itemNames.push(ITEMS[ri.id]?.name ?? ri.id);
       }
       reward = { exp: quest.reward.exp, gold: quest.reward.gold, items: itemNames };
     }
@@ -337,9 +342,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const critText = isCritical ? " 【CRITICAL!!】" : "";
       s = addLog(s, `${state.player.name}の攻撃！ ${damage}ダメージ！${critText}`);
 
-      // 命中ミス判定（幻惑の術）
-      const enemyConfused = hasStatus(s.battle.enemyStatus, "confusion");
-      void enemyConfused; // 敵への幻惑は敵ターンで処理するため、ここは敵の命中ミス処理なし
+      // NOTE: 敵への幻惑(confusion)による命中ミスは ENEMY_TURN で処理する
 
       // 敵撃破判定
       if (s.battle.enemy!.hp <= 0) {
