@@ -33,12 +33,17 @@ export function calcDamageWithSpeed(
 
 // ===== 逃走成功率 =====
 export function calcEscapeRate(playerSpeed: number, enemySpeed: number): number {
-  return playerSpeed / (playerSpeed + enemySpeed);
+  const total = playerSpeed + enemySpeed;
+  // ゼロ除算防止: 両方0の場合は50%とする
+  if (total === 0) return 0.5;
+  return playerSpeed / total;
 }
 
 // ===== Lvアップ判定 =====
+/** 次のLvに必要なEXP。常に1以上を返す（無限ループ防止） */
 export function calcExpToNext(level: number): number {
-  return Math.floor(100 * Math.pow(1.5, level - 1));
+  if (!Number.isFinite(level) || level < 1) return 100;
+  return Math.max(1, Math.floor(100 * Math.pow(1.5, level - 1)));
 }
 
 // ===== ステータスボーナス計算 =====
