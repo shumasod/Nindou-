@@ -11,11 +11,25 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+// 許可文字: ひらがな・カタカナ・漢字・英数字・スペース・ハイフン・アンダースコア
+// 制御文字・HTML特殊文字・方向制御文字(RLO等)は拒否する
+const VALID_NAME_RE = /^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uF900-\uFAFF\w\s\-_]+$/;
+
+/** 入力文字列から危険な文字を除去して返す */
+function sanitizeName(raw: string): string {
+  return raw
+    .replace(/[\u202A-\u202E\u2066-\u2069]/g, "") // 方向制御文字を除去
+    .replace(/[<>"'`]/g, "")                       // HTML特殊文字を除去
+    .replace(/[\x00-\x1F\x7F]/g, "");             // 制御文字を除去
+}
+
 export default function NameInputScreen({ clan, dispatch }: Props) {
   const [name, setName] = useState("");
   const clanData = CLANS[clan];
 
-  const canStart = name.trim().length >= 1 && name.trim().length <= 12;
+  const trimmed = name.trim();
+  const isValidChars = trimmed.length === 0 || VALID_NAME_RE.test(trimmed);
+  const canStart = trimmed.length >= 1 && trimmed.length <= 12 && isValidChars;
 
   return (
     <div
@@ -50,25 +64,33 @@ export default function NameInputScreen({ clan, dispatch }: Props) {
             忍者名（1〜12文字）
           </label>
           <input
-            style={S.input}
+            style={{
+              ...S.input,
+              borderColor: trimmed.length > 0 && !isValidChars ? C.accent1 : undefined,
+            }}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(sanitizeName(e.target.value))}
             maxLength={12}
             placeholder="例：影丸、疾風..."
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter" && canStart) {
-                dispatch({ type: "SET_NAME", name: name.trim() });
+                dispatch({ type: "SET_NAME", name: trimmed });
               }
             }}
           />
+          {trimmed.length > 0 && !isValidChars && (
+            <p style={{ color: C.accent1, fontSize: "11px", marginTop: "4px" }}>
+              使用できない文字が含まれています（漢字・かな・英数字のみ）
+            </p>
+          )}
         </div>
 
         {/* フレーバーテキスト */}
-        {name.trim() && (
+        {canStart && (
           <div style={{ ...S.panelSm, marginBottom: "24px", animation: "fadeIn 0.4s ease" }}>
             <p style={{ color: C.dim, fontSize: "13px", lineHeight: 1.8 }}>
-              <span style={{ color: clanData.color }}>「{name.trim()}」</span>
+              <span style={{ color: clanData.color }}>「{trimmed}」</span>
               、{clanData.name}の修行が始まる。<br />
               影の道を歩み、真の忍へと成長せよ。
             </p>
@@ -83,7 +105,7 @@ export default function NameInputScreen({ clan, dispatch }: Props) {
               : { ...S.btnDisabled, width: "100%", padding: "12px", fontSize: "16px" }
           }
           disabled={!canStart}
-          onClick={() => dispatch({ type: "SET_NAME", name: name.trim() })}
+          onClick={() => dispatch({ type: "SET_NAME", name: trimmed })}
           onMouseEnter={(e) => canStart && hoverOn(e)}
           onMouseLeave={(e) => canStart && hoverOff(e)}
         >
