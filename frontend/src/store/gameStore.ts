@@ -8,8 +8,17 @@ import type {
   TimeOfDay,
   CharacterId,
 } from "@/lib/types";
-import { getScene, FIRST_SCENE_ID } from "@/lib/scenarios";
+import { getScene, FIRST_SCENE_ID, SCENES } from "@/lib/scenarios";
 import { calculateEnding } from "@/lib/endings";
+
+function isValidLoadedState(data: unknown): data is Partial<GameState> {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  if (typeof d.currentSceneId !== "string") return false;
+  if (!(d.currentSceneId in SCENES) && d.currentSceneId !== "__ending__") return false;
+  if (d.day !== undefined && (typeof d.day !== "number" || d.day < 1)) return false;
+  return true;
+}
 
 const INITIAL_PARAMS: GameParams = {
   empathy: 50,
@@ -168,15 +177,13 @@ export const useGameStore = create<GameStore>()(
         try {
           const res = await fetch("/api/load");
           if (!res.ok) return false;
-          const data = await res.json();
-          if (data?.currentSceneId) {
-            set({ ...data, gameStarted: true });
-            return true;
-          }
+          const data: unknown = await res.json();
+          if (!isValidLoadedState(data)) return false;
+          set({ ...data, gameStarted: true });
+          return true;
         } catch {
           return false;
         }
-        return false;
       },
 
       getParamLabel: (key) => {
