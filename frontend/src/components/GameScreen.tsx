@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { getScene } from "@/lib/scenarios";
 import NovelView from "./NovelView";
@@ -28,10 +28,9 @@ export default function GameScreen() {
     setChoicesVisible(true);
   }, []);
 
-  // Reset choices when scene changes
-  useState(() => {
+  useEffect(() => {
     setChoicesVisible(false);
-  });
+  }, [currentSceneId]);
 
   if (gameOver) {
     return (
