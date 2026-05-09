@@ -90,15 +90,16 @@ export default function ParameterDisplay({
           {/* Character distances */}
           <div className="mt-4 space-y-1.5">
             <p className="text-xs text-gray-700 mb-2">— 心の距離 —</p>
-            {(["aoi", "mio", "kenji"] as const).map((id) => {
+            {(["aoi", "mio", "kenji", "rin", "daichi", "saki"] as const).map((id) => {
               const char = CHARACTERS[id];
-              const dist = distances[id];
+              const dist = distances[id] ?? 100;
               const closeness = 100 - dist;
+              const isUnmet = dist >= 95;
               return (
                 <div key={id} className="flex items-center gap-3">
                   <span
                     className="text-xs w-14 text-right"
-                    style={{ color: char.accentColor }}
+                    style={{ color: isUnmet ? "#374151" : char.accentColor }}
                   >
                     {char.name.split(" ")[1]}
                   </span>
@@ -108,12 +109,14 @@ export default function ParameterDisplay({
                       style={{
                         width: `${closeness}%`,
                         backgroundColor: char.accentColor,
-                        opacity: 0.7,
+                        opacity: isUnmet ? 0.2 : 0.7,
                       }}
                     />
                   </div>
-                  <span className="text-xs text-gray-700 w-6 text-right">
-                    {dist <= 30
+                  <span className="text-xs w-6 text-right" style={{ color: isUnmet ? "#374151" : "#6b7280" }}>
+                    {isUnmet
+                      ? "?"
+                      : dist <= 30
                       ? "近"
                       : dist <= 60
                       ? "普通"

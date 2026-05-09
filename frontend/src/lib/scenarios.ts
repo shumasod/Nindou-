@@ -197,6 +197,13 @@ export const SCENES: Record<string, Scene> = {
         characterEffect: { characterId: "aoi", distance: -3 },
         next: "scene_kenji_lunch",
       },
+      {
+        id: "c4",
+        text: "隣の席の同期に声をかける",
+        subtext: "— 明るそうな子がいる",
+        effect: { loneliness: -2 },
+        next: "scene_saki_intro",
+      },
     ],
   },
 
@@ -439,6 +446,13 @@ export const SCENES: Record<string, Scene> = {
         effect: { loneliness: 1 },
         next: "scene_night_message",
       },
+      {
+        id: "c2",
+        text: "近所のバーに寄ってみる",
+        subtext: "— 看板が気になっていた",
+        effect: { loneliness: -1 },
+        next: "scene_daichi_bar_enter",
+      },
     ],
   },
 
@@ -566,7 +580,7 @@ export const SCENES: Record<string, Scene> = {
     type: "novel",
     timeOfDay: "evening",
     day: 14,
-    text: "2週間が経った。\n\n蒼井さんからメッセージが届いた。\n「今夜、飲みに行かない？\n会社近くの小さい店。人数ちょうどいい」\n\n同じタイミングで、美緒からも。\n「ねえ、今週末、東京行っていい？」\n\n——どちらにも、返事をしていなかった。",
+    text: "2週間が経った。\n\n蒼井さんからメッセージが届いた。\n「今夜、飲みに行かない？\n会社近くの小さい店。人数ちょうどいい」\n\n同じタイミングで、美緒からも。\n「ねえ、今週末、東京行っていい？」\n\n——どちらにも、返事をしていなかった。\n\n沙希からも着信。\n凛さんからは静かなメッセージが一言。",
     choices: [
       {
         id: "c1",
@@ -590,6 +604,22 @@ export const SCENES: Record<string, Scene> = {
         unsentMessage: "今夜は会えない",
         unsentTo: "aoi",
         next: "scene_solo_night",
+      },
+      {
+        id: "c4",
+        text: "沙希に「一緒に行こう」と返す",
+        subtext: "— 同期だから、気楽かもしれない",
+        effect: { honesty: 2, empathy: 1 },
+        characterEffect: { characterId: "saki", distance: -15 },
+        next: "scene_saki_evening",
+      },
+      {
+        id: "c5",
+        text: "凛さんに「会えますか」と返す",
+        subtext: "— 短い一言が、気になった",
+        effect: { empathy: 3, loneliness: -2 },
+        characterEffect: { characterId: "rin", distance: -15 },
+        next: "scene_rin_message",
       },
     ],
   },
@@ -741,6 +771,461 @@ export const SCENES: Record<string, Scene> = {
   },
 
   // ============================================================
+  // NEW CHARACTER: 安藤 沙希 (SAKI) — 同期入社
+  // ============================================================
+
+  // --- 導入: Day 2 Morning ---
+  scene_saki_intro: {
+    id: "scene_saki_intro",
+    type: "message",
+    characterId: "saki",
+    timeOfDay: "morning",
+    day: 2,
+    text: "隣の席の子が振り返った。\n\n「同期ですよね！安藤沙希といいます。よろしくです！！」\n\n元気すぎるくらいの声だった。\n屈託のない目が、まっすぐこっちを見ていた。\nちょっと、眩しかった。",
+    choices: [
+      {
+        id: "c1",
+        text: "「こちらこそ、よろしく」と笑顔で返す",
+        effect: { honesty: 1, loneliness: -3 },
+        characterEffect: { characterId: "saki", distance: -10 },
+        next: "scene_saki_first_chat",
+      },
+      {
+        id: "c2",
+        text: "「……よろしく」と短く返す",
+        effect: { loneliness: 1 },
+        next: "scene_kenji_lunch",
+      },
+    ],
+  },
+
+  scene_saki_first_chat: {
+    id: "scene_saki_first_chat",
+    type: "message",
+    characterId: "saki",
+    timeOfDay: "morning",
+    day: 2,
+    text: "「東京って、まだ全然わかんなくて。\n先輩はどこ出身ですか？\nあ、先輩じゃなかった、同期か。笑」\n\n彼女はまくしたてるように話した。\n——この子は、正直だ。\nそれが少し羨ましかった。",
+    choices: [
+      {
+        id: "c1",
+        text: "「怖い、かな。まだ慣れてない」と正直に言う",
+        effect: { honesty: 3, loneliness: -4 },
+        characterEffect: { characterId: "saki", distance: -8 },
+        next: "scene_kenji_lunch",
+      },
+      {
+        id: "c2",
+        text: "「なんとかなりそう」と返す",
+        effect: { ambition: 1 },
+        next: "scene_kenji_lunch",
+      },
+    ],
+  },
+
+  // --- 深化: Day 14 (turning_point c4から) ---
+  scene_saki_evening: {
+    id: "scene_saki_evening",
+    type: "novel",
+    characterId: "saki",
+    timeOfDay: "evening",
+    day: 14,
+    text: "沙希が選んだのは、会社から少し離れた小さな居酒屋だった。\n\n「いつもは一人で来るんですけど、誰かと来るのはじめてで」\n\n照れたように言った。\n——意外だった。\nこんなに明るいのに、一人でいたのか。",
+    choices: [
+      {
+        id: "c1",
+        text: "「俺も一人が多かった」と言う",
+        effect: { honesty: 4, loneliness: -5 },
+        characterEffect: { characterId: "saki", distance: -12 },
+        next: "scene_saki_true",
+      },
+      {
+        id: "c2",
+        text: "「意外だな」と笑う",
+        effect: { empathy: 2 },
+        characterEffect: { characterId: "saki", distance: -6 },
+        next: "scene_saki_light",
+      },
+    ],
+  },
+
+  scene_saki_true: {
+    id: "scene_saki_true",
+    type: "novel",
+    characterId: "saki",
+    timeOfDay: "evening",
+    day: 14,
+    text: "「……そうなんですね」\n\n沙希は少し黙った。\nはじめて、笑顔じゃない顔を見た気がした。\n\n「わたし、元気なキャラでいなきゃって思ってたんです。\n誰かに頼ってるように見せたくなくて。\nでも……それって、結構きつかったな」",
+    choices: [
+      {
+        id: "c1",
+        text: "「それ、めちゃくちゃわかる」と言う",
+        effect: { honesty: 5, empathy: 3, loneliness: -6 },
+        characterEffect: { characterId: "saki", distance: -15 },
+        next: "scene_saki_connected",
+      },
+      {
+        id: "c2",
+        text: "「大丈夫だったの？」と聞く",
+        effect: { empathy: 4 },
+        characterEffect: { characterId: "saki", distance: -10 },
+        next: "scene_saki_connected",
+      },
+    ],
+  },
+
+  scene_saki_connected: {
+    id: "scene_saki_connected",
+    type: "novel",
+    characterId: "saki",
+    timeOfDay: "night",
+    day: 14,
+    text: "閉店間際まで、話した。\n\n仕事のこと。地元のこと。\n東京に来た理由——正直なやつ。\n\n沙希は最後に言った。\n「誘ってくれてよかった。\n……なんか、久しぶりに素直に話せた気がする」\n\n夜の道を、並んで歩いた。\n少しだけ、東京が広くなった気がした。",
+    choices: [
+      {
+        id: "c1",
+        text: "「また話そう」と言う",
+        effect: { honesty: 3, loneliness: -8, empathy: 2 },
+        characterEffect: { characterId: "saki", distance: -10 },
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  scene_saki_light: {
+    id: "scene_saki_light",
+    type: "novel",
+    characterId: "saki",
+    timeOfDay: "evening",
+    day: 14,
+    text: "「意外でしょ〜。実は根暗なんですよ」\n\n笑いながら言った。\nでも目の端が、少しだけ寂しそうだった。\n\nそれ以上は聞かなかった。\n聞けなかった、かもしれない。",
+    choices: [
+      {
+        id: "c1",
+        text: "乾杯する",
+        effect: { loneliness: -3, empathy: 2 },
+        characterEffect: { characterId: "saki", distance: -5 },
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  // ============================================================
+  // NEW CHARACTER: 橘 凛 (RIN) — デザイン部の先輩
+  // ============================================================
+
+  // --- turning_point c5から ---
+  scene_rin_message: {
+    id: "scene_rin_message",
+    type: "message",
+    characterId: "rin",
+    timeOfDay: "evening",
+    day: 14,
+    text: "凛さんからのメッセージは、一行だった。\n\n「今夜、少し時間ある？」\n\nそれだけ。\n既読がついてから、返信を打った。",
+    choices: [
+      {
+        id: "c1",
+        text: "「あります、どこかで」と返す",
+        effect: { empathy: 3, honesty: 1 },
+        characterEffect: { characterId: "rin", distance: -10 },
+        next: "scene_rin_cafe",
+      },
+      {
+        id: "c2",
+        text: "「今日は少し疲れてて…」と断る",
+        effect: { loneliness: 4 },
+        unsentMessage: "会いたかった",
+        unsentTo: "rin",
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  scene_rin_cafe: {
+    id: "scene_rin_cafe",
+    type: "novel",
+    characterId: "rin",
+    timeOfDay: "night",
+    day: 14,
+    text: "凛さんが選んだのは、静かなカフェだった。\n\n窓際の席。彼女は先に来ていた。\nコーヒーを両手で持って、外を見ていた。\n\n「来てくれた」\n\n振り返って、そう言った。\n——いつもより、少し柔らかかった。",
+    choices: [
+      {
+        id: "c1",
+        text: "「呼んでくれたから」と言う",
+        effect: { honesty: 3, empathy: 2 },
+        characterEffect: { characterId: "rin", distance: -12 },
+        next: "scene_rin_depth",
+      },
+      {
+        id: "c2",
+        text: "黙って席に着く",
+        effect: { empathy: 1 },
+        characterEffect: { characterId: "rin", distance: -5 },
+        next: "scene_rin_quiet_end",
+      },
+    ],
+  },
+
+  scene_rin_depth: {
+    id: "scene_rin_depth",
+    type: "novel",
+    characterId: "rin",
+    timeOfDay: "night",
+    day: 14,
+    text: "凛さんはコーヒーを一口飲んだ。\n\n「……実は、会社を辞めようと思ってる」\n\n静かな声だった。\n感情を抑えているのがわかった。\n\n「誰にも言ってない。\nなんか、あなたには言えるかなって思って。\n変な話だけど」",
+    choices: [
+      {
+        id: "c1",
+        text: "「なんで辞めようと思ったの」と聞く",
+        effect: { empathy: 5, honesty: 2 },
+        characterEffect: { characterId: "rin", distance: -18 },
+        next: "scene_rin_past",
+      },
+      {
+        id: "c2",
+        text: "「それは……辛かったね」と言う",
+        effect: { empathy: 4, loneliness: -3 },
+        characterEffect: { characterId: "rin", distance: -12 },
+        next: "scene_rin_close",
+      },
+    ],
+  },
+
+  scene_rin_past: {
+    id: "scene_rin_past",
+    type: "novel",
+    characterId: "rin",
+    timeOfDay: "night",
+    day: 14,
+    text: "「3年いて、でも何も残ってないんだよね。\nデザインは好きなのに、会社のためにしてると\n途中から嫌いになってきて。\n\n……ここに来てから、やっと気づいた」\n\n窓の外を見ながら言った。\n東京の灯りが、彼女の横顔を照らしていた。",
+    choices: [
+      {
+        id: "c1",
+        text: "「好きなことのためなら、辞めていいと思う」と言う",
+        effect: { honesty: 4, empathy: 3 },
+        characterEffect: { characterId: "rin", distance: -15 },
+        next: "scene_rin_close",
+      },
+      {
+        id: "c2",
+        text: "「……応援してる」と静かに言う",
+        effect: { empathy: 5, loneliness: -4 },
+        characterEffect: { characterId: "rin", distance: -10 },
+        next: "scene_rin_close",
+      },
+    ],
+  },
+
+  scene_rin_close: {
+    id: "scene_rin_close",
+    type: "novel",
+    characterId: "rin",
+    timeOfDay: "night",
+    day: 14,
+    text: "凛さんは少しだけ微笑んだ。\nはじめて、本当に笑った顔を見た気がした。\n\n「ありがとう。なんか……楽になった」\n\nカフェを出ると、夜風が冷たかった。\n\n「またね」\n\n彼女の背中が、夜の中に消えた。\nこんなに近くに、こんな人がいたのか——と思った。",
+    choices: [
+      {
+        id: "c1",
+        text: "帰る",
+        effect: { empathy: 5, honesty: 2, loneliness: -10 },
+        characterEffect: { characterId: "rin", distance: -10 },
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  scene_rin_quiet_end: {
+    id: "scene_rin_quiet_end",
+    type: "novel",
+    characterId: "rin",
+    timeOfDay: "night",
+    day: 14,
+    text: "しばらく、二人でコーヒーを飲んだ。\n\n何を話すでもなく。\nでも、沈黙が苦じゃなかった。\n\n凛さんは帰り際に言った。\n「……来てくれてよかった」\n\n小さな声だった。\n届いたかどうか、自信がなかった。",
+    choices: [
+      {
+        id: "c1",
+        text: "帰る",
+        effect: { empathy: 3, loneliness: -5 },
+        characterEffect: { characterId: "rin", distance: -8 },
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  // ============================================================
+  // NEW CHARACTER: 松本 大地 (DAICHI) — バーの常連
+  // ============================================================
+
+  // --- 導入: Day 2 Night (night_alone c2から) ---
+  scene_daichi_bar_enter: {
+    id: "scene_daichi_bar_enter",
+    type: "monologue",
+    timeOfDay: "night",
+    day: 2,
+    text: "路地の奥に、小さなバーの看板があった。\n\nドアを開けると、木の匂い。\nカウンターに数人。\nマスターが黙ってグラスを磨いていた。\n\n隣の客が、こっちを見た。",
+    choices: [
+      {
+        id: "c1",
+        text: "カウンターに座る",
+        effect: { loneliness: -2 },
+        next: "scene_daichi_first",
+      },
+    ],
+  },
+
+  scene_daichi_first: {
+    id: "scene_daichi_first",
+    type: "novel",
+    characterId: "daichi",
+    timeOfDay: "night",
+    day: 2,
+    text: "「はじめましての顔だ。いらっしゃい」\n\n隣の男が言った。\n店員じゃなかった。\n常連らしかった。\n\n——松本大地。26歳。\n東北出身で、東京には3年前から住んでいる。\n名前を聞いたわけじゃないのに、気づいたら話していた。",
+    choices: [
+      {
+        id: "c1",
+        text: "「東京、どうですか」と聞く",
+        effect: { empathy: 2, loneliness: -3 },
+        characterEffect: { characterId: "daichi", distance: -12 },
+        next: "scene_daichi_talk",
+      },
+      {
+        id: "c2",
+        text: "「どうも」と会釈して、黙って飲む",
+        effect: { loneliness: 1 },
+        next: "scene_night_message",
+      },
+    ],
+  },
+
+  scene_daichi_talk: {
+    id: "scene_daichi_talk",
+    type: "novel",
+    characterId: "daichi",
+    timeOfDay: "night",
+    day: 2,
+    text: "「最初の1年が一番しんどくて、\nそっから急に楽しくなった。\n今はまた変わってきたけどな」\n\nグラスを傾けながら、淡々と話した。\n嘘をついている感じがしなかった。\n\n「なんで東京に来たの」",
+    choices: [
+      {
+        id: "c1",
+        text: "「変わりたくて」と正直に言う",
+        effect: { honesty: 3, loneliness: -4 },
+        characterEffect: { characterId: "daichi", distance: -10 },
+        next: "scene_daichi_honest",
+      },
+      {
+        id: "c2",
+        text: "「なんとなく」と流す",
+        effect: { loneliness: 1 },
+        characterEffect: { characterId: "daichi", distance: -3 },
+        next: "scene_night_message",
+      },
+    ],
+  },
+
+  scene_daichi_honest: {
+    id: "scene_daichi_honest",
+    type: "novel",
+    characterId: "daichi",
+    timeOfDay: "night",
+    day: 2,
+    text: "「そうか。俺も最初それだった。\n\nでも変わったかどうかって、\n自分じゃなかなかわかんないんだよな。\n\n——気づいたら変わってた、みたいなことの方が多い気がする」\n\n大地は笑った。\n深夜のバーの笑顔は、地元の友人みたいだった。",
+    choices: [
+      {
+        id: "c1",
+        text: "「また来てもいいですか」と聞く",
+        effect: { honesty: 2, loneliness: -5 },
+        characterEffect: { characterId: "daichi", distance: -8 },
+        next: "scene_night_message",
+      },
+      {
+        id: "c2",
+        text: "黙ってグラスを空にする",
+        effect: { loneliness: -2 },
+        characterEffect: { characterId: "daichi", distance: -3 },
+        next: "scene_night_message",
+      },
+    ],
+  },
+
+  // --- 深化: solo_night c2から ---
+  scene_daichi_solo_night: {
+    id: "scene_daichi_solo_night",
+    type: "novel",
+    characterId: "daichi",
+    timeOfDay: "night",
+    day: 14,
+    text: "あのバーの前を通った。\n明かりがついていた。\n\n中に入ると、大地がいた。\n\n「また来たか」\n\n特に驚かなかった。\nそれが逆に、落ち着いた。",
+    choices: [
+      {
+        id: "c1",
+        text: "「ちょっとしんどくて」と正直に言う",
+        effect: { honesty: 4, loneliness: -5 },
+        characterEffect: { characterId: "daichi", distance: -15 },
+        next: "scene_daichi_wisdom",
+      },
+      {
+        id: "c2",
+        text: "「なんとなく」と流す",
+        effect: { loneliness: -2 },
+        characterEffect: { characterId: "daichi", distance: -5 },
+        next: "scene_daichi_quiet_drink",
+      },
+    ],
+  },
+
+  scene_daichi_wisdom: {
+    id: "scene_daichi_wisdom",
+    type: "novel",
+    characterId: "daichi",
+    timeOfDay: "night",
+    day: 14,
+    text: "大地はグラスに酒を注いで、こっちに置いた。\n\n「東京でしんどくなるのって、\n誰かと比べるからだよ、だいたい。\n\nでも比べる相手がいるってことは、\n自分がどこにいるかわかってるってことだから。\nそれって悪くない」\n\n押しつけがましくない言い方だった。",
+    choices: [
+      {
+        id: "c1",
+        text: "「……そうかもな」と言う",
+        effect: { empathy: 3, honesty: 2, loneliness: -8, ambition: 2 },
+        characterEffect: { characterId: "daichi", distance: -12 },
+        next: "scene_daichi_morning_walk",
+      },
+    ],
+  },
+
+  scene_daichi_morning_walk: {
+    id: "scene_daichi_morning_walk",
+    type: "monologue",
+    timeOfDay: "night",
+    day: 14,
+    text: "バーを出ると、夜が明けかけていた。\n\n大地は「またな」と言って、逆方向に歩いていった。\n\nおれは東の空を見た。\nオレンジでも赤でもない、灰色の時間。\n\n——東京に来て、こんな時間を過ごすとは思わなかった。\nでも、悪くなかった。",
+    choices: [
+      {
+        id: "c1",
+        text: "家に帰る",
+        effect: { loneliness: -10, honesty: 3, empathy: 2 },
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  scene_daichi_quiet_drink: {
+    id: "scene_daichi_quiet_drink",
+    type: "novel",
+    characterId: "daichi",
+    timeOfDay: "night",
+    day: 14,
+    text: "二人で、静かに飲んだ。\n\n特に何も話さなかった。\nそれでよかった。\n\n深夜1時に店を出た。\n大地は「またな」と言って、あっさり帰った。\n\n——そのあっさりさが、なんか好きだった。",
+    choices: [
+      {
+        id: "c1",
+        text: "家に帰る",
+        effect: { loneliness: -5, empathy: 1 },
+        characterEffect: { characterId: "daichi", distance: -5 },
+        next: "scene_ending_calc",
+      },
+    ],
+  },
+
+  // ============================================================
   // SOLO PATH — ALONE NIGHT
   // ============================================================
   scene_solo_night: {
@@ -755,6 +1240,13 @@ export const SCENES: Record<string, Scene> = {
         text: "もう少し座っていた",
         effect: { loneliness: 3, empathy: 3, honesty: 3 },
         next: "scene_ending_calc",
+      },
+      {
+        id: "c2",
+        text: "あのバーに行く",
+        subtext: "— 大地がいるかもしれない",
+        effect: { loneliness: -2 },
+        next: "scene_daichi_solo_night",
       },
     ],
   },

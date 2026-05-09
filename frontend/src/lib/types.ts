@@ -7,7 +7,7 @@ export interface GameParams {
 
 export type TimeOfDay = "morning" | "noon" | "evening" | "night";
 export type SceneType = "novel" | "message" | "monologue";
-export type CharacterId = "aoi" | "mio" | "kenji" | "narrator";
+export type CharacterId = "aoi" | "mio" | "kenji" | "narrator" | "rin" | "daichi" | "saki";
 
 export interface CharacterInfo {
   id: CharacterId;
@@ -136,5 +136,32 @@ export const CHARACTERS: Record<CharacterId, CharacterInfo> = {
     accentColor: "#9ca3af",
     avatar: "",
     description: "",
+  },
+  rin: {
+    id: "rin",
+    name: "橘 凛",
+    color: "bg-violet-900",
+    textColor: "text-violet-200",
+    accentColor: "#7c3aed",
+    avatar: "凛",
+    description: "31歳。デザイン部所属の先輩。鋭く、繊細。",
+  },
+  daichi: {
+    id: "daichi",
+    name: "松本 大地",
+    color: "bg-teal-900",
+    textColor: "text-teal-200",
+    accentColor: "#0d9488",
+    avatar: "大",
+    description: "26歳。近所のバーの常連。東北出身、上京3年目。",
+  },
+  saki: {
+    id: "saki",
+    name: "安藤 沙希",
+    color: "bg-orange-900",
+    textColor: "text-orange-200",
+    accentColor: "#ea580c",
+    avatar: "沙",
+    description: "24歳。同期入社。明るく積極的だが、繊細な一面も。",
   },
 };
