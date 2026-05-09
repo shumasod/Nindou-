@@ -9,7 +9,7 @@ const PORT = 3001;
 
 // Middleware
 app.use(cors({ origin: "http://localhost:3000" }));
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
 
 // Database setup
 const DB_DIR = path.join(__dirname, "../../.db");
@@ -26,11 +26,21 @@ db.exec(`
   );
 `);
 
+// ===== Helpers =====
+function parseSlot(raw: string | undefined): number | null {
+  const n = parseInt(raw ?? "", 10);
+  if (isNaN(n) || n < 1 || n > 9) return null;
+  return n;
+}
+
 // Routes
 
 // GET /saves/:slot - Load save
 app.get("/saves/:slot", (req, res) => {
-  const slot = parseInt(req.params.slot ?? "1", 10);
+  const slot = parseSlot(req.params.slot);
+  if (slot === null) {
+    return res.status(400).json({ error: "スロット番号は1〜9の整数で指定してください" });
+  }
   const row = db
     .prepare("SELECT data FROM saves WHERE slot = ? ORDER BY saved_at DESC LIMIT 1")
     .get(slot) as { data: string } | undefined;
@@ -48,10 +58,13 @@ app.get("/saves/:slot", (req, res) => {
 
 // POST /saves/:slot - Save game
 app.post("/saves/:slot", (req, res) => {
-  const slot = parseInt(req.params.slot ?? "1", 10);
+  const slot = parseSlot(req.params.slot);
+  if (slot === null) {
+    return res.status(400).json({ error: "スロット番号は1〜9の整数で指定してください" });
+  }
   const data = req.body;
 
-  if (!data || !data.currentSceneId) {
+  if (!data || typeof data.currentSceneId !== "string" || data.currentSceneId.length === 0) {
     return res.status(400).json({ error: "不正なデータ形式" });
   }
 
@@ -89,7 +102,10 @@ app.get("/saves", (_req, res) => {
 
 // DELETE /saves/:slot - Delete save
 app.delete("/saves/:slot", (req, res) => {
-  const slot = parseInt(req.params.slot ?? "1", 10);
+  const slot = parseSlot(req.params.slot);
+  if (slot === null) {
+    return res.status(400).json({ error: "スロット番号は1〜9の整数で指定してください" });
+  }
   db.prepare("DELETE FROM saves WHERE slot = ?").run(slot);
   return res.json({ ok: true });
 });
