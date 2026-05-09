@@ -2,12 +2,17 @@
   "name": "nindou",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "server"
+  ],
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "dev:server": "cd server && npm run dev",
-    "install:all": "npm install --prefix frontend && npm install --prefix server",
-    "build": "npm run build --prefix frontend",
-    "start": "npm start --prefix frontend"
+    "dev": "npm run dev --workspace=frontend",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "build": "npm run build --workspace=frontend",
+    "start": "npm start --workspace=frontend",
+    "test": "npm test --workspace=frontend"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
