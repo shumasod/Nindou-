@@ -95,8 +95,14 @@ export const ENDINGS: Record<string, Ending> = {
 
 export function calculateEnding(state: GameState): string {
   const { empathy, ambition, loneliness, honesty } = state.params;
-  const { aoi, mio } = state.characterDistances;
+  const { aoi, mio, rin = 100, daichi = 100, saki = 100 } = state.characterDistances;
   const scenesVisited = state.visitedScenes.length;
+
+  // 新キャラクター深絆チェック (距離30以下 = 親密)
+  const closestNew = Math.min(rin, daichi, saki);
+  const closedToRin    = rin    <= 35;
+  const closedToDaichi = daichi <= 40;
+  const closedToSaki   = saki   <= 40;
 
   // 愛したが壊れたエンド: high loneliness AND tried to connect but failed
   if (loneliness >= 55 && scenesVisited >= 8) {
@@ -108,9 +114,24 @@ export function calculateEnding(state: GameState): string {
     return "ending_city";
   }
 
-  // 地元に戻るエンド
+  // 地元に戻るエンド: 誠実さ高 & saki との絆も考慮
   if (honesty >= 65 && ambition <= 40) {
     return "ending_hometown";
+  }
+
+  // 凛エンド: 深く繋がり、成長した
+  if (closedToRin && empathy >= 55 && loneliness < 45) {
+    return "ending_growth";
+  }
+
+  // 大地エンド: 地に足のついた視点を得た
+  if (closedToDaichi && honesty >= 55 && ambition >= 45) {
+    return "ending_growth";
+  }
+
+  // 沙希エンド: 誠実さと共感で繋がった
+  if (closedToSaki && honesty >= 55 && empathy >= 45) {
+    return "ending_growth";
   }
 
   // 誰とも結ばれないが成長したエンド: visited many scenes, balanced params

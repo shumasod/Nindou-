@@ -28,9 +28,12 @@ const INITIAL_PARAMS: GameParams = {
 };
 
 const INITIAL_DISTANCES: CharacterDistance = {
-  aoi: 70,   // stranger-ish
-  mio: 45,   // close (childhood friend)
-  kenji: 80, // stranger
+  aoi: 70,    // stranger-ish
+  mio: 45,    // close (childhood friend)
+  kenji: 80,  // stranger
+  rin: 95,    // barely aware of each other
+  daichi: 100, // complete stranger
+  saki: 90,   // same cohort but not yet met
 };
 
 const INITIAL_STATE: GameState = {
