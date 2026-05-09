@@ -25,16 +25,15 @@ export default function ChoicePanel({ choices, visible }: Props) {
       if (chosen) return;
       setChosen(choice.id);
 
+      const unsentRecipient =
+        choice.characterEffect?.characterId ?? choice.unsentTo;
       const unsentPayload =
-        choice.unsentMessage && choice.characterEffect
+        choice.unsentMessage && unsentRecipient
           ? {
-              to: choice.characterEffect.characterId,
-              toName:
-                CHARACTERS[choice.characterEffect.characterId]?.name ?? "",
+              to: unsentRecipient,
+              toName: CHARACTERS[unsentRecipient]?.name ?? "",
               text: choice.unsentMessage,
             }
-          : choice.unsentMessage
-          ? undefined
           : undefined;
 
       // slight delay for visual feedback

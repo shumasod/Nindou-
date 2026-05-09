@@ -37,6 +37,7 @@ export interface Choice {
   };
   next: string;
   unsentMessage?: string;     // message logged but not sent
+  unsentTo?: CharacterId;     // recipient when no characterEffect is present
   timed?: boolean;            // if true, shows countdown
   timerSeconds?: number;
   onTimerExpire?: string;     // scene id if timer expires
