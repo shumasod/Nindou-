@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---- Frontend ----
+  frontend:
+    name: Frontend (lint + test + build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm exec --workspace=frontend -- tsc --noEmit
+
+      - name: Test
+        run: npm test --workspace=frontend -- --ci --coverage
+
+      - name: Build
+        run: npm run build --workspace=frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  # ---- Server ----
+  server:
+    name: Server (type-check + test + build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci && npm install --workspace=server --legacy-peer-deps
+
+      - name: Type-check
+        run: npm exec --workspace=server -- tsc --noEmit
+
+      - name: Test
+        run: node node_modules/.bin/jest --config server/jest.config.ts --forceExit --ci
+        env:
+          DB_DIR: /tmp/nindou-ci-db
+          REDIS_URL: redis://localhost:6379
+          ALLOWED_ORIGIN: http://localhost:3000
+
+      - name: Build
+        run: npm run build --workspace=server
+
+  # ---- Docker build check ----
+  docker:
+    name: Docker build (dry-run)
+    runs-on: ubuntu-latest
+    needs: [frontend, server]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: nindou/frontend:ci
+
+      - name: Build server image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: false
+          tags: nindou/server:ci
+
+      - name: Build nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./infra/nginx
+          file: ./infra/nginx/Dockerfile
+          push: false
+          tags: nindou/nginx:ci
