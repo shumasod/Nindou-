@@ -31,7 +31,7 @@ export const S = {
     padding: "10px 12px",
   } as CSSProperties,
 
-  btn: (color = C.accent1): CSSProperties => ({
+  btn: (color: string = C.accent1): CSSProperties => ({
     background: "transparent",
     border: `1px solid ${color}`,
     color: color,
