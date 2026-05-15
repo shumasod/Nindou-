@@ -272,7 +272,7 @@ describe("レベルアップ", () => {
         enemy: {
           id: "demon_lord", name: "魔忍王", icon: "👹",
           hp: 1, maxHp: 500, attack: 45, defense: 30, speed: 25,
-          exp: 1000, gold: 500, ai: "boss",
+          exp: 1000, gold: 500, ai: "boss", skills: [],
           drops: [{ id: "heal_scroll_large", rate: 1.0 }],
         },
         questId: "q005",
