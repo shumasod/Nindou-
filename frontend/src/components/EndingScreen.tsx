@@ -14,7 +14,7 @@ export default function EndingScreen() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-start px-6 py-12 animate-fade-in overflow-y-auto"
-      style={{ backgroundColor: ending.bgColor }}
+      style={{ background: ending.bgColor }}
     >
       <div className="w-full max-w-sm">
         {/* Ending badge */}
