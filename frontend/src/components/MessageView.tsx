@@ -15,21 +15,15 @@ interface MessageBubble {
 }
 
 function parseMessages(scene: Scene): MessageBubble[] {
-  const lines = scene.text.split("\n").filter((l) => l.trim());
+  const paragraphs = scene.text.split(/\n\n+/).filter((p) => p.trim());
   const bubbles: MessageBubble[] = [];
 
-  for (const line of lines) {
-    if (line.startsWith("\u300C") || line.startsWith("\u201C")) {
-      bubbles.push({ text: line, sender: "other" });
-    } else if (line.startsWith("——") || line.startsWith("—")) {
-      bubbles.push({ text: line, sender: "self" });
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (trimmed.startsWith("\u300C") || trimmed.startsWith("\u201C")) {
+      bubbles.push({ text: trimmed, sender: "other" });
     } else {
-      // Narrative lines shown as system messages
-      if (bubbles.length > 0 && bubbles[bubbles.length - 1].sender === "self") {
-        bubbles[bubbles.length - 1].text += "\n" + line;
-      } else {
-        bubbles.push({ text: line, sender: "self" });
-      }
+      bubbles.push({ text: trimmed, sender: "self" });
     }
   }
 
