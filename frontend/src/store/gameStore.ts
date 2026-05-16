@@ -28,12 +28,9 @@ const INITIAL_PARAMS: GameParams = {
 };
 
 const INITIAL_DISTANCES: CharacterDistance = {
-  aoi: 70,    // stranger-ish
-  mio: 45,    // close (childhood friend)
-  kenji: 80,  // stranger
-  rin: 95,    // barely aware of each other
-  daichi: 100, // complete stranger
-  saki: 90,   // same cohort but not yet met
+  aoi: 70,    // 都市に染まった女性。まだ遠い
+  mio: 45,    // 幼馴染。最初から近い
+  kenji: 80,  // 先輩同僚。ドライで距離がある
 };
 
 const INITIAL_STATE: GameState = {
@@ -98,9 +95,10 @@ export const useGameStore = create<GameStore>()(
 
         if (characterEffect) {
           const { characterId, distance } = characterEffect;
-          newDistances[characterId] = clamp(
-            newDistances[characterId] + distance
-          );
+          if (characterId !== "narrator" && characterId in newDistances) {
+            const key = characterId as keyof typeof newDistances;
+            newDistances[key] = clamp(newDistances[key] + distance);
+          }
         }
 
         const newUnsentMessages = [...state.unsentMessages];

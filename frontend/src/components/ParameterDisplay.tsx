@@ -90,7 +90,7 @@ export default function ParameterDisplay({
           {/* Character distances */}
           <div className="mt-4 space-y-1.5">
             <p className="text-xs text-gray-700 mb-2">— 心の距離 —</p>
-            {(["aoi", "mio", "kenji", "rin", "daichi", "saki"] as const).map((id) => {
+            {(["aoi", "mio", "kenji"] as const).map((id) => {
               const char = CHARACTERS[id];
               const dist = distances[id] ?? 100;
               const closeness = 100 - dist;
