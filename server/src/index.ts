@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import Database from "better-sqlite3";
 import Redis from "ioredis";
 import path from "path";
@@ -15,8 +16,33 @@ const SAVE_SLOT_MIN = 1;
 const SAVE_SLOT_MAX = 9;
 
 // ===== Middleware =====
-app.use(cors({ origin: ALLOWED_ORIGIN }));
+app.use(cors({
+  origin: ALLOWED_ORIGIN,
+  methods: ["GET", "POST", "DELETE"],
+  allowedHeaders: ["Content-Type"],
+  credentials: false,
+  maxAge: 86400,
+}));
 app.use(express.json({ limit: "100kb" }));
+
+// General API rate limit: 120 req/min per IP
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
+
+// Stricter limit for save writes: 20 req/min per IP
+const saveLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Disable X-Powered-By header
+app.disable("x-powered-by");
 
 // ===== Database =====
 fs.mkdirSync(DB_DIR, { recursive: true });
@@ -59,9 +85,11 @@ function parseSlot(raw: string | undefined): number | null {
 async function getFromCache(slot: number): Promise<object | null> {
   try {
     const cached = await redis.get(cacheKey(slot));
-    if (cached) return JSON.parse(cached);
+    if (!cached) return null;
+    return JSON.parse(cached);
   } catch {
-    // Redis miss or error — fall through to SQLite
+    // Invalidate potentially poisoned cache entry, fall through to SQLite
+    await invalidateCache(slot);
   }
   return null;
 }
@@ -110,7 +138,7 @@ app.get("/saves/:slot", async (req, res) => {
 });
 
 // POST /saves/:slot — Save game (write-through cache)
-app.post("/saves/:slot", async (req, res) => {
+app.post("/saves/:slot", saveLimiter, async (req, res) => {
   const slot = parseSlot(req.params.slot);
   if (slot === null) {
     return res.status(400).json({ error: "スロット番号は1〜9の整数で指定してください" });
@@ -196,7 +224,8 @@ app.get("/health", async (_req, res) => {
 async function start(): Promise<void> {
   try {
     await redis.connect();
-    console.log("[Redis] connected to", REDIS_URL);
+    const redisHost = new URL(REDIS_URL).hostname;
+    console.log("[Redis] connected to", redisHost);
   } catch {
     console.warn("[Redis] unavailable — running without cache");
   }

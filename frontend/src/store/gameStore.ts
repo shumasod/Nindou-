@@ -11,12 +11,29 @@ import type {
 import { getScene, FIRST_SCENE_ID, SCENES } from "@/lib/scenarios";
 import { calculateEnding } from "@/lib/endings";
 
+function isValidParam(v: unknown): boolean {
+  return typeof v === "number" && v >= 0 && v <= 100;
+}
+
 function isValidLoadedState(data: unknown): data is Partial<GameState> {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
   if (typeof d.currentSceneId !== "string") return false;
   if (!(d.currentSceneId in SCENES) && d.currentSceneId !== "__ending__") return false;
-  if (d.day !== undefined && (typeof d.day !== "number" || d.day < 1)) return false;
+  if (d.day !== undefined && (typeof d.day !== "number" || d.day < 1 || d.day > 365)) return false;
+  if (d.params !== undefined) {
+    const p = d.params as Record<string, unknown>;
+    if (!isValidParam(p.empathy) || !isValidParam(p.ambition) ||
+        !isValidParam(p.loneliness) || !isValidParam(p.honesty)) return false;
+  }
+  if (d.characterDistances !== undefined) {
+    const cd = d.characterDistances as Record<string, unknown>;
+    for (const key of ["aoi", "mio", "kenji"]) {
+      if (cd[key] !== undefined && !isValidParam(cd[key])) return false;
+    }
+  }
+  if (d.unsentMessages !== undefined && !Array.isArray(d.unsentMessages)) return false;
+  if (d.visitedScenes !== undefined && !Array.isArray(d.visitedScenes)) return false;
   return true;
 }
 
