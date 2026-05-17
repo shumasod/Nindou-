@@ -9,7 +9,9 @@ export async function GET() {
   try {
     // Docker: proxy to Express server
     if (SERVER_URL) {
-      const upstream = await fetch(`${SERVER_URL}/saves/1`);
+      const upstream = await fetch(`${SERVER_URL}/saves/1`, {
+        signal: AbortSignal.timeout(5000),
+      });
       if (!upstream.ok) return NextResponse.json(null, { status: upstream.status });
       const data = await upstream.json();
       return NextResponse.json(data);
@@ -22,7 +24,7 @@ export async function GET() {
     const raw = readFileSync(SAVE_FILE, "utf-8");
     const data = JSON.parse(raw);
     return NextResponse.json(data);
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "読み込みに失敗しました" }, { status: 500 });
   }
 }
