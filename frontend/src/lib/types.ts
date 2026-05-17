@@ -7,7 +7,9 @@ export interface GameParams {
 
 export type TimeOfDay = "morning" | "noon" | "evening" | "night";
 export type SceneType = "novel" | "message" | "monologue";
-export type CharacterId = "aoi" | "mio" | "kenji" | "narrator" | "rin" | "daichi" | "saki";
+
+// 設計書に定義された3キャラクター + narrator
+export type CharacterId = "aoi" | "mio" | "kenji" | "narrator";
 
 export interface CharacterInfo {
   id: CharacterId;
@@ -15,7 +17,7 @@ export interface CharacterInfo {
   color: string;        // tailwind bg color class
   textColor: string;    // tailwind text color class
   accentColor: string;  // hex for dynamic styles
-  avatar: string;       // emoji or initial
+  avatar: string;       // initial character
   description: string;
 }
 
@@ -29,19 +31,19 @@ export interface ParamEffect {
 export interface Choice {
   id: string;
   text: string;
-  subtext?: string;           // small descriptive text
+  subtext?: string;
   effect: ParamEffect;
   characterEffect?: {
     characterId: CharacterId;
-    distance: number;         // negative = closer
+    distance: number;   // negative = closer, positive = farther
   };
   next: string;
-  unsentMessage?: string;     // message logged but not sent
-  unsentTo?: CharacterId;     // recipient when no characterEffect is present
-  timed?: boolean;            // if true, shows countdown
+  unsentMessage?: string;  // message written but not sent
+  unsentTo?: CharacterId;  // recipient when no characterEffect
+  timed?: boolean;
   timerSeconds?: number;
-  onTimerExpire?: string;     // scene id if timer expires
-  condition?: {               // only show if condition met
+  onTimerExpire?: string;  // scene id on timeout
+  condition?: {            // show only if condition met
     param: keyof GameParams;
     min?: number;
     max?: number;
@@ -53,19 +55,18 @@ export interface Scene {
   type: SceneType;
   characterId?: CharacterId;
   text: string;
-  subtext?: string;           // additional narrative text
+  subtext?: string;
   timeOfDay: TimeOfDay;
   day: number;
   choices: Choice[];
-  autoNext?: string;          // auto-advance to this scene (no choices)
-  autoNextDelay?: number;     // ms to wait before auto-advance
+  autoNext?: string;
+  autoNextDelay?: number;
 }
 
 export interface CharacterDistance {
   aoi: number;    // 0=intimate, 100=stranger
   mio: number;
   kenji: number;
-  [key: string]: number;
 }
 
 export interface UnsentMessage {
@@ -87,7 +88,6 @@ export interface GameState {
   gameStarted: boolean;
   gameOver: boolean;
   endingId?: string;
-  lastChoice?: string;
 }
 
 export interface Ending {
@@ -108,7 +108,7 @@ export const CHARACTERS: Record<CharacterId, CharacterInfo> = {
     textColor: "text-cyan-200",
     accentColor: "#0e7490",
     avatar: "葵",
-    description: "27歳。広告会社勤務。都会的でクール。",
+    description: "27歳。広告会社勤務。都市に染まった女性。深く関わるとプレイヤーの価値観を揺さぶる。",
   },
   mio: {
     id: "mio",
@@ -117,7 +117,7 @@ export const CHARACTERS: Record<CharacterId, CharacterInfo> = {
     textColor: "text-rose-200",
     accentColor: "#e11d48",
     avatar: "美",
-    description: "24歳。地元で働く幼馴染。",
+    description: "24歳。地元で働く幼馴染。安定志向。プレイヤーの「原点」を象徴する。",
   },
   kenji: {
     id: "kenji",
@@ -126,7 +126,7 @@ export const CHARACTERS: Record<CharacterId, CharacterInfo> = {
     textColor: "text-slate-200",
     accentColor: "#475569",
     avatar: "健",
-    description: "30歳。先輩同僚。現実的でドライ。",
+    description: "30歳。先輩同僚。ドライで現実的。プレイヤーの成長を促す。",
   },
   narrator: {
     id: "narrator",
@@ -136,32 +136,5 @@ export const CHARACTERS: Record<CharacterId, CharacterInfo> = {
     accentColor: "#9ca3af",
     avatar: "",
     description: "",
-  },
-  rin: {
-    id: "rin",
-    name: "橘 凛",
-    color: "bg-violet-900",
-    textColor: "text-violet-200",
-    accentColor: "#7c3aed",
-    avatar: "凛",
-    description: "31歳。デザイン部所属の先輩。鋭く、繊細。",
-  },
-  daichi: {
-    id: "daichi",
-    name: "松本 大地",
-    color: "bg-teal-900",
-    textColor: "text-teal-200",
-    accentColor: "#0d9488",
-    avatar: "大",
-    description: "26歳。近所のバーの常連。東北出身、上京3年目。",
-  },
-  saki: {
-    id: "saki",
-    name: "安藤 沙希",
-    color: "bg-orange-900",
-    textColor: "text-orange-200",
-    accentColor: "#ea580c",
-    avatar: "沙",
-    description: "24歳。同期入社。明るく積極的だが、繊細な一面も。",
   },
 };

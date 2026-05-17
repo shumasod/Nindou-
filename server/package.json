@@ -12,6 +12,7 @@
     "better-sqlite3": "^11.1.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
     "ioredis": "^5.4.1"
   },
   "devDependencies": {

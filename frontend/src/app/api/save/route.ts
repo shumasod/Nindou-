@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(5000),
       });
       const data = await upstream.json();
       return NextResponse.json(data, { status: upstream.status });
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     mkdirSync(SAVE_DIR, { recursive: true });
     writeFileSync(SAVE_FILE, JSON.stringify({ ...body, savedAt: Date.now() }, null, 2));
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ ok: false, error: "保存に失敗しました" }, { status: 500 });
   }
 }

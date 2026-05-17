@@ -11,12 +11,29 @@ import type {
 import { getScene, FIRST_SCENE_ID, SCENES } from "@/lib/scenarios";
 import { calculateEnding } from "@/lib/endings";
 
+function isValidParam(v: unknown): boolean {
+  return typeof v === "number" && v >= 0 && v <= 100;
+}
+
 function isValidLoadedState(data: unknown): data is Partial<GameState> {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
   if (typeof d.currentSceneId !== "string") return false;
   if (!(d.currentSceneId in SCENES) && d.currentSceneId !== "__ending__") return false;
-  if (d.day !== undefined && (typeof d.day !== "number" || d.day < 1)) return false;
+  if (d.day !== undefined && (typeof d.day !== "number" || d.day < 1 || d.day > 365)) return false;
+  if (d.params !== undefined) {
+    const p = d.params as Record<string, unknown>;
+    if (!isValidParam(p.empathy) || !isValidParam(p.ambition) ||
+        !isValidParam(p.loneliness) || !isValidParam(p.honesty)) return false;
+  }
+  if (d.characterDistances !== undefined) {
+    const cd = d.characterDistances as Record<string, unknown>;
+    for (const key of ["aoi", "mio", "kenji"]) {
+      if (cd[key] !== undefined && !isValidParam(cd[key])) return false;
+    }
+  }
+  if (d.unsentMessages !== undefined && !Array.isArray(d.unsentMessages)) return false;
+  if (d.visitedScenes !== undefined && !Array.isArray(d.visitedScenes)) return false;
   return true;
 }
 
@@ -28,12 +45,9 @@ const INITIAL_PARAMS: GameParams = {
 };
 
 const INITIAL_DISTANCES: CharacterDistance = {
-  aoi: 70,    // stranger-ish
-  mio: 45,    // close (childhood friend)
-  kenji: 80,  // stranger
-  rin: 95,    // barely aware of each other
-  daichi: 100, // complete stranger
-  saki: 90,   // same cohort but not yet met
+  aoi: 70,    // 都市に染まった女性。まだ遠い
+  mio: 45,    // 幼馴染。最初から近い
+  kenji: 80,  // 先輩同僚。ドライで距離がある
 };
 
 const INITIAL_STATE: GameState = {
@@ -98,9 +112,10 @@ export const useGameStore = create<GameStore>()(
 
         if (characterEffect) {
           const { characterId, distance } = characterEffect;
-          newDistances[characterId] = clamp(
-            newDistances[characterId] + distance
-          );
+          if (characterId !== "narrator" && characterId in newDistances) {
+            const key = characterId as keyof typeof newDistances;
+            newDistances[key] = clamp(newDistances[key] + distance);
+          }
         }
 
         const newUnsentMessages = [...state.unsentMessages];

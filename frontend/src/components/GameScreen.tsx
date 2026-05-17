@@ -21,6 +21,14 @@ export default function GameScreen() {
   } = useGameStore();
 
   const [choicesVisible, setChoicesVisible] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  const handleSave = useCallback(async () => {
+    setSaveStatus("saving");
+    await saveGame();
+    setSaveStatus("saved");
+    setTimeout(() => setSaveStatus("idle"), 1500);
+  }, [saveGame]);
 
   const scene = getScene(currentSceneId);
 
@@ -81,10 +89,14 @@ export default function GameScreen() {
 
         {/* Save button */}
         <button
-          onClick={saveGame}
-          className="absolute top-2 right-2 text-xs text-gray-700 hover:text-gray-400 transition-colors px-2 py-1 z-10"
+          onClick={handleSave}
+          disabled={saveStatus === "saving"}
+          className="absolute top-2 right-2 text-xs transition-colors px-2 py-1 z-10 disabled:opacity-40"
+          style={{
+            color: saveStatus === "saved" ? "#34d399" : "#374151",
+          }}
         >
-          保存
+          {saveStatus === "saving" ? "保存中..." : saveStatus === "saved" ? "✓ 保存済" : "保存"}
         </button>
       </div>
     </div>

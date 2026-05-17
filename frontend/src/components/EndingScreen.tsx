@@ -2,11 +2,12 @@
 
 import { useGameStore } from "@/store/gameStore";
 import { ENDINGS } from "@/lib/endings";
+import { CHARACTERS } from "@/lib/types";
 import UnsentLog from "./UnsentLog";
 import { useState } from "react";
 
 export default function EndingScreen() {
-  const { endingId, unsentMessages, resetGame, params } = useGameStore();
+  const { endingId, unsentMessages, resetGame, params, characterDistances } = useGameStore();
   const [showUnsent, setShowUnsent] = useState(false);
 
   const ending = endingId ? ENDINGS[endingId] : ENDINGS["ending_stagnant"];
@@ -14,7 +15,7 @@ export default function EndingScreen() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-start px-6 py-12 animate-fade-in overflow-y-auto"
-      style={{ backgroundColor: ending.bgColor }}
+      style={{ background: ending.bgColor }}
     >
       <div className="w-full max-w-sm">
         {/* Ending badge */}
@@ -83,6 +84,35 @@ export default function EndingScreen() {
             <div className="text-lg font-thin">{params.honesty}</div>
             <div className="tracking-widest">誠実さ</div>
           </div>
+        </div>
+
+        {/* Character relationships */}
+        <div className="mb-10 space-y-2">
+          <p className="text-xs tracking-widest text-center mb-4 opacity-30" style={{ color: ending.textColor }}>
+            — 心の距離 —
+          </p>
+          {(["aoi", "mio", "kenji"] as const).map((id) => {
+            const char = CHARACTERS[id];
+            const dist = characterDistances[id] ?? 100;
+            const closeness = 100 - dist;
+            const label = dist <= 25 ? "深く繋がった" : dist <= 50 ? "距離が縮んだ" : dist <= 75 ? "ほどほどの距離" : "遠いままだった";
+            return (
+              <div key={id} className="flex items-center gap-3">
+                <span className="text-xs w-14 text-right opacity-50" style={{ color: char.accentColor }}>
+                  {char.name.split(" ")[1]}
+                </span>
+                <div className="flex-1 h-0.5 rounded-full overflow-hidden" style={{ backgroundColor: `${ending.textColor}22` }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-1000"
+                    style={{ width: `${closeness}%`, backgroundColor: char.accentColor, opacity: 0.6 }}
+                  />
+                </div>
+                <span className="text-xs opacity-30 text-right" style={{ color: ending.textColor, minWidth: "72px" }}>
+                  {label}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Unsent messages toggle */}
