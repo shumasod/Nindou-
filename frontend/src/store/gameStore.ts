@@ -11,29 +11,71 @@ import type {
 import { getScene, FIRST_SCENE_ID, SCENES } from "@/lib/scenarios";
 import { calculateEnding } from "@/lib/endings";
 
+const VALID_TIME_OF_DAY = new Set(["morning", "noon", "evening", "night"]);
+const VALID_CHAR_IDS = new Set(["aoi", "mio", "kenji"]);
+
 function isValidParam(v: unknown): boolean {
-  return typeof v === "number" && v >= 0 && v <= 100;
+  return typeof v === "number" && isFinite(v) && v >= 0 && v <= 100;
+}
+
+function isValidUnsentMessage(m: unknown): boolean {
+  if (!m || typeof m !== "object") return false;
+  const o = m as Record<string, unknown>;
+  return (
+    typeof o.to === "string" &&
+    typeof o.toName === "string" &&
+    typeof o.text === "string" &&
+    o.text.length <= 2000 &&
+    typeof o.sceneId === "string" &&
+    typeof o.day === "number"
+  );
 }
 
 function isValidLoadedState(data: unknown): data is Partial<GameState> {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
+
+  // currentSceneId: must exist in SCENES or be the ending sentinel
   if (typeof d.currentSceneId !== "string") return false;
-  if (!(d.currentSceneId in SCENES) && d.currentSceneId !== "__ending__") return false;
-  if (d.day !== undefined && (typeof d.day !== "number" || d.day < 1 || d.day > 365)) return false;
+  const validScene =
+    Object.prototype.hasOwnProperty.call(SCENES, d.currentSceneId) ||
+    d.currentSceneId === "__ending__";
+  if (!validScene) return false;
+
+  // day: 1-20 (story has 20 days max)
+  if (d.day !== undefined && (typeof d.day !== "number" || !isFinite(d.day) || d.day < 1 || d.day > 20)) return false;
+
+  // timeOfDay: must be one of the valid values
+  if (d.timeOfDay !== undefined && !VALID_TIME_OF_DAY.has(d.timeOfDay as string)) return false;
+
+  // params: all four fields required and in 0-100 range
   if (d.params !== undefined) {
     const p = d.params as Record<string, unknown>;
     if (!isValidParam(p.empathy) || !isValidParam(p.ambition) ||
         !isValidParam(p.loneliness) || !isValidParam(p.honesty)) return false;
   }
+
+  // characterDistances: all three chars required if present
   if (d.characterDistances !== undefined) {
     const cd = d.characterDistances as Record<string, unknown>;
-    for (const key of ["aoi", "mio", "kenji"]) {
-      if (cd[key] !== undefined && !isValidParam(cd[key])) return false;
+    for (const key of ["aoi", "mio", "kenji"] as const) {
+      if (!isValidParam(cd[key])) return false;
     }
   }
-  if (d.unsentMessages !== undefined && !Array.isArray(d.unsentMessages)) return false;
-  if (d.visitedScenes !== undefined && !Array.isArray(d.visitedScenes)) return false;
+
+  // unsentMessages: array of valid message objects
+  if (d.unsentMessages !== undefined) {
+    if (!Array.isArray(d.unsentMessages)) return false;
+    if (d.unsentMessages.length > 100) return false;
+    if (!d.unsentMessages.every(isValidUnsentMessage)) return false;
+  }
+
+  // visitedScenes: array of strings
+  if (d.visitedScenes !== undefined) {
+    if (!Array.isArray(d.visitedScenes)) return false;
+    if (!d.visitedScenes.every((s) => typeof s === "string")) return false;
+  }
+
   return true;
 }
 
