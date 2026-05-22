@@ -44,6 +44,20 @@ const saveLimiter = rateLimit({
 // Disable X-Powered-By header
 app.disable("x-powered-by");
 
+// CSRF mitigation: reject cross-site state-changing requests that include a
+// Sec-Fetch-Site header (set by all modern browsers) with a non-same-origin value.
+// Old browsers that omit the header are allowed through (no downgrade).
+app.use((req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    return next();
+  }
+  const fetchSite = req.headers["sec-fetch-site"];
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "same-site" && fetchSite !== "none") {
+    return res.status(403).json({ error: "Cross-site request rejected" });
+  }
+  next();
+});
+
 // ===== Database =====
 fs.mkdirSync(DB_DIR, { recursive: true });
 const db = new Database(path.join(DB_DIR, "nindou.db"));
