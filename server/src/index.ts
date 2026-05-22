@@ -145,12 +145,18 @@ app.get("/saves/:slot", async (req, res) => {
 
   const row = db
     .prepare("SELECT data FROM saves WHERE slot = ? ORDER BY saved_at DESC LIMIT 1")
-    .get(slot) as { data: string } | undefined;
+    .get(slot);
 
-  if (!row) return res.status(404).json({ error: "セーブデータが見つかりません" });
+  if (!row || typeof row !== "object") {
+    return res.status(404).json({ error: "セーブデータが見つかりません" });
+  }
+  const rawData = (row as Record<string, unknown>).data;
+  if (typeof rawData !== "string") {
+    return res.status(500).json({ error: "セーブデータの読み込みに失敗しました" });
+  }
 
   try {
-    const parsed = JSON.parse(row.data);
+    const parsed = JSON.parse(rawData);
     await setCache(slot, parsed);
     return res.json(parsed);
   } catch {
