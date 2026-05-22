@@ -8,6 +8,13 @@ import fs from "fs";
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
+
+// In production, require explicit env vars; never fall back to insecure defaults.
+const IS_PROD = process.env.NODE_ENV === "production";
+if (IS_PROD && !process.env.ALLOWED_ORIGIN) {
+  console.error("FATAL: ALLOWED_ORIGIN env var is required in production");
+  process.exit(1);
+}
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const DB_DIR = process.env.DB_DIR ?? path.join(__dirname, "../../.db");
