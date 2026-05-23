@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Box } from "ink";
 import { MainMenu } from "./MainMenu.js";
+import { AddForm } from "./AddForm.js";
 
 // 全画面の列挙 — 各 Step で追加していく
 export type Screen = "menu" | "add" | "list" | "summary";
@@ -29,10 +30,15 @@ export function App({ initialCommand }: Props) {
         <MainMenu onNavigate={(s) => goTo(s)} />
       )}
 
-      {/* Step 5 以降で AddForm / TransactionList / Summary を接続 */}
       {screen === "add" && (
-        <MainMenu onNavigate={(s) => goTo(s)} />
+        <AddForm
+          {...(editId ? { editId } : {})}
+          onDone={() => goTo("menu")}
+          onCancel={() => goTo("menu")}
+        />
       )}
+
+      {/* Step 6-7 で接続 */}
       {screen === "list" && (
         <MainMenu onNavigate={(s) => goTo(s)} />
       )}
