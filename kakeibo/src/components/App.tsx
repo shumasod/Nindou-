@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { Box, Text } from "ink";
+import { Box } from "ink";
+import { MainMenu } from "./MainMenu.js";
+import { AddForm } from "./AddForm.js";
 
-// Screen names — expanded as features are added
+// 全画面の列挙 — 各 Step で追加していく
 export type Screen = "menu" | "add" | "list" | "summary";
 export type Command = "menu" | "add";
 
@@ -14,13 +16,35 @@ export function App({ initialCommand }: Props) {
     initialCommand === "add" ? "add" : "menu"
   );
 
-  // Placeholder — screens wired up in later PRs
+  // 編集対象トランザクション ID (一覧→編集フォームで使用)
+  const [editId, setEditId] = useState<string | undefined>(undefined);
+
+  const goTo = (next: Screen, id?: string) => {
+    setEditId(id);
+    setScreen(next);
+  };
+
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan">
-        💰 kakeibo — ターミナル家計簿
-      </Text>
-      <Text dimColor>screen: {screen} (coming soon)</Text>
+    <Box flexDirection="column" paddingLeft={1} paddingTop={1}>
+      {screen === "menu" && (
+        <MainMenu onNavigate={(s) => goTo(s)} />
+      )}
+
+      {screen === "add" && (
+        <AddForm
+          {...(editId ? { editId } : {})}
+          onDone={() => goTo("menu")}
+          onCancel={() => goTo("menu")}
+        />
+      )}
+
+      {/* Step 6-7 で接続 */}
+      {screen === "list" && (
+        <MainMenu onNavigate={(s) => goTo(s)} />
+      )}
+      {screen === "summary" && (
+        <MainMenu onNavigate={(s) => goTo(s)} />
+      )}
     </Box>
   );
 }
