@@ -10,7 +10,10 @@
     "dev": "tsx watch src/cli.tsx",
     "build": "tsup",
     "start": "node dist/cli.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "ink": "^4.4.1",
@@ -22,9 +25,11 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
-    "tsx": "^4.15.7",
+    "@vitest/coverage-v8": "^4.1.7",
     "tsup": "^8.1.0",
-    "typescript": "^5.5.3"
+    "tsx": "^4.15.7",
+    "typescript": "^5.5.3",
+    "vitest": "^4.1.7"
   },
   "engines": {
     "node": ">=18"

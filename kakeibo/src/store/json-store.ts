@@ -11,21 +11,29 @@ interface DbSchema {
   transactions: Transaction[];
 }
 
-function dbPath(): string {
+function defaultDbPath(): string {
   const dir = join(homedir(), ".kakeibo");
   mkdirSync(dir, { recursive: true });
   return join(dir, "data.json");
 }
 
-async function openDb(): Promise<Low<DbSchema>> {
-  const adapter = new JSONFile<DbSchema>(dbPath());
+async function openDb(filePath: string): Promise<Low<DbSchema>> {
+  const adapter = new JSONFile<DbSchema>(filePath);
   const db = new Low<DbSchema>(adapter, { transactions: [] });
   await db.read();
   return db;
 }
 
 export class JsonStore implements KakeiboStore {
-  private dbPromise: Promise<Low<DbSchema>> = openDb();
+  private dbPromise: Promise<Low<DbSchema>>;
+
+  /**
+   * @param filePath データファイルのパス。省略時は ~/.kakeibo/data.json
+   *                 テストでは一時ディレクトリのパスを渡すことで分離できる。
+   */
+  constructor(filePath?: string) {
+    this.dbPromise = openDb(filePath ?? defaultDbPath());
+  }
 
   private async db(): Promise<Low<DbSchema>> {
     return this.dbPromise;
