@@ -12,9 +12,9 @@ export function buildBar(
   width = 20
 ): string {
   if (maxValue <= 0) return "░".repeat(width);
-  const filled = Math.round((value / maxValue) * width);
+  const filled = Math.min(width, Math.max(0, Math.round((value / maxValue) * width)));
   const empty = width - filled;
-  return "█".repeat(Math.max(0, filled)) + "░".repeat(Math.max(0, empty));
+  return "█".repeat(filled) + "░".repeat(empty);
 }
 
 export interface BarEntry {
