@@ -3,6 +3,7 @@ import { Box } from "ink";
 import { MainMenu } from "./MainMenu.js";
 import { AddForm } from "./AddForm.js";
 import { TransactionList } from "./TransactionList.js";
+import { Summary } from "./Summary.js";
 
 // 全画面の列挙 — 各 Step で追加していく
 export type Screen = "menu" | "add" | "list" | "summary";
@@ -46,7 +47,7 @@ export function App({ initialCommand }: Props) {
         />
       )}
       {screen === "summary" && (
-        <MainMenu onNavigate={(s) => goTo(s)} />
+        <Summary onBack={() => goTo("menu")} />
       )}
     </Box>
   );

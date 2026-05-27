@@ -36,7 +36,13 @@ export function today(): string {
  * 'YYYY-MM-DD' のバリデーション
  */
 export function isValidDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !isNaN(Date.parse(value));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return false;
+  // UTC で解釈してから YYYY-MM-DD に戻し、入力と一致するか確認することで
+  // 「2025-02-29 → 2025-03-01 へ繰り上がった」ような無効日を弾く
+  const reparsed = d.toISOString().slice(0, 10);
+  return reparsed === value;
 }
 
 /**
