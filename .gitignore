@@ -1,3 +1,6 @@
+# Developed on separate feature branches
+kakeibo/
+
 node_modules/
 .next/
 .saves/
