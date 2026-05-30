@@ -1,0 +1,466 @@
+import * as THREE from "three";
+import { RING_BOUNDS } from "./Ring.js";
+
+export type WrestlerState =
+  | "idle"
+  | "walking"
+  | "sprinting"
+  | "striking"
+  | "grappling"     // grapple 中 (攻撃側)
+  | "grappled"      // grapple 中 (被攻撃側)
+  | "slamming"
+  | "being_slammed"
+  | "knockdown"
+  | "getting_up"
+  | "signature"
+  | "pinning"
+  | "being_pinned"
+  | "stunned";
+
+export interface WrestlerConfig {
+  name: string;
+  primaryColor: number;
+  secondaryColor: number;
+  skinColor: number;
+  startX: number;
+}
+
+const MOVE_SPEED   = 4.5;
+const SPRINT_MULT  = 1.8;
+const GRAPPLE_DIST = 1.6;
+const STRIKE_DIST  = 1.8;
+const MAT_Y        = 0.15;
+
+export class Wrestler {
+  root: THREE.Group;
+  name: string;
+
+  // Stats
+  hp      = 100;
+  stamina = 100;
+  momentum = 0;    // 0-100, シグネチャー解禁
+
+  state: WrestlerState = "idle";
+  facingAngle = 0;  // ラジアン、Y軸回転
+
+  // Grapple link
+  grappleTarget: Wrestler | null = null;
+
+  // Timers (秒)
+  stateTimer     = 0;
+  actionCooldown = 0;
+  knockdownTimer = 0;
+  pinCount       = 0;  // 現在のピンカウント (0-3)
+
+  private config: WrestlerConfig;
+
+  // Body part refs for animation
+  private torso!: THREE.Mesh;
+  private head!: THREE.Mesh;
+  private upperArmL!: THREE.Group;
+  private upperArmR!: THREE.Group;
+  private lowerArmL!: THREE.Mesh;
+  private lowerArmR!: THREE.Mesh;
+  private upperLegL!: THREE.Group;
+  private upperLegR!: THREE.Group;
+  private lowerLegL!: THREE.Mesh;
+  private lowerLegR!: THREE.Mesh;
+
+  // Flash effect
+  private flashTimer = 0;
+  private bodyMeshes: THREE.Mesh[] = [];
+
+  constructor(config: WrestlerConfig) {
+    this.config = config;
+    this.name = config.name;
+    this.root = new THREE.Group();
+    this.root.position.set(config.startX, MAT_Y, 0);
+    this.buildBody();
+    this.facingAngle = config.startX > 0 ? Math.PI : 0;
+    this.root.rotation.y = this.facingAngle;
+  }
+
+  private mat(color: number, roughness = 0.6): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.1 });
+  }
+
+  private buildBody(): void {
+    const { primaryColor, secondaryColor, skinColor } = this.config;
+    const skinMat   = this.mat(skinColor, 0.8);
+    const trunksMat = this.mat(primaryColor, 0.7);
+    const bootsMat  = this.mat(secondaryColor, 0.5);
+    const kneeMat   = this.mat(0xdddddd, 0.9);
+
+    // ─── Torso ───────────────────────────────────────────────────
+    const torsoGeo = new THREE.BoxGeometry(0.7, 0.85, 0.35);
+    this.torso = new THREE.Mesh(torsoGeo, this.mat(primaryColor));
+    this.torso.position.y = 1.15;
+    this.torso.castShadow = true;
+    this.root.add(this.torso);
+    this.bodyMeshes.push(this.torso);
+
+    // ─── Head ────────────────────────────────────────────────────
+    this.head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.44, 0.38), skinMat);
+    this.head.position.y = 1.82;
+    this.head.castShadow = true;
+    this.root.add(this.head);
+    this.bodyMeshes.push(this.head);
+
+    // Hair
+    const hairMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.43, 0.12, 0.39),
+      this.mat(0x2a1a0a)
+    );
+    hairMesh.position.y = 1.99;
+    this.root.add(hairMesh);
+
+    // ─── Arms ────────────────────────────────────────────────────
+    this.upperArmL = this.buildArm(-0.52, skinMat, kneeMat);
+    this.upperArmR = this.buildArm( 0.52, skinMat, kneeMat);
+    this.lowerArmL = this.upperArmL.children[1] as THREE.Mesh;
+    this.lowerArmR = this.upperArmR.children[1] as THREE.Mesh;
+
+    // ─── Legs ────────────────────────────────────────────────────
+    this.upperLegL = this.buildLeg(-0.2, trunksMat, skinMat, bootsMat, kneeMat);
+    this.upperLegR = this.buildLeg( 0.2, trunksMat, skinMat, bootsMat, kneeMat);
+    this.lowerLegL = this.upperLegL.children[1] as THREE.Mesh;
+    this.lowerLegR = this.upperLegR.children[1] as THREE.Mesh;
+  }
+
+  private buildArm(
+    xOff: number,
+    skinMat: THREE.Material,
+    kneeMat: THREE.Material
+  ): THREE.Group {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(xOff, 1.35, 0);
+    this.root.add(shoulder);
+
+    // Upper arm
+    const ua = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.22), skinMat);
+    ua.position.y = -0.19;
+    ua.castShadow = true;
+    shoulder.add(ua);
+    this.bodyMeshes.push(ua);
+
+    // Elbow joint group
+    const elbow = new THREE.Group();
+    elbow.position.y = -0.4;
+    shoulder.add(elbow);
+
+    // Lower arm
+    const la = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.36, 0.2), skinMat);
+    la.position.y = -0.18;
+    la.castShadow = true;
+    elbow.add(la);
+    this.bodyMeshes.push(la);
+
+    // Fist
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), skinMat);
+    fist.position.y = -0.38;
+    elbow.add(fist);
+    this.bodyMeshes.push(fist);
+
+    // shoulder.children[0]=upper arm, shoulder.children[1]=elbow group
+    return shoulder;
+  }
+
+  private buildLeg(
+    xOff: number,
+    trunksMat: THREE.Material,
+    skinMat: THREE.Material,
+    bootsMat: THREE.Material,
+    kneeMat: THREE.Material
+  ): THREE.Group {
+    const hip = new THREE.Group();
+    hip.position.set(xOff, 0.78, 0);
+    this.root.add(hip);
+
+    // Trunk shorts (upper leg)
+    const ul = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.42, 0.26), trunksMat);
+    ul.position.y = -0.21;
+    ul.castShadow = true;
+    hip.add(ul);
+    this.bodyMeshes.push(ul);
+
+    // Knee group
+    const knee = new THREE.Group();
+    knee.position.y = -0.44;
+    hip.add(knee);
+
+    // Lower leg
+    const ll = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.4, 0.23), skinMat);
+    ll.position.y = -0.2;
+    ll.castShadow = true;
+    knee.add(ll);
+    this.bodyMeshes.push(ll);
+
+    // Boot
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.28), bootsMat);
+    boot.position.set(0, -0.45, 0.02);
+    knee.add(boot);
+    this.bodyMeshes.push(boot);
+
+    return hip;
+  }
+
+  addToScene(scene: THREE.Scene): void {
+    scene.add(this.root);
+  }
+
+  get position(): THREE.Vector3 {
+    return this.root.position;
+  }
+
+  isActionReady(): boolean {
+    return this.actionCooldown <= 0 &&
+      this.state !== "knockdown" &&
+      this.state !== "getting_up" &&
+      this.state !== "being_slammed" &&
+      this.state !== "being_pinned";
+  }
+
+  isDown(): boolean {
+    return this.state === "knockdown" || this.state === "being_pinned";
+  }
+
+  takeDamage(amount: number): void {
+    this.hp = Math.max(0, this.hp - amount);
+    this.flashTimer = 0.15;
+    this.momentum = Math.min(100, this.momentum + amount * 0.3);
+  }
+
+  move(dx: number, dz: number, sprint: boolean, dt: number): void {
+    if (!this.isActionReady()) return;
+    const speed = (sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * dt;
+    const nx = this.root.position.x + dx * speed;
+    const nz = this.root.position.z + dz * speed;
+    this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, nx));
+    this.root.position.z = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, nz));
+
+    if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+      this.facingAngle = Math.atan2(dx, dz);
+      this.state = sprint ? "sprinting" : "walking";
+    } else {
+      if (this.state === "walking" || this.state === "sprinting") {
+        this.state = "idle";
+      }
+    }
+    this.stamina = Math.max(0, this.stamina - (sprint ? 8 : 2) * dt);
+  }
+
+  faceTarget(target: Wrestler): void {
+    const dx = target.position.x - this.position.x;
+    const dz = target.position.z - this.position.z;
+    this.facingAngle = Math.atan2(dx, dz);
+  }
+
+  distanceTo(other: Wrestler): number {
+    return this.position.distanceTo(other.position);
+  }
+
+  canStrike(target: Wrestler): boolean {
+    return this.isActionReady() && this.distanceTo(target) < STRIKE_DIST;
+  }
+
+  canGrapple(target: Wrestler): boolean {
+    return this.isActionReady() && this.distanceTo(target) < GRAPPLE_DIST &&
+      target.state !== "grappled";
+  }
+
+  startStrike(): void {
+    this.state = "striking";
+    this.stateTimer = 0.35;
+    this.actionCooldown = 0.5;
+    this.stamina = Math.max(0, this.stamina - 5);
+  }
+
+  startGrapple(target: Wrestler): void {
+    this.state = "grappling";
+    this.grappleTarget = target;
+    this.stateTimer = 0;
+    target.state = "grappled";
+    target.grappleTarget = this;
+    this.stamina = Math.max(0, this.stamina - 8);
+  }
+
+  startSlam(target: Wrestler): void {
+    this.state = "slamming";
+    this.stateTimer = 0.6;
+    this.actionCooldown = 0.8;
+    target.state = "being_slammed";
+    target.stateTimer = 1.2;
+    target.actionCooldown = 1.2;
+    target.grappleTarget = null;
+    this.grappleTarget = null;
+    this.stamina = Math.max(0, this.stamina - 15);
+  }
+
+  startSignature(target: Wrestler): void {
+    this.state = "signature";
+    this.stateTimer = 1.0;
+    this.actionCooldown = 1.2;
+    this.momentum = 0;
+    target.state = "being_slammed";
+    target.stateTimer = 2.0;
+    target.actionCooldown = 2.5;
+    this.stamina = Math.max(0, this.stamina - 20);
+  }
+
+  startKnockdown(): void {
+    this.state = "knockdown";
+    this.knockdownTimer = 3.5 - this.hp * 0.015; // HP が低いほど長く倒れる
+    this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
+    this.grappleTarget = null;
+  }
+
+  startPin(): void {
+    this.state = "pinning";
+    this.stateTimer = 2.5;
+    this.pinCount = 0;
+  }
+
+  update(dt: number): void {
+    // Cooldowns
+    this.actionCooldown = Math.max(0, this.actionCooldown - dt);
+    this.flashTimer     = Math.max(0, this.flashTimer - dt);
+
+    // Stamina recovery
+    if (this.state === "idle") {
+      this.stamina = Math.min(100, this.stamina + 12 * dt);
+    } else {
+      this.stamina = Math.min(100, this.stamina + 4 * dt);
+    }
+
+    // State timers
+    if (this.stateTimer > 0) {
+      this.stateTimer -= dt;
+      if (this.stateTimer <= 0) {
+        switch (this.state) {
+          case "striking":
+          case "slamming":
+          case "signature":
+            this.state = "idle";
+            break;
+          case "pinning":
+            this.state = "idle";
+            break;
+          case "stunned":
+            this.state = "idle";
+            break;
+        }
+      }
+    }
+
+    // Knockdown
+    if (this.state === "knockdown") {
+      this.knockdownTimer -= dt;
+      if (this.knockdownTimer <= 0) {
+        this.state = "getting_up";
+        this.stateTimer = 0.8;
+      }
+    }
+    if (this.state === "being_slammed") {
+      if (this.stateTimer <= 0) {
+        this.startKnockdown();
+      }
+    }
+    if (this.state === "getting_up" && this.stateTimer <= 0) {
+      this.state = "idle";
+    }
+
+    // Smooth facing
+    const targetAngle = this.facingAngle;
+    const current = this.root.rotation.y;
+    const diff = ((targetAngle - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    this.root.rotation.y += diff * Math.min(1, 12 * dt);
+
+    // Animate
+    this.animate(dt);
+    this.applyFlash();
+  }
+
+  private walkCycle = 0;
+  private strikeCycle = 0;
+
+  private animate(dt: number): void {
+    const state = this.state;
+
+    if (state === "idle") {
+      this.idleBreathing(dt);
+      return;
+    }
+
+    if (state === "walking" || state === "sprinting") {
+      const speed = state === "sprinting" ? 10 : 6;
+      this.walkCycle += dt * speed;
+      const s = Math.sin(this.walkCycle);
+      const c = Math.cos(this.walkCycle);
+      this.upperLegL.rotation.x = s * 0.5;
+      this.upperLegR.rotation.x = -s * 0.5;
+      this.upperArmL.rotation.x = -s * 0.4;
+      this.upperArmR.rotation.x = s * 0.4;
+      return;
+    }
+
+    if (state === "striking") {
+      this.strikeCycle += dt * 15;
+      const t = Math.min(1, this.strikeCycle / (Math.PI * 0.5));
+      this.upperArmR.rotation.x = -Math.sin(t * Math.PI) * 1.2;
+      if (this.strikeCycle > Math.PI) this.strikeCycle = 0;
+      return;
+    }
+
+    if (state === "knockdown" || state === "being_slammed") {
+      const progress = this.state === "being_slammed"
+        ? Math.min(1, 1 - this.stateTimer / 1.2)
+        : 1;
+      this.root.rotation.x = THREE.MathUtils.lerp(
+        this.root.rotation.x,
+        -Math.PI / 2 * progress,
+        0.15
+      );
+      this.root.position.y = THREE.MathUtils.lerp(
+        this.root.position.y,
+        MAT_Y + 0.05,
+        0.1
+      );
+      return;
+    }
+
+    if (state === "getting_up") {
+      this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.1);
+      this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
+      return;
+    }
+
+    // Default: stand upright
+    this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.15);
+    this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
+  }
+
+  private breathTimer = 0;
+  private idleBreathing(dt: number): void {
+    this.breathTimer += dt * 1.5;
+    const b = Math.sin(this.breathTimer) * 0.015;
+    this.torso.scale.y = 1 + b;
+
+    // Reset limbs
+    this.upperLegL.rotation.x = THREE.MathUtils.lerp(this.upperLegL.rotation.x, 0, 0.1);
+    this.upperLegR.rotation.x = THREE.MathUtils.lerp(this.upperLegR.rotation.x, 0, 0.1);
+    this.upperArmL.rotation.x = THREE.MathUtils.lerp(this.upperArmL.rotation.x, 0.2, 0.1);
+    this.upperArmR.rotation.x = THREE.MathUtils.lerp(this.upperArmR.rotation.x, 0.2, 0.1);
+    this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.1);
+    this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
+  }
+
+  private applyFlash(): void {
+    const emissive = this.flashTimer > 0 ? 0xff2222 : 0x000000;
+    const intensity = this.flashTimer > 0 ? 0.5 : 0;
+    this.bodyMeshes.forEach((m) => {
+      const mat = m.material as THREE.MeshStandardMaterial;
+      mat.emissive.setHex(emissive);
+      mat.emissiveIntensity = intensity;
+    });
+  }
+}
