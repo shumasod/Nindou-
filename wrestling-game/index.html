@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wrestling Game</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
+      #canvas-container { width: 100vw; height: 100vh; }
+      #canvas-container canvas { display: block; }
+
+      /* HUD overlay */
+      #hud {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      /* Health bars */
+      .fighter-hud {
+        position: absolute;
+        top: 20px;
+        width: 320px;
+      }
+      #player-hud  { left: 20px; }
+      #cpu-hud     { right: 20px; text-align: right; }
+
+      .fighter-name {
+        color: #fff;
+        font-size: 14px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px #000;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      .bar-wrap {
+        background: rgba(0,0,0,0.6);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 4px;
+        height: 14px;
+        overflow: hidden;
+        margin-bottom: 3px;
+      }
+      .hp-bar  { height: 100%; background: linear-gradient(90deg, #e74c3c, #e67e22); transition: width 0.15s; }
+      .sta-bar { height: 100%; background: linear-gradient(90deg, #2980b9, #27ae60); transition: width 0.15s; }
+      #cpu-hud .hp-bar,
+      #cpu-hud .sta-bar { margin-left: auto; }
+      .bar-label {
+        color: rgba(255,255,255,0.5);
+        font-size: 9px;
+        letter-spacing: 1px;
+      }
+
+      /* Center overlay */
+      #center-info {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        color: #fff;
+      }
+      #match-timer {
+        font-size: 28px;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(255,200,0,0.8);
+        letter-spacing: 3px;
+      }
+
+      /* Pin counter */
+      #pin-display {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 80px;
+        font-weight: 900;
+        color: #fff;
+        text-shadow: 0 0 30px #ff0, 0 0 60px #ff0;
+        display: none;
+        letter-spacing: 8px;
+      }
+
+      /* Move name flash */
+      #move-name {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+        font-weight: bold;
+        color: #ffd700;
+        text-shadow: 0 0 15px rgba(255,215,0,0.8);
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      /* Controls hint */
+      #controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(255,255,255,0.4);
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-align: center;
+        line-height: 1.6;
+      }
+
+      /* Title screen */
+      #title-screen {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, #1a0a2e 0%, #000 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      #title-screen h1 {
+        font-size: 64px;
+        font-weight: 900;
+        color: #ffd700;
+        text-shadow: 0 0 30px rgba(255,215,0,0.6), 0 4px 8px #000;
+        letter-spacing: 8px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      #title-screen .subtitle {
+        color: rgba(255,255,255,0.6);
+        font-size: 16px;
+        letter-spacing: 4px;
+        margin-bottom: 60px;
+      }
+      #title-screen .start-btn {
+        background: linear-gradient(135deg, #c0392b, #e74c3c);
+        color: #fff;
+        border: none;
+        padding: 16px 48px;
+        font-size: 18px;
+        font-weight: bold;
+        letter-spacing: 4px;
+        cursor: pointer;
+        clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+        pointer-events: auto;
+        transition: transform 0.1s, box-shadow 0.1s;
+      }
+      #title-screen .start-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(231,76,60,0.6);
+      }
+
+      /* Win / Lose overlay */
+      #result-screen {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      #result-screen .result-text {
+        font-size: 72px;
+        font-weight: 900;
+        letter-spacing: 8px;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      #result-screen .result-sub {
+        color: rgba(255,255,255,0.6);
+        font-size: 18px;
+        letter-spacing: 3px;
+        margin-bottom: 40px;
+      }
+      #result-screen .retry-btn {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff;
+        padding: 12px 36px;
+        font-size: 14px;
+        letter-spacing: 4px;
+        cursor: pointer;
+        pointer-events: auto;
+        transition: background 0.2s;
+      }
+      #result-screen .retry-btn:hover { background: rgba(255,255,255,0.2); }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <div id="hud">
+      <!-- Player HUD -->
+      <div class="fighter-hud" id="player-hud">
+        <div class="fighter-name" id="player-name">PLAYER</div>
+        <div class="bar-wrap"><div class="hp-bar"  id="player-hp"  style="width:100%"></div></div>
+        <div class="bar-label">HP</div>
+        <div class="bar-wrap"><div class="sta-bar" id="player-sta" style="width:100%"></div></div>
+        <div class="bar-label">STAMINA</div>
+      </div>
+
+      <!-- CPU HUD -->
+      <div class="fighter-hud" id="cpu-hud">
+        <div class="fighter-name" id="cpu-name">CPU</div>
+        <div class="bar-wrap"><div class="hp-bar"  id="cpu-hp"  style="width:100%"></div></div>
+        <div class="bar-label">HP</div>
+        <div class="bar-wrap"><div class="sta-bar" id="cpu-sta" style="width:100%"></div></div>
+        <div class="bar-label">STAMINA</div>
+      </div>
+
+      <!-- Center info -->
+      <div id="center-info">
+        <div id="match-timer">0:00</div>
+      </div>
+
+      <!-- Pin counter -->
+      <div id="pin-display">1</div>
+
+      <!-- Move name -->
+      <div id="move-name"></div>
+
+      <!-- Controls -->
+      <div id="controls">
+        WASD 移動 &nbsp;|&nbsp; F ストライク &nbsp;|&nbsp; G グラップル &nbsp;|&nbsp; H スラム（グラップル中）<br>
+        SPACE シグネチャー &nbsp;|&nbsp; P ピン（ダウン中） &nbsp;|&nbsp; SHIFT ダッシュ
+      </div>
+    </div>
+
+    <!-- Title Screen -->
+    <div id="title-screen">
+      <h1>WRESTLING</h1>
+      <div class="subtitle">THREE.JS CHAMPIONSHIP EDITION</div>
+      <button class="start-btn" id="start-btn">PRESS START</button>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen">
+      <div class="result-text" id="result-text"></div>
+      <div class="result-sub" id="result-sub"></div>
+      <button class="retry-btn" id="retry-btn">PLAY AGAIN</button>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
