@@ -8,6 +8,15 @@
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
       #canvas-container { width: 100vw; height: 100vh; }
+
+      @keyframes momPulse {
+        from { opacity: 0.75; }
+        to   { opacity: 1;    box-shadow: 0 0 14px #ffd700, 0 0 28px #ffd700; }
+      }
+      @keyframes dangerBlink {
+        from { opacity: 0.4; }
+        to   { opacity: 1;   text-shadow: 0 0 10px #ff0000; }
+      }
       #canvas-container canvas { display: block; }
 
       /* HUD overlay */
