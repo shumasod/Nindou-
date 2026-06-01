@@ -4,6 +4,8 @@ import { buildRing } from "./game/Ring.js";
 import { InputManager } from "./engine/input.js";
 import { Wrestler } from "./game/Wrestler.js";
 import { CpuAI } from "./game/CpuAI.js";
+import { EffectsSystem } from "./engine/effects.js";
+import { audio } from "./engine/audio.js";
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 const container = document.getElementById("canvas-container")!;
@@ -34,8 +36,9 @@ const cpu = new Wrestler({
 player.addToScene(scene);
 cpu.addToScene(scene);
 
-// ─── AI ───────────────────────────────────────────────────────────────────────
-const cpuAI = new CpuAI(cpu, player);
+// ─── AI + FX ──────────────────────────────────────────────────────────────────
+const cpuAI  = new CpuAI(cpu, player);
+const effects = new EffectsSystem(scene);
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 const input = new InputManager();
@@ -46,6 +49,7 @@ const CAM_DIST   = 14;
 const CAM_LERP   = 5;
 
 const camTarget = new THREE.Vector3();
+const camBase   = new THREE.Vector3(); // シェイク前の基準位置
 
 function updateCamera(dt: number): void {
   const mid = new THREE.Vector3()
@@ -53,52 +57,102 @@ function updateCamera(dt: number): void {
     .multiplyScalar(0.5);
 
   const desired = new THREE.Vector3(mid.x * 0.5, CAM_HEIGHT, mid.z * 0.3 + CAM_DIST);
-  camera.position.lerp(desired, Math.min(1, CAM_LERP * dt));
+  camBase.lerp(desired, Math.min(1, CAM_LERP * dt));
+  camera.position.copy(camBase);
 
   camTarget.lerp(new THREE.Vector3(mid.x, 0.8, mid.z), Math.min(1, CAM_LERP * dt));
   camera.lookAt(camTarget);
 }
 
-// ─── HUD ─────────────────────────────────────────────────────────────────────
-const hudPlayerHp  = document.getElementById("player-hp");
-const hudPlayerSta = document.getElementById("player-sta");
-const hudPlayerMom = document.getElementById("player-mom");
-const hudCpuHp     = document.getElementById("cpu-hp");
-const hudCpuSta    = document.getElementById("cpu-sta");
-const hudTimer     = document.getElementById("match-timer");
-const hudPinDisp   = document.getElementById("pin-display");
+// ─── HUD elements ─────────────────────────────────────────────────────────────
+const hudPlayerHp  = document.getElementById("player-hp")  as HTMLElement | null;
+const hudPlayerSta = document.getElementById("player-sta") as HTMLElement | null;
+const hudPlayerMom = document.getElementById("player-mom") as HTMLElement | null;
+const hudCpuHp     = document.getElementById("cpu-hp")     as HTMLElement | null;
+const hudCpuSta    = document.getElementById("cpu-sta")    as HTMLElement | null;
+const hudTimer     = document.getElementById("match-timer") as HTMLElement | null;
+const hudPinDisp   = document.getElementById("pin-display") as HTMLElement | null;
 
 function pct(v: number): string {
   return `${Math.round(Math.max(0, Math.min(100, v)))}%`;
 }
 
-function updateHUD(elapsed: number): void {
-  if (hudPlayerHp)  hudPlayerHp.style.width  = pct(player.hp);
-  if (hudPlayerSta) hudPlayerSta.style.width = pct(player.stamina);
-  if (hudPlayerMom) hudPlayerMom.style.width = pct(player.momentum);
-  if (hudCpuHp)     hudCpuHp.style.width     = pct(cpu.hp);
-  if (hudCpuSta)    hudCpuSta.style.width    = pct(cpu.stamina);
+/** HP に応じて色を変える: 緑 → 黄 → 赤 */
+function hpColor(hp: number): string {
+  if (hp > 50) return "linear-gradient(90deg,#27ae60,#2ecc71)";
+  if (hp > 25) return "linear-gradient(90deg,#e67e22,#f39c12)";
+  return "linear-gradient(90deg,#c0392b,#e74c3c)";
+}
 
-  // Match timer
+function updateHUD(elapsed: number): void {
+  if (hudPlayerHp) {
+    hudPlayerHp.style.width      = pct(player.hp);
+    hudPlayerHp.style.background = hpColor(player.hp);
+  }
+  if (hudPlayerSta) hudPlayerSta.style.width = pct(player.stamina);
+  if (hudPlayerMom) {
+    hudPlayerMom.style.width = pct(player.momentum);
+    // モメンタム満タンで点滅
+    if (player.momentum >= 100) {
+      hudPlayerMom.style.boxShadow = `0 0 8px #ffd700`;
+      hudPlayerMom.style.animation = "momPulse 0.5s infinite alternate";
+    } else {
+      hudPlayerMom.style.boxShadow = "";
+      hudPlayerMom.style.animation = "";
+    }
+  }
+  if (hudCpuHp) {
+    hudCpuHp.style.width      = pct(cpu.hp);
+    hudCpuHp.style.background = hpColor(cpu.hp);
+  }
+  if (hudCpuSta) hudCpuSta.style.width = pct(cpu.stamina);
+
+  // タイマー
   if (hudTimer) {
     const m = Math.floor(elapsed / 60);
     const s = Math.floor(elapsed % 60);
     hudTimer.textContent = `${m}:${s.toString().padStart(2, "0")}`;
   }
 
-  // Pin counter: show "1", "2", "3" while pinning
+  // ピンカウンター
   if (hudPinDisp) {
-    const pinning = (player.state === "pinning" && cpu.state === "being_pinned") ||
-                    (cpu.state   === "pinning" && player.state === "being_pinned");
-    if (pinning) {
-      const pinner = player.state === "pinning" ? player : cpu;
-      const count = Math.min(3, Math.floor(pinner.pinCount) + 1);
-      hudPinDisp.textContent = count.toString();
-      hudPinDisp.style.display = "block";
+    const playerPinning = player.state === "pinning" && cpu.state    === "being_pinned";
+    const cpuPinning    = cpu.state    === "pinning" && player.state === "being_pinned";
+    if (playerPinning || cpuPinning) {
+      const pinner = playerPinning ? player : cpu;
+      const count  = Math.min(3, Math.floor(pinner.pinCount) + 1);
+      hudPinDisp.textContent    = count.toString();
+      hudPinDisp.style.display  = "block";
     } else {
       hudPinDisp.style.display = "none";
     }
   }
+
+  // DANGER 表示
+  showDanger(player.hp < 20, "player-danger");
+  showDanger(cpu.hp    < 20, "cpu-danger");
+}
+
+function showDanger(active: boolean, id: string): void {
+  let el = document.getElementById(id);
+  if (!active) { if (el) el.style.display = "none"; return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = id;
+    el.textContent = "DANGER!!";
+    el.style.cssText = [
+      "position:absolute",
+      id === "player-danger" ? "left:20px" : "right:20px",
+      "top:90px",
+      "color:#ff2222",
+      "font-size:13px",
+      "font-weight:bold",
+      "letter-spacing:2px",
+      "animation:dangerBlink 0.4s infinite alternate",
+    ].join(";");
+    document.getElementById("hud")?.appendChild(el);
+  }
+  el.style.display = "block";
 }
 
 // ─── Game state ───────────────────────────────────────────────────────────────
@@ -112,7 +166,10 @@ function showResult(winner: string): void {
   const txt = document.getElementById("result-text");
   const sub = document.getElementById("result-sub");
   if (el)  el.style.display = "flex";
-  if (txt) txt.textContent  = `${winner} WINS!`;
+  if (txt) {
+    txt.textContent = `${winner} WINS!`;
+    txt.style.color = winner === "PLAYER" ? "#ffd700" : "#ff4444";
+  }
   if (sub) {
     const m = Math.floor(matchElapsed / 60);
     const s = Math.floor(matchElapsed % 60);
@@ -132,10 +189,11 @@ function animate(): void {
   if (phase === "match") {
     matchElapsed += dt;
     handlePlayerInput(dt);
-    player.update(dt);
     cpuAI.update(dt);
+    player.update(dt);
     cpu.update(dt);
     updateCamera(dt);
+    effects.update(dt, camera);
     updateHUD(matchElapsed);
     checkMatchEnd();
   }
@@ -173,15 +231,21 @@ function handlePlayerInput(dt: number): void {
     const dmg = 8 + Math.random() * 4;
     cpu.takeDamage(dmg);
     if (cpu.hp < 25) cpu.startKnockdown();
+    effects.spawnHitSparks(cpu.position, 0xff6600);
+    effects.shake(0.08);
+    audio.punch();
     flashMoveName("STRIKE!");
   }
 
-  // Grapple (G) — start or slam follow-up
+  // Grapple (G)
   if (s.grapplePressed) {
     if (player.state === "grappling" && player.grappleTarget) {
       const target = player.grappleTarget;
       player.startSlam(target);
       target.takeDamage(18);
+      effects.spawnDust(target.position);
+      effects.shake(0.18);
+      audio.slam();
       flashMoveName("SLAM!");
     } else if (player.canGrapple(cpu)) {
       player.startGrapple(cpu);
@@ -189,18 +253,25 @@ function handlePlayerInput(dt: number): void {
     }
   }
 
-  // Slam (H) — explicit slam from grapple
+  // Slam (H)
   if (s.slamPressed && player.state === "grappling" && player.grappleTarget) {
     const target = player.grappleTarget;
     player.startSlam(target);
     target.takeDamage(18);
+    effects.spawnDust(target.position);
+    effects.shake(0.18);
+    audio.slam();
     flashMoveName("SLAM!");
   }
 
-  // Signature (Space) — momentum ≥ 100
+  // Signature (Space)
   if (s.signaturePressed && player.momentum >= 100 && player.canGrapple(cpu)) {
     player.startSignature(cpu);
     cpu.takeDamage(35);
+    effects.spawnSignatureBurst(cpu.position);
+    effects.shake(0.35);
+    audio.slam();
+    audio.crowd();
     flashMoveName("SIGNATURE MOVE!!");
   }
 
@@ -208,6 +279,7 @@ function handlePlayerInput(dt: number): void {
   if (s.pinPressed && cpu.isDown() && player.distanceTo(cpu) < 1.5) {
     player.startPin();
     cpu.state = "being_pinned";
+    audio.pinRoll();
     flashMoveName("PIN!");
   }
 }
@@ -219,13 +291,10 @@ function checkMatchEnd(): void {
   if (player.hp <= 0) { showResult("CPU");    return; }
   if (cpu.hp    <= 0) { showResult("PLAYER"); return; }
 
-  // Player pins CPU
   if (player.state === "pinning" && cpu.state === "being_pinned") {
     player.pinCount += 1 / 60;
     if (player.pinCount >= 3) { showResult("PLAYER"); return; }
   }
-
-  // CPU pins player
   if (cpu.state === "pinning" && player.state === "being_pinned") {
     cpu.pinCount += 1 / 60;
     if (cpu.pinCount >= 3) { showResult("CPU"); return; }
@@ -249,6 +318,8 @@ document.getElementById("start-btn")!.addEventListener("click", () => {
   document.getElementById("title-screen")!.style.display = "none";
   phase = "match";
   clock.start();
+  // AudioContext はユーザー操作後に初期化
+  audio.crowd();
 });
 
 // ─── Retry ────────────────────────────────────────────────────────────────────
