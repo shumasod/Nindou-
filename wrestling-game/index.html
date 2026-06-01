@@ -8,201 +8,171 @@
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
       #canvas-container { width: 100vw; height: 100vh; }
+      #canvas-container canvas { display: block; }
 
       @keyframes momPulse {
         from { opacity: 0.75; }
-        to   { opacity: 1;    box-shadow: 0 0 14px #ffd700, 0 0 28px #ffd700; }
+        to   { opacity: 1; box-shadow: 0 0 14px #ffd700, 0 0 28px #ffd700; }
       }
       @keyframes dangerBlink {
         from { opacity: 0.4; }
-        to   { opacity: 1;   text-shadow: 0 0 10px #ff0000; }
+        to   { opacity: 1; text-shadow: 0 0 10px #ff0000; }
       }
-      #canvas-container canvas { display: block; }
+      @keyframes countAnim {
+        0%   { transform: translateX(-50%) scale(1.8); opacity: 0; }
+        20%  { transform: translateX(-50%) scale(1);   opacity: 1; }
+        75%  { transform: translateX(-50%) scale(1);   opacity: 1; }
+        100% { transform: translateX(-50%) scale(0.6); opacity: 0; }
+      }
+      @keyframes comboZoom {
+        0%   { transform: translateX(-50%) scale(1.3); }
+        100% { transform: translateX(-50%) scale(1);   }
+      }
 
-      /* HUD overlay */
+      /* ── HUD ──────────────────────────────────────────────── */
       #hud {
-        position: fixed;
-        top: 0; left: 0;
+        position: fixed; top: 0; left: 0;
         width: 100%; height: 100%;
-        pointer-events: none;
-        z-index: 10;
+        pointer-events: none; z-index: 10;
       }
-
-      /* Health bars */
-      .fighter-hud {
-        position: absolute;
-        top: 20px;
-        width: 320px;
-      }
+      .fighter-hud { position: absolute; top: 20px; width: 320px; }
       #player-hud  { left: 20px; }
       #cpu-hud     { right: 20px; text-align: right; }
-
       .fighter-name {
-        color: #fff;
-        font-size: 14px;
-        font-weight: bold;
-        text-shadow: 2px 2px 4px #000;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+        color: #fff; font-size: 14px; font-weight: bold;
+        text-shadow: 2px 2px 4px #000; letter-spacing: 2px;
+        text-transform: uppercase; margin-bottom: 4px;
       }
       .bar-wrap {
-        background: rgba(0,0,0,0.6);
-        border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 4px;
-        height: 14px;
-        overflow: hidden;
-        margin-bottom: 3px;
+        background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 4px; height: 14px; overflow: hidden; margin-bottom: 3px;
       }
-      .hp-bar  { height: 100%; background: linear-gradient(90deg, #e74c3c, #e67e22); transition: width 0.15s; }
-      .sta-bar { height: 100%; background: linear-gradient(90deg, #2980b9, #27ae60); transition: width 0.15s; }
-      #cpu-hud .hp-bar,
-      #cpu-hud .sta-bar { margin-left: auto; }
-      .bar-label {
-        color: rgba(255,255,255,0.5);
-        font-size: 9px;
-        letter-spacing: 1px;
-      }
+      .hp-bar  { height: 100%; transition: width 0.15s, background 0.4s; }
+      .sta-bar { height: 100%; background: linear-gradient(90deg,#2980b9,#27ae60); transition: width 0.15s; }
+      #cpu-hud .hp-bar, #cpu-hud .sta-bar { margin-left: auto; }
+      .bar-label { color: rgba(255,255,255,0.5); font-size: 9px; letter-spacing: 1px; }
 
-      /* Center overlay */
+      /* ── Center ───────────────────────────────────────────── */
       #center-info {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        text-align: center;
-        color: #fff;
+        position: absolute; top: 20px; left: 50%;
+        transform: translateX(-50%); text-align: center; color: #fff;
       }
       #match-timer {
-        font-size: 28px;
-        font-weight: bold;
-        text-shadow: 0 0 10px rgba(255,200,0,0.8);
-        letter-spacing: 3px;
+        font-size: 28px; font-weight: bold;
+        text-shadow: 0 0 10px rgba(255,200,0,0.8); letter-spacing: 3px;
       }
 
-      /* Pin counter */
+      /* ── Pin counter ──────────────────────────────────────── */
       #pin-display {
-        position: absolute;
-        top: 50%;
-        left: 50%;
+        position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 80px;
-        font-weight: 900;
-        color: #fff;
+        font-size: 80px; font-weight: 900; color: #fff;
         text-shadow: 0 0 30px #ff0, 0 0 60px #ff0;
+        display: none; letter-spacing: 8px;
+      }
+
+      /* ── Combo display ────────────────────────────────────── */
+      #combo-display {
+        position: absolute; bottom: 110px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 22px; font-weight: 900;
+        color: #00eaff;
+        text-shadow: 0 0 12px rgba(0,234,255,0.8);
+        letter-spacing: 3px; text-transform: uppercase;
         display: none;
-        letter-spacing: 8px;
+        animation: comboZoom 0.15s ease-out;
       }
 
-      /* Move name flash */
+      /* ── Move name ────────────────────────────────────────── */
       #move-name {
-        position: absolute;
-        bottom: 80px;
-        left: 50%;
+        position: absolute; bottom: 80px; left: 50%;
         transform: translateX(-50%);
-        font-size: 24px;
-        font-weight: bold;
-        color: #ffd700;
+        font-size: 24px; font-weight: bold; color: #ffd700;
         text-shadow: 0 0 15px rgba(255,215,0,0.8);
-        text-transform: uppercase;
-        letter-spacing: 4px;
-        opacity: 0;
-        transition: opacity 0.3s;
+        text-transform: uppercase; letter-spacing: 4px;
+        opacity: 0; transition: opacity 0.3s;
+        white-space: nowrap;
       }
 
-      /* Controls hint */
+      /* ── Controls hint ────────────────────────────────────── */
       #controls {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
+        position: absolute; bottom: 20px; left: 50%;
         transform: translateX(-50%);
-        color: rgba(255,255,255,0.4);
-        font-size: 11px;
-        letter-spacing: 1px;
-        text-align: center;
-        line-height: 1.6;
+        color: rgba(255,255,255,0.35); font-size: 11px;
+        letter-spacing: 1px; text-align: center; line-height: 1.6;
+        white-space: nowrap;
       }
 
-      /* Title screen */
+      /* ── Match start countdown ────────────────────────────── */
+      #match-start-msg {
+        position: absolute; top: 40%; left: 50%;
+        transform: translateX(-50%);
+        font-size: 96px; font-weight: 900; color: #fff;
+        text-shadow: 0 0 40px rgba(255,255,255,0.6);
+        letter-spacing: 8px; display: none;
+        white-space: nowrap;
+      }
+
+      /* ── Title screen ─────────────────────────────────────── */
       #title-screen {
-        position: absolute;
-        inset: 0;
+        position: absolute; inset: 0;
         background: radial-gradient(ellipse at center, #1a0a2e 0%, #000 100%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 100;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 100;
       }
       #title-screen h1 {
-        font-size: 64px;
-        font-weight: 900;
-        color: #ffd700;
+        font-size: 64px; font-weight: 900; color: #ffd700;
         text-shadow: 0 0 30px rgba(255,215,0,0.6), 0 4px 8px #000;
-        letter-spacing: 8px;
-        text-transform: uppercase;
-        margin-bottom: 8px;
+        letter-spacing: 8px; text-transform: uppercase; margin-bottom: 8px;
       }
       #title-screen .subtitle {
-        color: rgba(255,255,255,0.6);
-        font-size: 16px;
-        letter-spacing: 4px;
-        margin-bottom: 60px;
+        color: rgba(255,255,255,0.6); font-size: 16px;
+        letter-spacing: 4px; margin-bottom: 50px;
       }
-      #title-screen .start-btn {
-        background: linear-gradient(135deg, #c0392b, #e74c3c);
-        color: #fff;
-        border: none;
-        padding: 16px 48px;
-        font-size: 18px;
-        font-weight: bold;
-        letter-spacing: 4px;
-        cursor: pointer;
+      #title-screen .diff-label {
+        color: rgba(255,255,255,0.5); font-size: 12px;
+        letter-spacing: 3px; margin-bottom: 16px; text-transform: uppercase;
+      }
+      #title-screen .diff-btns {
+        display: flex; gap: 16px; margin-bottom: 0;
+      }
+      .diff-btn {
+        border: none; padding: 14px 36px;
+        font-size: 15px; font-weight: bold; letter-spacing: 3px;
+        cursor: pointer; pointer-events: auto;
         clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
-        pointer-events: auto;
         transition: transform 0.1s, box-shadow 0.1s;
-      }
-      #title-screen .start-btn:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 20px rgba(231,76,60,0.6);
-      }
-
-      /* Win / Lose overlay */
-      #result-screen {
-        position: absolute;
-        inset: 0;
-        background: rgba(0,0,0,0.7);
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 100;
-      }
-      #result-screen .result-text {
-        font-size: 72px;
-        font-weight: 900;
-        letter-spacing: 8px;
         text-transform: uppercase;
-        margin-bottom: 20px;
       }
-      #result-screen .result-sub {
-        color: rgba(255,255,255,0.6);
-        font-size: 18px;
-        letter-spacing: 3px;
-        margin-bottom: 40px;
+      .diff-btn[data-diff="easy"]   { background: linear-gradient(135deg,#27ae60,#2ecc71); color:#fff; }
+      .diff-btn[data-diff="normal"] { background: linear-gradient(135deg,#e67e22,#f39c12); color:#fff; }
+      .diff-btn[data-diff="hard"]   { background: linear-gradient(135deg,#c0392b,#e74c3c); color:#fff; }
+      .diff-btn:hover { transform: scale(1.07); box-shadow: 0 0 18px rgba(255,255,255,0.3); }
+
+      /* ── Result screen ────────────────────────────────────── */
+      #result-screen {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.75);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 100;
       }
-      #result-screen .retry-btn {
+      #result-text {
+        font-size: 72px; font-weight: 900;
+        letter-spacing: 8px; text-transform: uppercase; margin-bottom: 20px;
+      }
+      #result-sub {
+        color: rgba(255,255,255,0.6); font-size: 18px;
+        letter-spacing: 3px; margin-bottom: 40px;
+      }
+      .retry-btn {
         background: rgba(255,255,255,0.1);
         border: 1px solid rgba(255,255,255,0.3);
-        color: #fff;
-        padding: 12px 36px;
-        font-size: 14px;
-        letter-spacing: 4px;
-        cursor: pointer;
-        pointer-events: auto;
+        color: #fff; padding: 12px 36px;
+        font-size: 14px; letter-spacing: 4px;
+        cursor: pointer; pointer-events: auto;
         transition: background 0.2s;
       }
-      #result-screen .retry-btn:hover { background: rgba(255,255,255,0.2); }
+      .retry-btn:hover { background: rgba(255,255,255,0.2); }
     </style>
   </head>
   <body>
@@ -211,53 +181,65 @@
     <div id="hud">
       <!-- Player HUD -->
       <div class="fighter-hud" id="player-hud">
-        <div class="fighter-name" id="player-name">PLAYER</div>
-        <div class="bar-wrap"><div class="hp-bar"  id="player-hp"  style="width:100%"></div></div>
+        <div class="fighter-name">PLAYER</div>
+        <div class="bar-wrap"><div class="hp-bar"  id="player-hp"  style="width:100%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div>
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="player-sta" style="width:100%"></div></div>
         <div class="bar-label">STAMINA</div>
-        <div class="bar-wrap" style="border-color:rgba(255,215,0,0.4)"><div class="sta-bar" id="player-mom" style="width:0%;background:linear-gradient(90deg,#e67e22,#f1c40f)"></div></div>
+        <div class="bar-wrap" style="border-color:rgba(255,215,0,0.4)">
+          <div class="sta-bar" id="player-mom" style="width:0%;background:linear-gradient(90deg,#e67e22,#f1c40f)"></div>
+        </div>
         <div class="bar-label" style="color:rgba(255,215,0,0.6)">MOMENTUM</div>
       </div>
 
       <!-- CPU HUD -->
       <div class="fighter-hud" id="cpu-hud">
-        <div class="fighter-name" id="cpu-name">CPU</div>
-        <div class="bar-wrap"><div class="hp-bar"  id="cpu-hp"  style="width:100%"></div></div>
+        <div class="fighter-name">CPU</div>
+        <div class="bar-wrap"><div class="hp-bar"  id="cpu-hp"  style="width:100%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div>
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="cpu-sta" style="width:100%"></div></div>
         <div class="bar-label">STAMINA</div>
       </div>
 
-      <!-- Center info -->
+      <!-- Center timer -->
       <div id="center-info">
-        <div id="match-timer">0:00</div>
+        <div id="match-timer">3:00</div>
       </div>
 
       <!-- Pin counter -->
       <div id="pin-display">1</div>
+
+      <!-- Combo -->
+      <div id="combo-display"></div>
 
       <!-- Move name -->
       <div id="move-name"></div>
 
       <!-- Controls -->
       <div id="controls">
-        WASD 移動 &nbsp;|&nbsp; F ストライク &nbsp;|&nbsp; G グラップル &nbsp;|&nbsp; H スラム（グラップル中）<br>
-        SPACE シグネチャー &nbsp;|&nbsp; P ピン（ダウン中） &nbsp;|&nbsp; SHIFT ダッシュ
+        WASD 移動 &nbsp;|&nbsp; F ストライク &nbsp;|&nbsp; G グラップル/スラム &nbsp;|&nbsp; H スラム &nbsp;|&nbsp; SPACE シグネチャー &nbsp;|&nbsp; P ピン &nbsp;|&nbsp; SHIFT ダッシュ
       </div>
     </div>
+
+    <!-- Match start countdown -->
+    <div id="match-start-msg"></div>
 
     <!-- Title Screen -->
     <div id="title-screen">
       <h1>WRESTLING</h1>
       <div class="subtitle">THREE.JS CHAMPIONSHIP EDITION</div>
-      <button class="start-btn" id="start-btn">PRESS START</button>
+      <div class="diff-label">Select Difficulty</div>
+      <div class="diff-btns">
+        <button class="diff-btn" data-diff="easy">EASY</button>
+        <button class="diff-btn" data-diff="normal">NORMAL</button>
+        <button class="diff-btn" data-diff="hard">HARD</button>
+      </div>
     </div>
 
     <!-- Result Screen -->
     <div id="result-screen">
-      <div class="result-text" id="result-text"></div>
-      <div class="result-sub" id="result-sub"></div>
+      <div id="result-text"></div>
+      <div id="result-sub"></div>
       <button class="retry-btn" id="retry-btn">PLAY AGAIN</button>
     </div>
 
