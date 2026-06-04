@@ -6,6 +6,7 @@ import { Wrestler } from "./game/Wrestler.js";
 import { CpuAI, type Difficulty } from "./game/CpuAI.js";
 import { EffectsSystem } from "./engine/effects.js";
 import { audio } from "./engine/audio.js";
+import { ROSTER, type CharacterDef } from "./game/characters.js";
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 const container = document.getElementById("canvas-container")!;
@@ -16,25 +17,20 @@ const scene     = createScene();
 setupLighting(scene);
 buildRing(scene);
 
-// ─── Wrestlers ────────────────────────────────────────────────────────────────
-const player1 = new Wrestler({
-  name: "P1",
-  primaryColor:   0x0044cc,
-  secondaryColor: 0xffffff,
-  skinColor:      0xf5c5a3,
-  startX: -2.5,
-});
+// ─── Wrestlers (created lazily after character select) ────────────────────────
+let player1!: Wrestler;
+let player2!: Wrestler;
 
-const player2 = new Wrestler({
-  name: "P2",
-  primaryColor:   0xcc0000,
-  secondaryColor: 0xffcc00,
-  skinColor:      0xf0b090,
-  startX: 2.5,
-});
+function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
+  // Remove old wrestlers if restarting
+  if (player1) scene.remove(player1.root);
+  if (player2) scene.remove(player2.root);
 
-player1.addToScene(scene);
-player2.addToScene(scene);
+  player1 = new Wrestler({ ...def1, name: def1.name, startX: -2.5 });
+  player2 = new Wrestler({ ...def2, name: def2.name, startX:  2.5 });
+  player1.addToScene(scene);
+  player2.addToScene(scene);
+}
 
 // ─── FX ───────────────────────────────────────────────────────────────────────
 const effects = new EffectsSystem(scene);
@@ -94,13 +90,15 @@ function hpColor(hp: number): string {
 const MATCH_TIME_LIMIT = 180;
 
 function updateHUD(elapsed: number): void {
-  if (hudP1Hp)  { hudP1Hp.style.width  = pct(player1.hp);      hudP1Hp.style.background  = hpColor(player1.hp); }
+  const p1HpPct = (player1.hp / player1.maxHp) * 100;
+  const p2HpPct = (player2.hp / player2.maxHp) * 100;
+  if (hudP1Hp)  { hudP1Hp.style.width  = pct(p1HpPct); hudP1Hp.style.background  = hpColor(p1HpPct); }
   if (hudP1Sta)  hudP1Sta.style.width  = pct(player1.stamina);
   if (hudP1Mom) {
     hudP1Mom.style.width = pct(player1.momentum);
     hudP1Mom.style.animation = player1.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
-  if (hudP2Hp)  { hudP2Hp.style.width  = pct(player2.hp);      hudP2Hp.style.background  = hpColor(player2.hp); }
+  if (hudP2Hp)  { hudP2Hp.style.width  = pct(p2HpPct); hudP2Hp.style.background  = hpColor(p2HpPct); }
   if (hudP2Sta)  hudP2Sta.style.width  = pct(player2.stamina);
 
   if (hudTimer) {
@@ -123,8 +121,8 @@ function updateHUD(elapsed: number): void {
     }
   }
 
-  showDanger(player1.hp < 20, "p1-danger", "left:20px");
-  showDanger(player2.hp < 20, "p2-danger", "right:20px");
+  showDanger(p1HpPct < 20, "p1-danger", "left:20px");
+  showDanger(p2HpPct < 20, "p2-danger", "right:20px");
 }
 
 function showDanger(active: boolean, id: string, side: string): void {
@@ -362,39 +360,156 @@ function flashMoveName(text: string): void {
 }
 
 // ─── 起動 ─────────────────────────────────────────────────────────────────────
-function startMatch(selectedMode: GameMode, diff?: Difficulty): void {
+function startMatch(
+  selectedMode: GameMode,
+  def1: CharacterDef,
+  def2: CharacterDef,
+  diff?: Difficulty
+): void {
   mode = selectedMode;
-  document.getElementById("title-screen")!.style.display = "none";
+  createWrestlers(def1, def2);
 
-  // HUD 名前を更新
-  if (hudP1Name) hudP1Name.textContent = "P1";
-  if (hudP2Name) hudP2Name.textContent = selectedMode === "2p" ? "P2" : "CPU";
+  if (hudP1Name) hudP1Name.textContent = def1.name;
+  if (hudP2Name) hudP2Name.textContent = def2.name;
 
   if (selectedMode === "1p" && diff) {
     cpuAI = new CpuAI(player2, player1, effects, diff);
   }
 
-  // 2P モードはコントロールヒントを両方表示
   const p2hint = document.getElementById("p2-controls");
   if (p2hint) p2hint.style.display = selectedMode === "2p" ? "inline" : "none";
 
   phase = "countdown";
   clock.start();
-  showMatchStart(() => {
-    phase = "match";
-    audio.crowd();
+  showMatchStart(() => { phase = "match"; audio.crowd(); });
+}
+
+// ─── キャラクター選択フロー ───────────────────────────────────────────────────
+interface SelectState {
+  mode: GameMode;
+  diff?: Difficulty;
+  step: 1 | 2;        // P1 選択中 or P2 選択中
+  p1Def?: CharacterDef;
+  selectedIdx: number | null;
+}
+
+const sel: SelectState = { mode: "1p", step: 1, selectedIdx: null };
+
+function openCharSelect(m: GameMode, d?: Difficulty): void {
+  sel.mode  = m;
+  sel.diff  = d;
+  sel.step  = 1;
+  sel.p1Def = undefined;
+  sel.selectedIdx = null;
+
+  const screen = document.getElementById("char-select-screen")!;
+  const title  = document.getElementById("char-select-title")!;
+  const sub    = document.getElementById("char-select-sub")!;
+  const confirm = document.getElementById("char-confirm-btn") as HTMLButtonElement;
+
+  screen.style.display = "flex";
+  title.textContent = "SELECT YOUR FIGHTER";
+  sub.textContent   = "P1 — choose your character";
+  confirm.disabled  = true;
+
+  buildCharGrid(confirm);
+}
+
+function buildCharGrid(confirmBtn: HTMLButtonElement): void {
+  const grid = document.getElementById("char-grid")!;
+  grid.innerHTML = "";
+
+  ROSTER.forEach((ch, i) => {
+    const card = document.createElement("div");
+    card.className = "char-card";
+    card.dataset["idx"] = String(i);
+
+    // カラースウォッチ
+    const r = (ch.primaryColor >> 16) & 0xff;
+    const g = (ch.primaryColor >> 8)  & 0xff;
+    const b =  ch.primaryColor        & 0xff;
+    const r2 = (ch.secondaryColor >> 16) & 0xff;
+    const g2 = (ch.secondaryColor >> 8)  & 0xff;
+    const b2 =  ch.secondaryColor        & 0xff;
+
+    card.innerHTML = `
+      <div class="char-swatch" style="background:linear-gradient(135deg,rgb(${r},${g},${b}),rgb(${r2},${g2},${b2}))"></div>
+      <div class="char-name">${ch.name}</div>
+      <div class="char-title-text">${ch.title}</div>
+      <div class="stat-bars">
+        ${statBar("SPD", ch.speedMult,   1.6)}
+        ${statBar("PWR", ch.damageMult,  1.6)}
+        ${statBar("DEF", 1 / ch.defenceMult, 1.6)}
+        ${statBar("STA", ch.staminaMult, 1.6)}
+        ${statBar("HP",  ch.maxHp / 130, 1.0)}
+      </div>`;
+
+    card.addEventListener("click", () => {
+      grid.querySelectorAll(".char-card").forEach((c) => c.classList.remove("selected"));
+      card.classList.add("selected");
+      sel.selectedIdx = i;
+      confirmBtn.disabled = false;
+    });
+
+    grid.appendChild(card);
   });
 }
 
-// タイトルボタンのイベント
+function statBar(label: string, value: number, max: number): string {
+  const pct = Math.min(100, Math.round((value / max) * 100));
+  return `<div class="stat-row">
+    <span style="width:24px">${label}</span>
+    <div class="stat-fill"><div class="stat-fill-inner" style="width:${pct}%;background:#4af"></div></div>
+  </div>`;
+}
+
+// Confirm ボタン
+document.getElementById("char-confirm-btn")?.addEventListener("click", () => {
+  if (sel.selectedIdx === null) return;
+  const chosen = ROSTER[sel.selectedIdx]!;
+
+  if (sel.step === 1) {
+    sel.p1Def = chosen;
+
+    if (sel.mode === "1p") {
+      // CPU は自動でランダム選択
+      const cpuDef = ROSTER[Math.floor(Math.random() * ROSTER.length)]!;
+      document.getElementById("char-select-screen")!.style.display = "none";
+      startMatch("1p", chosen, cpuDef, sel.diff);
+    } else {
+      // 2P: P2 選択へ
+      sel.step = 2;
+      sel.selectedIdx = null;
+      const sub     = document.getElementById("char-select-sub")!;
+      const confirm = document.getElementById("char-confirm-btn") as HTMLButtonElement;
+      sub.textContent  = "P2 — choose your character";
+      confirm.disabled = true;
+      buildCharGrid(confirm);
+    }
+  } else {
+    // 2P step 2
+    document.getElementById("char-select-screen")!.style.display = "none";
+    startMatch("2p", sel.p1Def!, chosen);
+  }
+});
+
+// Back ボタン
+document.getElementById("char-back-btn")?.addEventListener("click", () => {
+  document.getElementById("char-select-screen")!.style.display = "none";
+  document.getElementById("title-screen")!.style.display = "flex";
+});
+
+// タイトルボタン → キャラ選択へ
 document.querySelectorAll<HTMLButtonElement>("[data-diff]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    startMatch("1p", btn.dataset["diff"] as Difficulty);
+    document.getElementById("title-screen")!.style.display = "none";
+    openCharSelect("1p", btn.dataset["diff"] as Difficulty);
   });
 });
 
 document.getElementById("btn-2p")?.addEventListener("click", () => {
-  startMatch("2p");
+  document.getElementById("title-screen")!.style.display = "none";
+  openCharSelect("2p");
 });
 
 // Retry
