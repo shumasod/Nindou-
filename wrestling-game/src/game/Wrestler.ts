@@ -23,6 +23,12 @@ export interface WrestlerConfig {
   secondaryColor: number;
   skinColor: number;
   startX: number;
+  // Stat multipliers from CharacterDef (all default to 1.0)
+  speedMult?:   number;
+  damageMult?:  number;
+  defenceMult?: number;
+  maxHp?:       number;
+  staminaMult?: number;
 }
 
 const MOVE_SPEED   = 4.5;
@@ -35,8 +41,15 @@ export class Wrestler {
   root: THREE.Group;
   name: string;
 
+  // Derived stat multipliers
+  readonly speedMult:   number;
+  readonly damageMult:  number;
+  readonly defenceMult: number;
+  readonly staminaMult: number;
+
   // Stats
-  hp      = 100;
+  hp:      number;
+  maxHp:   number;
   stamina = 100;
   momentum = 0;    // 0-100, シグネチャー解禁
 
@@ -73,7 +86,13 @@ export class Wrestler {
   constructor(config: WrestlerConfig) {
     this.config = config;
     this.name = config.name;
-    this.root = new THREE.Group();
+    this.speedMult   = config.speedMult   ?? 1.0;
+    this.damageMult  = config.damageMult  ?? 1.0;
+    this.defenceMult = config.defenceMult ?? 1.0;
+    this.staminaMult = config.staminaMult ?? 1.0;
+    this.maxHp = config.maxHp ?? 100;
+    this.hp    = this.maxHp;
+    this.root  = new THREE.Group();
     this.root.position.set(config.startX, MAT_Y, 0);
     this.buildBody();
     this.facingAngle = config.startX > 0 ? Math.PI : 0;
@@ -225,14 +244,14 @@ export class Wrestler {
   }
 
   takeDamage(amount: number): void {
-    this.hp = Math.max(0, this.hp - amount);
+    this.hp = Math.max(0, this.hp - amount * this.defenceMult);
     this.flashTimer = 0.15;
     this.momentum = Math.min(100, this.momentum + amount * 0.3);
   }
 
   move(dx: number, dz: number, sprint: boolean, dt: number): void {
     if (!this.isActionReady()) return;
-    const speed = (sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * dt;
+    const speed = (sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * this.speedMult * dt;
     const nx = this.root.position.x + dx * speed;
     const nz = this.root.position.z + dz * speed;
     this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, nx));
@@ -327,9 +346,9 @@ export class Wrestler {
 
     // Stamina recovery
     if (this.state === "idle") {
-      this.stamina = Math.min(100, this.stamina + 12 * dt);
+      this.stamina = Math.min(100, this.stamina + 12 * this.staminaMult * dt);
     } else {
-      this.stamina = Math.min(100, this.stamina + 4 * dt);
+      this.stamina = Math.min(100, this.stamina + 4 * this.staminaMult * dt);
     }
 
     // State timers
