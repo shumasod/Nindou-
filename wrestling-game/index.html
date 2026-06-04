@@ -71,37 +71,35 @@
         display: none; letter-spacing: 8px;
       }
 
-      /* ── Combo display ────────────────────────────────────── */
+      /* ── Combo ────────────────────────────────────────────── */
       #combo-display {
-        position: absolute; bottom: 110px; left: 50%;
+        position: absolute; bottom: 130px; left: 50%;
         transform: translateX(-50%);
-        font-size: 22px; font-weight: 900;
-        color: #00eaff;
+        font-size: 22px; font-weight: 900; color: #00eaff;
         text-shadow: 0 0 12px rgba(0,234,255,0.8);
         letter-spacing: 3px; text-transform: uppercase;
-        display: none;
-        animation: comboZoom 0.15s ease-out;
+        display: none; white-space: nowrap;
       }
 
       /* ── Move name ────────────────────────────────────────── */
       #move-name {
-        position: absolute; bottom: 80px; left: 50%;
+        position: absolute; bottom: 100px; left: 50%;
         transform: translateX(-50%);
         font-size: 24px; font-weight: bold; color: #ffd700;
         text-shadow: 0 0 15px rgba(255,215,0,0.8);
         text-transform: uppercase; letter-spacing: 4px;
-        opacity: 0; transition: opacity 0.3s;
-        white-space: nowrap;
+        opacity: 0; transition: opacity 0.3s; white-space: nowrap;
       }
 
       /* ── Controls hint ────────────────────────────────────── */
       #controls {
         position: absolute; bottom: 20px; left: 50%;
         transform: translateX(-50%);
-        color: rgba(255,255,255,0.35); font-size: 11px;
-        letter-spacing: 1px; text-align: center; line-height: 1.6;
+        color: rgba(255,255,255,0.35); font-size: 10px;
+        letter-spacing: 1px; text-align: center; line-height: 1.8;
         white-space: nowrap;
       }
+      #controls .p2-hint { display: none; }
 
       /* ── Match start countdown ────────────────────────────── */
       #match-start-msg {
@@ -109,8 +107,7 @@
         transform: translateX(-50%);
         font-size: 96px; font-weight: 900; color: #fff;
         text-shadow: 0 0 40px rgba(255,255,255,0.6);
-        letter-spacing: 8px; display: none;
-        white-space: nowrap;
+        letter-spacing: 8px; display: none; white-space: nowrap;
       }
 
       /* ── Title screen ─────────────────────────────────────── */
@@ -125,29 +122,34 @@
         text-shadow: 0 0 30px rgba(255,215,0,0.6), 0 4px 8px #000;
         letter-spacing: 8px; text-transform: uppercase; margin-bottom: 8px;
       }
-      #title-screen .subtitle {
+      .subtitle {
         color: rgba(255,255,255,0.6); font-size: 16px;
-        letter-spacing: 4px; margin-bottom: 50px;
+        letter-spacing: 4px; margin-bottom: 48px;
       }
-      #title-screen .diff-label {
-        color: rgba(255,255,255,0.5); font-size: 12px;
-        letter-spacing: 3px; margin-bottom: 16px; text-transform: uppercase;
+      .mode-section { margin-bottom: 28px; text-align: center; }
+      .mode-label {
+        color: rgba(255,255,255,0.45); font-size: 11px;
+        letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px;
       }
-      #title-screen .diff-btns {
-        display: flex; gap: 16px; margin-bottom: 0;
-      }
-      .diff-btn {
-        border: none; padding: 14px 36px;
-        font-size: 15px; font-weight: bold; letter-spacing: 3px;
-        cursor: pointer; pointer-events: auto;
+      .diff-btns, .mode-btns { display: flex; gap: 14px; justify-content: center; }
+
+      .diff-btn, .mode-btn {
+        border: none; padding: 13px 30px;
+        font-size: 14px; font-weight: bold; letter-spacing: 3px;
+        cursor: pointer; pointer-events: auto; text-transform: uppercase;
         clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
         transition: transform 0.1s, box-shadow 0.1s;
-        text-transform: uppercase;
       }
       .diff-btn[data-diff="easy"]   { background: linear-gradient(135deg,#27ae60,#2ecc71); color:#fff; }
       .diff-btn[data-diff="normal"] { background: linear-gradient(135deg,#e67e22,#f39c12); color:#fff; }
       .diff-btn[data-diff="hard"]   { background: linear-gradient(135deg,#c0392b,#e74c3c); color:#fff; }
-      .diff-btn:hover { transform: scale(1.07); box-shadow: 0 0 18px rgba(255,255,255,0.3); }
+      .mode-btn { background: linear-gradient(135deg,#6c3483,#9b59b6); color:#fff; font-size: 15px; padding: 14px 40px; }
+      .diff-btn:hover, .mode-btn:hover { transform: scale(1.07); box-shadow: 0 0 18px rgba(255,255,255,0.3); }
+
+      .divider {
+        color: rgba(255,255,255,0.2); font-size: 12px;
+        letter-spacing: 4px; margin: 4px 0 20px;
+      }
 
       /* ── Result screen ────────────────────────────────────── */
       #result-screen {
@@ -169,8 +171,7 @@
         border: 1px solid rgba(255,255,255,0.3);
         color: #fff; padding: 12px 36px;
         font-size: 14px; letter-spacing: 4px;
-        cursor: pointer; pointer-events: auto;
-        transition: background 0.2s;
+        cursor: pointer; pointer-events: auto; transition: background 0.2s;
       }
       .retry-btn:hover { background: rgba(255,255,255,0.2); }
     </style>
@@ -179,9 +180,9 @@
     <div id="canvas-container"></div>
 
     <div id="hud">
-      <!-- Player HUD -->
+      <!-- P1 HUD -->
       <div class="fighter-hud" id="player-hud">
-        <div class="fighter-name">PLAYER</div>
+        <div class="fighter-name" id="hud-p1-name">P1</div>
         <div class="bar-wrap"><div class="hp-bar"  id="player-hp"  style="width:100%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div>
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="player-sta" style="width:100%"></div></div>
@@ -192,16 +193,16 @@
         <div class="bar-label" style="color:rgba(255,215,0,0.6)">MOMENTUM</div>
       </div>
 
-      <!-- CPU HUD -->
+      <!-- P2 / CPU HUD -->
       <div class="fighter-hud" id="cpu-hud">
-        <div class="fighter-name">CPU</div>
+        <div class="fighter-name" id="hud-p2-name">CPU</div>
         <div class="bar-wrap"><div class="hp-bar"  id="cpu-hp"  style="width:100%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div>
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="cpu-sta" style="width:100%"></div></div>
         <div class="bar-label">STAMINA</div>
       </div>
 
-      <!-- Center timer -->
+      <!-- Timer -->
       <div id="center-info">
         <div id="match-timer">3:00</div>
       </div>
@@ -217,22 +218,35 @@
 
       <!-- Controls -->
       <div id="controls">
-        WASD 移動 &nbsp;|&nbsp; F ストライク &nbsp;|&nbsp; G グラップル/スラム &nbsp;|&nbsp; H スラム &nbsp;|&nbsp; SPACE シグネチャー &nbsp;|&nbsp; P ピン &nbsp;|&nbsp; SHIFT ダッシュ
+        <span class="p1-hint">P1: WASD 移動 &nbsp;|&nbsp; F ストライク &nbsp;|&nbsp; G グラップル/スラム &nbsp;|&nbsp; H スラム &nbsp;|&nbsp; SPACE シグネチャー &nbsp;|&nbsp; P ピン &nbsp;|&nbsp; SHIFT ダッシュ</span><br>
+        <span class="p2-hint" id="p2-controls">P2: IJKL 移動 &nbsp;|&nbsp; U ストライク &nbsp;|&nbsp; O グラップル/スラム &nbsp;|&nbsp; N スラム &nbsp;|&nbsp; M シグネチャー &nbsp;|&nbsp; , ピン &nbsp;|&nbsp; RCtrl ダッシュ</span>
       </div>
     </div>
 
-    <!-- Match start countdown -->
+    <!-- Match countdown -->
     <div id="match-start-msg"></div>
 
     <!-- Title Screen -->
     <div id="title-screen">
       <h1>WRESTLING</h1>
       <div class="subtitle">THREE.JS CHAMPIONSHIP EDITION</div>
-      <div class="diff-label">Select Difficulty</div>
-      <div class="diff-btns">
-        <button class="diff-btn" data-diff="easy">EASY</button>
-        <button class="diff-btn" data-diff="normal">NORMAL</button>
-        <button class="diff-btn" data-diff="hard">HARD</button>
+
+      <div class="mode-section">
+        <div class="mode-label">1 Player vs CPU — Select Difficulty</div>
+        <div class="diff-btns">
+          <button class="diff-btn" data-diff="easy">EASY</button>
+          <button class="diff-btn" data-diff="normal">NORMAL</button>
+          <button class="diff-btn" data-diff="hard">HARD</button>
+        </div>
+      </div>
+
+      <div class="divider">─── OR ───</div>
+
+      <div class="mode-section">
+        <div class="mode-label">Local 2 Players</div>
+        <div class="mode-btns">
+          <button class="mode-btn" id="btn-2p">2 PLAYER</button>
+        </div>
       </div>
     </div>
 

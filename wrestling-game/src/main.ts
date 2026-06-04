@@ -17,40 +17,48 @@ setupLighting(scene);
 buildRing(scene);
 
 // ─── Wrestlers ────────────────────────────────────────────────────────────────
-const player = new Wrestler({
-  name: "PLAYER",
+const player1 = new Wrestler({
+  name: "P1",
   primaryColor:   0x0044cc,
   secondaryColor: 0xffffff,
   skinColor:      0xf5c5a3,
   startX: -2.5,
 });
 
-const cpu = new Wrestler({
-  name: "CPU",
+const player2 = new Wrestler({
+  name: "P2",
   primaryColor:   0xcc0000,
   secondaryColor: 0xffcc00,
   skinColor:      0xf0b090,
   startX: 2.5,
 });
 
-player.addToScene(scene);
-cpu.addToScene(scene);
+player1.addToScene(scene);
+player2.addToScene(scene);
 
-// ─── FX + Input ───────────────────────────────────────────────────────────────
+// ─── FX ───────────────────────────────────────────────────────────────────────
 const effects = new EffectsSystem(scene);
-const input   = new InputManager();
 
-// AI は難易度選択後に初期化
+// ─── Input (always create both; P2 used only in 2P mode) ─────────────────────
+const input1 = new InputManager(1);
+const input2 = new InputManager(2);
+
+// ─── Game mode ────────────────────────────────────────────────────────────────
+type GameMode   = "1p" | "2p";
+type GamePhase  = "title" | "countdown" | "match" | "result";
+
+let mode: GameMode  = "1p";
+let phase: GamePhase = "title";
 let cpuAI: CpuAI | null = null;
 
 // ─── Camera ───────────────────────────────────────────────────────────────────
-const CAM_LERP = 5;
+const CAM_LERP  = 5;
 const camTarget = new THREE.Vector3();
 const camBase   = new THREE.Vector3();
 
 function updateCamera(dt: number): void {
   const mid = new THREE.Vector3()
-    .addVectors(player.position, cpu.position)
+    .addVectors(player1.position, player2.position)
     .multiplyScalar(0.5);
 
   const desired = new THREE.Vector3(mid.x * 0.5, 8, mid.z * 0.3 + 14);
@@ -62,14 +70,16 @@ function updateCamera(dt: number): void {
 }
 
 // ─── HUD refs ─────────────────────────────────────────────────────────────────
-const hudPlayerHp  = document.getElementById("player-hp")   as HTMLElement | null;
-const hudPlayerSta = document.getElementById("player-sta")  as HTMLElement | null;
-const hudPlayerMom = document.getElementById("player-mom")  as HTMLElement | null;
-const hudCpuHp     = document.getElementById("cpu-hp")      as HTMLElement | null;
-const hudCpuSta    = document.getElementById("cpu-sta")      as HTMLElement | null;
-const hudTimer     = document.getElementById("match-timer")  as HTMLElement | null;
-const hudPinDisp   = document.getElementById("pin-display")  as HTMLElement | null;
-const hudCombo     = document.getElementById("combo-display") as HTMLElement | null;
+const hudP1Hp   = document.getElementById("player-hp")    as HTMLElement | null;
+const hudP1Sta  = document.getElementById("player-sta")   as HTMLElement | null;
+const hudP1Mom  = document.getElementById("player-mom")   as HTMLElement | null;
+const hudP2Hp   = document.getElementById("cpu-hp")       as HTMLElement | null;
+const hudP2Sta  = document.getElementById("cpu-sta")      as HTMLElement | null;
+const hudTimer  = document.getElementById("match-timer")  as HTMLElement | null;
+const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
+const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
+const hudP1Name = document.getElementById("hud-p1-name") as HTMLElement | null;
+const hudP2Name = document.getElementById("hud-p2-name") as HTMLElement | null;
 
 function pct(v: number): string {
   return `${Math.round(Math.max(0, Math.min(100, v)))}%`;
@@ -81,43 +91,31 @@ function hpColor(hp: number): string {
   return "linear-gradient(90deg,#c0392b,#e74c3c)";
 }
 
-const MATCH_TIME_LIMIT = 180; // 秒
+const MATCH_TIME_LIMIT = 180;
 
 function updateHUD(elapsed: number): void {
-  if (hudPlayerHp) {
-    hudPlayerHp.style.width      = pct(player.hp);
-    hudPlayerHp.style.background = hpColor(player.hp);
+  if (hudP1Hp)  { hudP1Hp.style.width  = pct(player1.hp);      hudP1Hp.style.background  = hpColor(player1.hp); }
+  if (hudP1Sta)  hudP1Sta.style.width  = pct(player1.stamina);
+  if (hudP1Mom) {
+    hudP1Mom.style.width = pct(player1.momentum);
+    hudP1Mom.style.animation = player1.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
-  if (hudPlayerSta) hudPlayerSta.style.width = pct(player.stamina);
-  if (hudPlayerMom) {
-    hudPlayerMom.style.width = pct(player.momentum);
-    if (player.momentum >= 100) {
-      hudPlayerMom.style.animation = "momPulse 0.5s infinite alternate";
-    } else {
-      hudPlayerMom.style.animation = "";
-    }
-  }
-  if (hudCpuHp) {
-    hudCpuHp.style.width      = pct(cpu.hp);
-    hudCpuHp.style.background = hpColor(cpu.hp);
-  }
-  if (hudCpuSta) hudCpuSta.style.width = pct(cpu.stamina);
+  if (hudP2Hp)  { hudP2Hp.style.width  = pct(player2.hp);      hudP2Hp.style.background  = hpColor(player2.hp); }
+  if (hudP2Sta)  hudP2Sta.style.width  = pct(player2.stamina);
 
-  // タイマー (カウントダウン)
   if (hudTimer) {
-    const remaining = Math.max(0, MATCH_TIME_LIMIT - elapsed);
-    const m = Math.floor(remaining / 60);
-    const s = Math.floor(remaining % 60);
+    const rem = Math.max(0, MATCH_TIME_LIMIT - elapsed);
+    const m = Math.floor(rem / 60);
+    const s = Math.floor(rem % 60);
     hudTimer.textContent = `${m}:${s.toString().padStart(2, "0")}`;
-    hudTimer.style.color = remaining < 30 ? "#ff4444" : "#ffffff";
+    hudTimer.style.color = rem < 30 ? "#ff4444" : "#ffffff";
   }
 
-  // ピンカウンター
   if (hudPinDisp) {
-    const pp = player.state === "pinning" && cpu.state    === "being_pinned";
-    const cp = cpu.state    === "pinning" && player.state === "being_pinned";
-    if (pp || cp) {
-      const pinner = pp ? player : cpu;
+    const p1pin = player1.state === "pinning" && player2.state === "being_pinned";
+    const p2pin = player2.state === "pinning" && player1.state === "being_pinned";
+    if (p1pin || p2pin) {
+      const pinner = p1pin ? player1 : player2;
       hudPinDisp.textContent   = Math.min(3, Math.floor(pinner.pinCount) + 1).toString();
       hudPinDisp.style.display = "block";
     } else {
@@ -125,8 +123,8 @@ function updateHUD(elapsed: number): void {
     }
   }
 
-  showDanger(player.hp < 20, "player-danger", "left:20px");
-  showDanger(cpu.hp    < 20, "cpu-danger",    "right:20px");
+  showDanger(player1.hp < 20, "p1-danger", "left:20px");
+  showDanger(player2.hp < 20, "p2-danger", "right:20px");
 }
 
 function showDanger(active: boolean, id: string, side: string): void {
@@ -143,19 +141,20 @@ function showDanger(active: boolean, id: string, side: string): void {
 }
 
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
-let comboCount  = 0;
-let comboTimer  = 0;
-const COMBO_WINDOW = 2.5; // 秒
+let comboCount = 0;
+let comboTimer = 0;
+const COMBO_WINDOW = 2.5;
 
 function addCombo(): void {
   comboCount++;
   comboTimer = COMBO_WINDOW;
-  if (hudCombo) {
-    hudCombo.style.display = comboCount >= 2 ? "block" : "none";
-    if (comboCount >= 2) {
-      hudCombo.textContent = `${comboCount} HIT COMBO!`;
-      hudCombo.style.fontSize = `${Math.min(36, 18 + comboCount * 2)}px`;
-    }
+  if (hudCombo && comboCount >= 2) {
+    hudCombo.style.display  = "block";
+    hudCombo.textContent    = `${comboCount} HIT COMBO!`;
+    hudCombo.style.fontSize = `${Math.min(36, 18 + comboCount * 2)}px`;
+    hudCombo.style.animation = "none";
+    void (hudCombo as HTMLElement).offsetWidth;
+    hudCombo.style.animation = "comboZoom 0.15s ease-out";
   }
 }
 
@@ -169,19 +168,18 @@ function updateCombo(dt: number): void {
   }
 }
 
-// ─── 試合開始アニメーション ────────────────────────────────────────────────────
+// ─── カウントダウン ───────────────────────────────────────────────────────────
 function showMatchStart(cb: () => void): void {
   const el = document.getElementById("match-start-msg")!;
-  const messages = ["3", "2", "1", "FIGHT!"];
+  const msgs = ["3", "2", "1", "FIGHT!"];
   let i = 0;
-
   function next(): void {
-    const msg = messages[i];
+    const msg = msgs[i];
     if (msg === undefined) { el.style.display = "none"; cb(); return; }
-    el.textContent  = msg;
-    el.style.display  = "block";
+    el.textContent = msg;
+    el.style.display = "block";
     el.style.animation = "none";
-    void el.offsetWidth; // reflow
+    void el.offsetWidth;
     el.style.animation = "countAnim 0.85s forwards";
     i++;
     setTimeout(next, 850);
@@ -190,8 +188,6 @@ function showMatchStart(cb: () => void): void {
 }
 
 // ─── ゲーム状態 ───────────────────────────────────────────────────────────────
-type GamePhase = "title" | "countdown" | "match" | "result";
-let phase: GamePhase = "title";
 let matchElapsed = 0;
 
 function showResult(winner: string, reason = ""): void {
@@ -202,7 +198,7 @@ function showResult(winner: string, reason = ""): void {
   if (el)  el.style.display = "flex";
   if (txt) {
     txt.textContent = winner === "DRAW" ? "TIME UP! DRAW" : `${winner} WINS!`;
-    txt.style.color = winner === "PLAYER" ? "#ffd700" : winner === "DRAW" ? "#ffffff" : "#ff4444";
+    txt.style.color = winner === "P1" ? "#4488ff" : winner === "P2" || winner === "CPU" ? "#ff4444" : "#ffffff";
   }
   if (sub) {
     const m = Math.floor(matchElapsed / 60);
@@ -221,10 +217,14 @@ function animate(): void {
 
   if (phase === "match") {
     matchElapsed += dt;
-    handlePlayerInput(dt);
-    cpuAI?.update(dt);
-    player.update(dt);
-    cpu.update(dt);
+    handleInput(player1, input1, player2, dt, true);
+    if (mode === "2p") {
+      handleInput(player2, input2, player1, dt, false);
+    } else {
+      cpuAI?.update(dt);
+    }
+    player1.update(dt);
+    player2.update(dt);
     updateCamera(dt);
     effects.update(dt, camera);
     updateCombo(dt);
@@ -234,14 +234,20 @@ function animate(): void {
     updateCamera(dt);
   }
 
-  input.flush();
+  input1.flush(); // グローバルキーストアの flush は1回でよい
   renderer.render(scene, camera);
 }
 animate();
 
-// ─── Player input ─────────────────────────────────────────────────────────────
-function handlePlayerInput(dt: number): void {
-  const s = input.state;
+// ─── 汎用入力処理 ─────────────────────────────────────────────────────────────
+function handleInput(
+  self: Wrestler,
+  inp: InputManager,
+  opponent: Wrestler,
+  dt: number,
+  trackCombo: boolean
+): void {
+  const s = inp.state;
 
   let dx = 0, dz = 0;
   if (s.left)  dx -= 1;
@@ -250,69 +256,69 @@ function handlePlayerInput(dt: number): void {
   if (s.down)  dz += 1;
   if (dx !== 0 && dz !== 0) { dx *= 1 / Math.SQRT2; dz *= 1 / Math.SQRT2; }
 
-  player.move(dx, dz, s.sprint, dt);
-  player.faceTarget(cpu);
+  self.move(dx, dz, s.sprint, dt);
+  self.faceTarget(opponent);
 
-  if (!player.isActionReady()) return;
+  if (!self.isActionReady()) return;
 
-  // Strike (F)
-  if (s.strikePressed && player.canStrike(cpu)) {
-    player.startStrike();
+  // Strike
+  if (s.strikePressed && self.canStrike(opponent)) {
+    self.startStrike();
     const dmg = 8 + Math.random() * 4;
-    cpu.takeDamage(dmg);
-    if (cpu.hp < 25) cpu.startKnockdown();
-    effects.spawnHitSparks(cpu.position, 0xff6600);
+    opponent.takeDamage(dmg);
+    if (opponent.hp < 25) opponent.startKnockdown();
+    effects.spawnHitSparks(opponent.position, 0xff6600);
     effects.shake(0.08);
     audio.punch();
-    addCombo();
+    if (trackCombo) addCombo();
     flashMoveName("STRIKE!");
   }
 
-  // Grapple (G)
+  // Grapple / Slam follow-up (G)
   if (s.grapplePressed) {
-    if (player.state === "grappling" && player.grappleTarget) {
-      const t = player.grappleTarget;
-      player.startSlam(t);
+    if (self.state === "grappling" && self.grappleTarget) {
+      const t = self.grappleTarget;
+      self.startSlam(t);
       t.takeDamage(18);
       effects.spawnDust(t.position);
       effects.shake(0.18);
       audio.slam();
-      addCombo();
+      if (trackCombo) addCombo();
       flashMoveName("SLAM!");
-    } else if (player.canGrapple(cpu)) {
-      player.startGrapple(cpu);
+    } else if (self.canGrapple(opponent)) {
+      self.startGrapple(opponent);
       flashMoveName("GRAPPLE!");
     }
   }
 
-  // Slam (H)
-  if (s.slamPressed && player.state === "grappling" && player.grappleTarget) {
-    const t = player.grappleTarget;
-    player.startSlam(t);
+  // Slam explicit (H / N)
+  if (s.slamPressed && self.state === "grappling" && self.grappleTarget) {
+    const t = self.grappleTarget;
+    self.startSlam(t);
     t.takeDamage(18);
     effects.spawnDust(t.position);
     effects.shake(0.18);
     audio.slam();
-    addCombo();
+    if (trackCombo) addCombo();
     flashMoveName("SLAM!");
   }
 
-  // Signature (Space)
-  if (s.signaturePressed && player.momentum >= 100 && player.canGrapple(cpu)) {
-    player.startSignature(cpu);
-    cpu.takeDamage(35);
-    effects.spawnSignatureBurst(cpu.position);
+  // Signature
+  if (s.signaturePressed && self.momentum >= 100 && self.canGrapple(opponent)) {
+    self.startSignature(opponent);
+    opponent.takeDamage(35);
+    effects.spawnSignatureBurst(opponent.position);
     effects.shake(0.35);
     audio.slam();
     audio.crowd();
-    addCombo();
+    if (trackCombo) addCombo();
     flashMoveName("SIGNATURE MOVE!!");
   }
 
-  // Pin (P)
-  if (s.pinPressed && cpu.isDown() && player.distanceTo(cpu) < 1.5) {
-    player.startPin();
-    cpu.state = "being_pinned";
+  // Pin
+  if (s.pinPressed && opponent.isDown() && self.distanceTo(opponent) < 1.5) {
+    self.startPin();
+    opponent.state = "being_pinned";
     audio.pinRoll();
     flashMoveName("PIN!");
   }
@@ -322,23 +328,24 @@ function handlePlayerInput(dt: number): void {
 function checkMatchEnd(): void {
   if (phase !== "match") return;
 
-  if (player.hp <= 0) { showResult("CPU");    return; }
-  if (cpu.hp    <= 0) { showResult("PLAYER"); return; }
+  const p2Label = mode === "2p" ? "P2" : "CPU";
 
-  if (player.state === "pinning" && cpu.state === "being_pinned") {
-    player.pinCount += 1 / 60;
-    if (player.pinCount >= 3) { showResult("PLAYER", "PINFALL  "); return; }
+  if (player1.hp <= 0) { showResult(p2Label); return; }
+  if (player2.hp <= 0) { showResult("P1");    return; }
+
+  if (player1.state === "pinning" && player2.state === "being_pinned") {
+    player1.pinCount += 1 / 60;
+    if (player1.pinCount >= 3) { showResult("P1", "PINFALL  "); return; }
   }
-  if (cpu.state === "pinning" && player.state === "being_pinned") {
-    cpu.pinCount += 1 / 60;
-    if (cpu.pinCount >= 3) { showResult("CPU", "PINFALL  "); return; }
+  if (player2.state === "pinning" && player1.state === "being_pinned") {
+    player2.pinCount += 1 / 60;
+    if (player2.pinCount >= 3) { showResult(p2Label, "PINFALL  "); return; }
   }
 
-  // タイムアウト
   if (matchElapsed >= MATCH_TIME_LIMIT) {
-    if (player.hp > cpu.hp)      showResult("PLAYER", "TIME UP  ");
-    else if (cpu.hp > player.hp) showResult("CPU",    "TIME UP  ");
-    else                          showResult("DRAW",   "TIME UP  ");
+    if (player1.hp > player2.hp)      showResult("P1",    "TIME UP  ");
+    else if (player2.hp > player1.hp) showResult(p2Label, "TIME UP  ");
+    else                               showResult("DRAW",  "TIME UP  ");
   }
 }
 
@@ -354,26 +361,43 @@ function flashMoveName(text: string): void {
   flashTimeout = setTimeout(() => { el.style.opacity = "0"; }, 900);
 }
 
-// ─── Title → 難易度選択 → 試合開始 ──────────────────────────────────────────
-const titleScreen = document.getElementById("title-screen")!;
-const diffButtons = titleScreen.querySelectorAll<HTMLButtonElement>("[data-diff]");
+// ─── 起動 ─────────────────────────────────────────────────────────────────────
+function startMatch(selectedMode: GameMode, diff?: Difficulty): void {
+  mode = selectedMode;
+  document.getElementById("title-screen")!.style.display = "none";
 
-diffButtons.forEach((btn) => {
+  // HUD 名前を更新
+  if (hudP1Name) hudP1Name.textContent = "P1";
+  if (hudP2Name) hudP2Name.textContent = selectedMode === "2p" ? "P2" : "CPU";
+
+  if (selectedMode === "1p" && diff) {
+    cpuAI = new CpuAI(player2, player1, effects, diff);
+  }
+
+  // 2P モードはコントロールヒントを両方表示
+  const p2hint = document.getElementById("p2-controls");
+  if (p2hint) p2hint.style.display = selectedMode === "2p" ? "inline" : "none";
+
+  phase = "countdown";
+  clock.start();
+  showMatchStart(() => {
+    phase = "match";
+    audio.crowd();
+  });
+}
+
+// タイトルボタンのイベント
+document.querySelectorAll<HTMLButtonElement>("[data-diff]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const diff = btn.dataset["diff"] as Difficulty;
-    cpuAI = new CpuAI(cpu, player, effects, diff);
-    titleScreen.style.display = "none";
-    phase = "countdown";
-    clock.start();
-
-    showMatchStart(() => {
-      phase = "match";
-      audio.crowd();
-    });
+    startMatch("1p", btn.dataset["diff"] as Difficulty);
   });
 });
 
-// ─── Retry ────────────────────────────────────────────────────────────────────
+document.getElementById("btn-2p")?.addEventListener("click", () => {
+  startMatch("2p");
+});
+
+// Retry
 document.getElementById("retry-btn")?.addEventListener("click", () => {
   location.reload();
 });

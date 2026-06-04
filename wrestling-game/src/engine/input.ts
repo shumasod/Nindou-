@@ -3,12 +3,12 @@ export interface InputState {
   down: boolean;
   left: boolean;
   right: boolean;
-  strike: boolean;      // F
-  grapple: boolean;     // G
-  slam: boolean;        // H
-  signature: boolean;   // Space
-  pin: boolean;         // P
-  sprint: boolean;      // Shift
+  strike: boolean;
+  grapple: boolean;
+  slam: boolean;
+  signature: boolean;
+  pin: boolean;
+  sprint: boolean;
   // Edge-triggered (pressed this frame only)
   strikePressed: boolean;
   grapplePressed: boolean;
@@ -17,50 +17,110 @@ export interface InputState {
   pinPressed: boolean;
 }
 
-export class InputManager {
-  private keys = new Set<string>();
-  private prevKeys = new Set<string>();
+/** P1: WASD + F/G/H/Space/P/Shift */
+const P1_MAP = {
+  up:        ["KeyW"],
+  down:      ["KeyS"],
+  left:      ["KeyA"],
+  right:     ["KeyD"],
+  strike:    ["KeyF"],
+  grapple:   ["KeyG"],
+  slam:      ["KeyH"],
+  signature: ["Space"],
+  pin:       ["KeyP"],
+  sprint:    ["ShiftLeft", "ShiftRight"],
+} as const;
 
-  constructor() {
-    window.addEventListener("keydown", (e) => {
-      this.keys.add(e.code);
+/**
+ * P2: IJKL 移動
+ *   U=ストライク  O=グラップル  N=スラム  M=シグネチャー
+ *   Comma=ピン  RCtrl=ダッシュ
+ */
+const P2_MAP = {
+  up:        ["KeyI"],
+  down:      ["KeyK"],
+  left:      ["KeyJ"],
+  right:     ["KeyL"],
+  strike:    ["KeyU"],
+  grapple:   ["KeyO"],
+  slam:      ["KeyN"],
+  signature: ["KeyM"],
+  pin:       ["Comma"],
+  sprint:    ["ControlRight"],
+} as const;
+
+interface KeyMap {
+  readonly up:        readonly string[];
+  readonly down:      readonly string[];
+  readonly left:      readonly string[];
+  readonly right:     readonly string[];
+  readonly strike:    readonly string[];
+  readonly grapple:   readonly string[];
+  readonly slam:      readonly string[];
+  readonly signature: readonly string[];
+  readonly pin:       readonly string[];
+  readonly sprint:    readonly string[];
+}
+
+// 共有キーストア — 2インスタンスで同じイベントを参照
+const globalKeys     = new Set<string>();
+const globalPrevKeys = new Set<string>();
+let listenersAttached = false;
+
+function attachListeners(): void {
+  if (listenersAttached) return;
+  listenersAttached = true;
+  window.addEventListener("keydown", (e) => {
+    globalKeys.add(e.code);
+    // ブラウザのFキーショートカットは通す
+    if (e.code !== "F5" && e.code !== "F11" && e.code !== "F12") {
       e.preventDefault();
-    });
-    window.addEventListener("keyup", (e) => {
-      this.keys.delete(e.code);
-    });
+    }
+  });
+  window.addEventListener("keyup", (e) => {
+    globalKeys.delete(e.code);
+  });
+}
+
+export class InputManager {
+  private readonly map: KeyMap;
+
+  constructor(player: 1 | 2 = 1) {
+    this.map = player === 1 ? P1_MAP : P2_MAP;
+    attachListeners();
   }
 
-  /** フレーム終了時に呼ぶ */
+  /** フレーム終了時に1回だけ呼ぶ（P1 側が呼べばよい）*/
   flush(): void {
-    this.prevKeys = new Set(this.keys);
+    globalPrevKeys.clear();
+    for (const k of globalKeys) globalPrevKeys.add(k);
   }
 
-  private held(code: string): boolean {
-    return this.keys.has(code);
+  private held(codes: readonly string[]): boolean {
+    return codes.some((c) => globalKeys.has(c));
   }
 
-  private pressed(code: string): boolean {
-    return this.keys.has(code) && !this.prevKeys.has(code);
+  private pressed(codes: readonly string[]): boolean {
+    return codes.some((c) => globalKeys.has(c) && !globalPrevKeys.has(c));
   }
 
   get state(): InputState {
     return {
-      up:    this.held("KeyW") || this.held("ArrowUp"),
-      down:  this.held("KeyS") || this.held("ArrowDown"),
-      left:  this.held("KeyA") || this.held("ArrowLeft"),
-      right: this.held("KeyD") || this.held("ArrowRight"),
-      strike:    this.held("KeyF"),
-      grapple:   this.held("KeyG"),
-      slam:      this.held("KeyH"),
-      signature: this.held("Space"),
-      pin:       this.held("KeyP"),
-      sprint:    this.held("ShiftLeft") || this.held("ShiftRight"),
-      strikePressed:    this.pressed("KeyF"),
-      grapplePressed:   this.pressed("KeyG"),
-      slamPressed:      this.pressed("KeyH"),
-      signaturePressed: this.pressed("Space"),
-      pinPressed:       this.pressed("KeyP"),
+      up:        this.held(this.map.up),
+      down:      this.held(this.map.down),
+      left:      this.held(this.map.left),
+      right:     this.held(this.map.right),
+      strike:    this.held(this.map.strike),
+      grapple:   this.held(this.map.grapple),
+      slam:      this.held(this.map.slam),
+      signature: this.held(this.map.signature),
+      pin:       this.held(this.map.pin),
+      sprint:    this.held(this.map.sprint),
+      strikePressed:    this.pressed(this.map.strike),
+      grapplePressed:   this.pressed(this.map.grapple),
+      slamPressed:      this.pressed(this.map.slam),
+      signaturePressed: this.pressed(this.map.signature),
+      pinPressed:       this.pressed(this.map.pin),
     };
   }
 }
