@@ -60,10 +60,11 @@ export class Wrestler {
   grappleTarget: Wrestler | null = null;
 
   // Timers (秒)
-  stateTimer     = 0;
-  actionCooldown = 0;
-  knockdownTimer = 0;
-  pinCount       = 0;  // 現在のピンカウント (0-3)
+  stateTimer      = 0;
+  actionCooldown  = 0;
+  knockdownTimer  = 0;
+  pinCount        = 0;   // 現在のピンカウント (0-3)
+  reversalWindow  = 0;   // > 0 の間リバーサル受付中
 
   private config: WrestlerConfig;
 
@@ -300,7 +301,29 @@ export class Wrestler {
     this.stateTimer = 0;
     target.state = "grappled";
     target.grappleTarget = this;
+    // リバーサルウィンドウ: 被グラップル側に 0.5 秒の反撃チャンス
+    target.reversalWindow = 0.5;
     this.stamina = Math.max(0, this.stamina - 8);
+  }
+
+  /** グラップルを逆転する — reversalWindow 内かつグラップルされている状態のみ */
+  canReversal(): boolean {
+    return this.state === "grappled" && this.reversalWindow > 0;
+  }
+
+  /** リバーサル実行 — グラップル関係を逆転する */
+  doReversal(): void {
+    const attacker = this.grappleTarget;
+    if (!attacker) return;
+    // 攻撃側をグラップルされた状態に
+    attacker.state         = "grappled";
+    attacker.grappleTarget = this;
+    attacker.reversalWindow = 0;
+    // 自分が攻撃側に
+    this.state         = "grappling";
+    this.grappleTarget = attacker;
+    this.reversalWindow = 0;
+    this.stamina = Math.max(0, this.stamina - 6);
   }
 
   startSlam(target: Wrestler): void {
@@ -343,6 +366,7 @@ export class Wrestler {
     // Cooldowns
     this.actionCooldown = Math.max(0, this.actionCooldown - dt);
     this.flashTimer     = Math.max(0, this.flashTimer - dt);
+    this.reversalWindow = Math.max(0, this.reversalWindow - dt);
 
     // Stamina recovery
     if (this.state === "idle") {

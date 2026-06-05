@@ -175,6 +175,32 @@
       }
       .retry-btn:hover { background: rgba(255,255,255,0.2); }
 
+      /* ── Match stats table ────────────────────────────────── */
+      #result-stats { margin-bottom: 28px; }
+      .stats-table {
+        border-collapse: collapse; width: 360px;
+        font-size: 13px; letter-spacing: 1px;
+      }
+      .stats-table thead th {
+        color: rgba(255,255,255,0.5); font-size: 11px;
+        text-transform: uppercase; padding: 0 12px 8px;
+      }
+      .stats-table thead th:first-child { text-align: right; }
+      .stats-table thead th:last-child  { text-align: left; }
+      .stats-table thead th:nth-child(2){ text-align: center; }
+      .stats-table tbody td {
+        padding: 5px 12px; color: rgba(255,255,255,0.65);
+        text-align: center;
+      }
+      .stats-table tbody td:first-child { text-align: right; }
+      .stats-table tbody td:last-child  { text-align: left; }
+      .stats-table .stat-label {
+        color: rgba(255,255,255,0.3); font-size: 10px;
+        text-transform: uppercase; letter-spacing: 2px;
+        padding: 5px 16px;
+      }
+      .stats-table .stat-hi { color: #ffd700; font-weight: bold; }
+
       /* ── Character Select Screen ──────────────────────────── */
       #char-select-screen {
         position: absolute; inset: 0;
@@ -333,6 +359,7 @@
     <div id="result-screen">
       <div id="result-text"></div>
       <div id="result-sub"></div>
+      <div id="result-stats"></div>
       <button class="retry-btn" id="retry-btn">PLAY AGAIN</button>
     </div>
 

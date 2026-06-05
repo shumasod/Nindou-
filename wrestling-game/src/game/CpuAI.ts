@@ -68,6 +68,18 @@ export class CpuAI {
   }
 
   update(dt: number): void {
+    // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
+    if (this.cpu.canReversal()) {
+      const reversalChance = 1 - this.p.missChance * 2.5;
+      if (Math.random() < reversalChance) {
+        this.cpu.doReversal();
+        this.effects.spawnHitSparks(this.cpu.position, 0x00ffff);
+        this.effects.shake(0.1);
+        audio.punch();
+      }
+      return;
+    }
+
     if (!this.cpu.isActionReady()) return;
 
     this.updatePhase();
