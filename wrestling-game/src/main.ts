@@ -196,6 +196,7 @@ function showResult(winner: string, reason = ""): void {
   const el  = document.getElementById("result-screen");
   const txt = document.getElementById("result-text");
   const sub = document.getElementById("result-sub");
+  const statsEl = document.getElementById("result-stats");
   if (el)  el.style.display = "flex";
   if (txt) {
     txt.textContent = winner === "DRAW" ? "TIME UP! DRAW" : `${winner} WINS!`;
@@ -206,6 +207,32 @@ function showResult(winner: string, reason = ""): void {
     const s = Math.floor(matchElapsed % 60);
     sub.textContent = `${reason}MATCH TIME  ${m}:${s.toString().padStart(2, "0")}`;
   }
+  if (statsEl) {
+    const p1n = player1.name;
+    const p2n = player2.name;
+    const s1  = tracker.stats.p1;
+    const s2  = tracker.stats.p2;
+    statsEl.innerHTML = `
+      <table class="stats-table">
+        <thead><tr><th>${p1n}</th><th></th><th>${p2n}</th></tr></thead>
+        <tbody>
+          ${statRow(s1.strikesLanded,    s2.strikesLanded,    "STRIKES")}
+          ${statRow(s1.slamsLanded,      s2.slamsLanded,      "SLAMS")}
+          ${statRow(s1.signaturesMade,   s2.signaturesMade,   "SIGNATURES")}
+          ${statRow(s1.reversals,        s2.reversals,        "REVERSALS")}
+          ${statRow(Math.round(s1.totalDamage), Math.round(s2.totalDamage), "DAMAGE")}
+          ${statRow(s1.knockdownsCaused, s2.knockdownsCaused, "KNOCKDOWNS")}
+          ${statRow(s1.pinAttempts,      s2.pinAttempts,      "PINS")}
+          ${statRow(s1.maxCombo,         s2.maxCombo,         "MAX COMBO")}
+        </tbody>
+      </table>`;
+  }
+}
+
+function statRow(v1: number, v2: number, label: string): string {
+  const hi1 = v1 > v2 ? " class=\"stat-hi\"" : "";
+  const hi2 = v2 > v1 ? " class=\"stat-hi\"" : "";
+  return `<tr><td${hi1}>${v1}</td><td class="stat-label">${label}</td><td${hi2}>${v2}</td></tr>`;
 }
 
 // ─── Clock ────────────────────────────────────────────────────────────────────
