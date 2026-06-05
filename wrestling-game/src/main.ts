@@ -301,19 +301,43 @@ function handleInput(
 
   if (!self.isActionReady()) return;
 
-  // Strike
+  // Taunt (T / B) — ハイリスク・ハイリターン
+  if (s.tauntPressed && self.state === "idle") {
+    self.startTaunt();
+    audio.crowd();
+    flashMoveName("TAUNT!");
+  }
+
+  // Strike (F / U)
   if (s.strikePressed && self.canStrike(opponent)) {
-    self.startStrike();
-    const dmg = (8 + Math.random() * 4) * self.damageMult;
-    opponent.takeDamage(dmg);
-    const knockdown = opponent.hp < 25;
-    if (knockdown) opponent.startKnockdown();
-    effects.spawnHitSparks(opponent.position, 0xff6600);
-    effects.shake(0.08);
-    audio.punch();
-    tracker.recordStrike(side, dmg, knockdown);
-    if (trackCombo) addCombo();
-    flashMoveName("STRIKE!");
+    const isRunning = self.isSprinting;
+    if (isRunning) {
+      // ランニングストライク — 1.5 倍ダメージ
+      self.startRunningStrike();
+      const dmg = (14 + Math.random() * 6) * self.damageMult;
+      opponent.takeDamage(dmg);
+      const knockdown = opponent.hp < 35;
+      if (knockdown) opponent.startKnockdown();
+      effects.spawnHitSparks(opponent.position, 0xff2200);
+      effects.spawnHitSparks(opponent.position, 0xffaa00);
+      effects.shake(0.18);
+      audio.slam();
+      tracker.recordStrike(side, dmg, knockdown);
+      if (trackCombo) addCombo();
+      flashMoveName("RUNNING STRIKE!!");
+    } else {
+      self.startStrike();
+      const dmg = (8 + Math.random() * 4) * self.damageMult;
+      opponent.takeDamage(dmg);
+      const knockdown = opponent.hp < 25;
+      if (knockdown) opponent.startKnockdown();
+      effects.spawnHitSparks(opponent.position, 0xff6600);
+      effects.shake(0.08);
+      audio.punch();
+      tracker.recordStrike(side, dmg, knockdown);
+      if (trackCombo) addCombo();
+      flashMoveName("STRIKE!");
+    }
   }
 
   // Grapple / Slam follow-up (G)
