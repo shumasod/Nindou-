@@ -28,6 +28,10 @@
         0%   { transform: translateX(-50%) scale(1.3); }
         100% { transform: translateX(-50%) scale(1);   }
       }
+      @keyframes roundResultIn {
+        0%   { opacity: 0; transform: scale(0.85); }
+        100% { opacity: 1; transform: scale(1); }
+      }
 
       /* ── HUD ──────────────────────────────────────────────── */
       #hud {
@@ -201,6 +205,45 @@
       }
       .stats-table .stat-hi { color: #ffd700; font-weight: bold; }
 
+      /* ── Win pips ────────────────────────────────────────── */
+      .win-pips {
+        font-size: 16px; letter-spacing: 6px; margin-top: 2px;
+        color: #ffd700; text-shadow: 0 0 8px rgba(255,215,0,0.7);
+      }
+
+      /* ── Between-round screen ────────────────────────────── */
+      #round-result-screen {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.82);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 110;
+        animation: roundResultIn 0.35s ease-out;
+      }
+      #round-result-num {
+        font-size: 18px; letter-spacing: 6px; color: rgba(255,255,255,0.5);
+        text-transform: uppercase; margin-bottom: 10px;
+      }
+      #round-result-winner {
+        font-size: 52px; font-weight: 900; letter-spacing: 6px;
+        text-transform: uppercase; margin-bottom: 36px;
+      }
+      .round-win-row {
+        display: flex; align-items: center; gap: 40px; margin-bottom: 36px;
+      }
+      .round-win-side { text-align: center; }
+      .round-win-name {
+        font-size: 14px; letter-spacing: 3px; color: rgba(255,255,255,0.5);
+        margin-bottom: 8px; text-transform: uppercase;
+      }
+      .round-win-pips { font-size: 28px; letter-spacing: 10px; color: #ffd700; }
+      .round-win-sep {
+        font-size: 24px; color: rgba(255,255,255,0.2); letter-spacing: 4px;
+      }
+      #round-next-msg {
+        font-size: 16px; color: rgba(255,255,255,0.45);
+        letter-spacing: 3px; text-transform: uppercase;
+      }
+
       /* ── Character Select Screen ──────────────────────────── */
       #char-select-screen {
         position: absolute; inset: 0;
@@ -275,6 +318,7 @@
       <!-- P1 HUD -->
       <div class="fighter-hud" id="player-hud">
         <div class="fighter-name" id="hud-p1-name">P1</div>
+        <div class="win-pips" id="p1-pips" style="display:none"></div>
         <div class="bar-wrap"><div class="hp-bar"  id="player-hp"  style="width:100%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div>
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="player-sta" style="width:100%"></div></div>
@@ -288,6 +332,7 @@
       <!-- P2 / CPU HUD -->
       <div class="fighter-hud" id="cpu-hud">
         <div class="fighter-name" id="hud-p2-name">CPU</div>
+        <div class="win-pips" id="p2-pips" style="display:none"></div>
         <div class="bar-wrap"><div class="hp-bar"  id="cpu-hp"  style="width:100%;background:linear-gradient(90deg,#27ae60,#2ecc71)"></div></div>
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="cpu-sta" style="width:100%"></div></div>
@@ -353,6 +398,40 @@
           <button class="mode-btn" id="btn-2p">2 PLAYER</button>
         </div>
       </div>
+
+      <div class="divider">─── CHAMPIONSHIP ───</div>
+
+      <div class="mode-section">
+        <div class="mode-label">Best of 3 — Select Difficulty</div>
+        <div class="diff-btns">
+          <button class="diff-btn" data-diff="easy"   data-bo3="1">BO3 EASY</button>
+          <button class="diff-btn" data-diff="normal" data-bo3="1">BO3 NORMAL</button>
+          <button class="diff-btn" data-diff="hard"   data-bo3="1">BO3 HARD</button>
+        </div>
+      </div>
+      <div class="mode-section" style="margin-top:0">
+        <div class="mode-btns">
+          <button class="mode-btn" id="btn-bo3-2p">BO3 2 PLAYER</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Between-round Screen -->
+    <div id="round-result-screen">
+      <div id="round-result-num">ROUND 1 COMPLETE</div>
+      <div id="round-result-winner">P1 WINS THE ROUND!</div>
+      <div class="round-win-row">
+        <div class="round-win-side">
+          <div class="round-win-name" id="round-p1-name">P1</div>
+          <div class="round-win-pips" id="round-p1-pips">☆☆</div>
+        </div>
+        <div class="round-win-sep">VS</div>
+        <div class="round-win-side">
+          <div class="round-win-name" id="round-p2-name">CPU</div>
+          <div class="round-win-pips" id="round-p2-pips">☆☆</div>
+        </div>
+      </div>
+      <div id="round-next-msg">NEXT ROUND STARTS SOON...</div>
     </div>
 
     <!-- Result Screen -->

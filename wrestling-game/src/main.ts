@@ -42,12 +42,30 @@ const input2 = new InputManager(2);
 
 // ─── Game mode ────────────────────────────────────────────────────────────────
 type GameMode   = "1p" | "2p";
-type GamePhase  = "title" | "countdown" | "match" | "result";
+type GamePhase  = "title" | "countdown" | "match" | "result" | "between_rounds";
 
 let mode: GameMode  = "1p";
 let phase: GamePhase = "title";
 let cpuAI: CpuAI | null = null;
 let tracker = new MatchTracker();
+
+// ─── Tournament state ─────────────────────────────────────────────────────────
+interface TournamentState {
+  active: boolean;
+  roundWins: { p1: number; p2: number };
+  roundNum: number;
+  def1: CharacterDef;
+  def2: CharacterDef;
+  diff?: Difficulty;
+}
+
+let tournament: TournamentState = {
+  active: false,
+  roundWins: { p1: 0, p2: 0 },
+  roundNum: 1,
+  def1: ROSTER[0]!,
+  def2: ROSTER[0]!,
+};
 
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
@@ -172,7 +190,8 @@ function updateCombo(dt: number): void {
 // ─── カウントダウン ───────────────────────────────────────────────────────────
 function showMatchStart(cb: () => void): void {
   const el = document.getElementById("match-start-msg")!;
-  const msgs = ["3", "2", "1", "FIGHT!"];
+  const roundLabel = tournament.active ? [`ROUND ${tournament.roundNum}`] : [];
+  const msgs = [...roundLabel, "3", "2", "1", "FIGHT!"];
   let i = 0;
   function next(): void {
     const msg = msgs[i];
@@ -191,7 +210,108 @@ function showMatchStart(cb: () => void): void {
 // ─── ゲーム状態 ───────────────────────────────────────────────────────────────
 let matchElapsed = 0;
 
+function pipStr(wins: number): string {
+  return "★".repeat(wins) + "☆".repeat(Math.max(0, 2 - wins));
+}
+
+function updateWinPips(): void {
+  const p1el = document.getElementById("p1-pips");
+  const p2el = document.getElementById("p2-pips");
+  if (!tournament.active) {
+    if (p1el) p1el.style.display = "none";
+    if (p2el) p2el.style.display = "none";
+    return;
+  }
+  if (p1el) { p1el.style.display = "block"; p1el.textContent = pipStr(tournament.roundWins.p1); }
+  if (p2el) { p2el.style.display = "block"; p2el.textContent = pipStr(tournament.roundWins.p2); }
+}
+
+function showRoundResult(winnerSide: "p1" | "p2" | "draw"): void {
+  phase = "between_rounds";
+
+  const p2Label = mode === "2p" ? "P2" : "CPU";
+  const winnerName = winnerSide === "p1" ? "P1" : winnerSide === "p2" ? p2Label : "DRAW";
+  const colorMap: Record<string, string> = { P1: "#4488ff", P2: "#ff4444", CPU: "#ff4444", DRAW: "#ffffff" };
+
+  const el       = document.getElementById("round-result-screen")!;
+  const numEl    = document.getElementById("round-result-num")!;
+  const winnerEl = document.getElementById("round-result-winner")!;
+  const p1PipsEl = document.getElementById("round-p1-pips")!;
+  const p2PipsEl = document.getElementById("round-p2-pips")!;
+  const p1NameEl = document.getElementById("round-p1-name")!;
+  const p2NameEl = document.getElementById("round-p2-name")!;
+  const nextMsg  = document.getElementById("round-next-msg")!;
+
+  numEl.textContent    = `ROUND ${tournament.roundNum} COMPLETE`;
+  winnerEl.textContent = winnerSide === "draw" ? "ROUND DRAW" : `${winnerName} WINS THE ROUND!`;
+  winnerEl.style.color = colorMap[winnerName] ?? "#ffffff";
+  p1NameEl.textContent = player1.name;
+  p2NameEl.textContent = player2.name;
+  p1PipsEl.textContent = pipStr(tournament.roundWins.p1);
+  p2PipsEl.textContent = pipStr(tournament.roundWins.p2);
+  el.style.display     = "flex";
+
+  // Countdown until next round
+  let secs = 4;
+  nextMsg.textContent = `ROUND ${tournament.roundNum + 1} STARTS IN ${secs}...`;
+  const iv = setInterval(() => {
+    secs--;
+    if (secs > 0) {
+      nextMsg.textContent = `ROUND ${tournament.roundNum + 1} STARTS IN ${secs}...`;
+    } else {
+      clearInterval(iv);
+      el.style.display = "none";
+      startNextRound();
+    }
+  }, 1000);
+}
+
+function startNextRound(): void {
+  tournament.roundNum++;
+  tracker = new MatchTracker();
+  matchElapsed = 0;
+  comboCount = 0;
+  comboTimer = 0;
+  if (hudCombo) hudCombo.style.display = "none";
+
+  createWrestlers(tournament.def1, tournament.def2);
+  if (mode === "1p") {
+    cpuAI = new CpuAI(player2, player1, effects, tournament.diff ?? "normal");
+  }
+
+  phase = "countdown";
+  clock.start();
+  showMatchStart(() => { phase = "match"; audio.crowd(); });
+}
+
 function showResult(winner: string, reason = ""): void {
+  // In tournament mode, tally wins first
+  if (tournament.active && winner !== "DRAW") {
+    const side = winner === "P1" ? "p1" : "p2";
+    tournament.roundWins[side]++;
+    updateWinPips();
+
+    // Check if someone clinched Best-of-3
+    if (tournament.roundWins.p1 >= 2 || tournament.roundWins.p2 >= 2) {
+      showFinalResult(winner, reason);
+    } else {
+      showRoundResult(side);
+    }
+    return;
+  }
+  if (tournament.active && winner === "DRAW") {
+    // Draw round — no wins awarded, just go next round if rounds remain
+    if (tournament.roundNum < 3) {
+      showRoundResult("draw");
+    } else {
+      showFinalResult("DRAW", reason);
+    }
+    return;
+  }
+  showFinalResult(winner, reason);
+}
+
+function showFinalResult(winner: string, reason = ""): void {
   phase = "result";
   const el  = document.getElementById("result-screen");
   const txt = document.getElementById("result-text");
@@ -199,23 +319,34 @@ function showResult(winner: string, reason = ""): void {
   const statsEl = document.getElementById("result-stats");
   if (el)  el.style.display = "flex";
   if (txt) {
-    txt.textContent = winner === "DRAW" ? "TIME UP! DRAW" : `${winner} WINS!`;
-    txt.style.color = winner === "P1" ? "#4488ff" : winner === "P2" || winner === "CPU" ? "#ff4444" : "#ffffff";
+    const label = tournament.active
+      ? (winner === "DRAW" ? "TOURNAMENT DRAW" : `${winner} WINS THE CHAMPIONSHIP!`)
+      : (winner === "DRAW" ? "TIME UP! DRAW"    : `${winner} WINS!`);
+    txt.textContent = label;
+    const p2Label = mode === "2p" ? "P2" : "CPU";
+    txt.style.color = winner === "P1" ? "#4488ff" : winner === p2Label ? "#ff4444" : "#ffffff";
   }
   if (sub) {
     const m = Math.floor(matchElapsed / 60);
     const s = Math.floor(matchElapsed % 60);
-    sub.textContent = `${reason}MATCH TIME  ${m}:${s.toString().padStart(2, "0")}`;
+    const roundInfo = tournament.active
+      ? `ROUND ${tournament.roundNum}  `
+      : "";
+    sub.textContent = `${roundInfo}${reason}MATCH TIME  ${m}:${s.toString().padStart(2, "0")}`;
   }
   if (statsEl) {
     const p1n = player1.name;
     const p2n = player2.name;
     const s1  = tracker.stats.p1;
     const s2  = tracker.stats.p2;
+    const champRow = tournament.active
+      ? `<tr><td class="${tournament.roundWins.p1 > tournament.roundWins.p2 ? "stat-hi" : ""}">${tournament.roundWins.p1}</td><td class="stat-label">ROUNDS WON</td><td class="${tournament.roundWins.p2 > tournament.roundWins.p1 ? "stat-hi" : ""}">${tournament.roundWins.p2}</td></tr>`
+      : "";
     statsEl.innerHTML = `
       <table class="stats-table">
         <thead><tr><th>${p1n}</th><th></th><th>${p2n}</th></tr></thead>
         <tbody>
+          ${champRow}
           ${statRow(s1.strikesLanded,    s2.strikesLanded,    "STRIKES")}
           ${statRow(s1.slamsLanded,      s2.slamsLanded,      "SLAMS")}
           ${statRow(s1.signaturesMade,   s2.signaturesMade,   "SIGNATURES")}
@@ -439,9 +570,23 @@ function startMatch(
   selectedMode: GameMode,
   def1: CharacterDef,
   def2: CharacterDef,
-  diff?: Difficulty
+  diff?: Difficulty,
+  bo3 = false
 ): void {
   mode = selectedMode;
+
+  // Initialise tournament state
+  tournament = {
+    active: bo3,
+    roundWins: { p1: 0, p2: 0 },
+    roundNum: 1,
+    def1,
+    def2,
+    diff,
+  };
+  updateWinPips();
+
+  matchElapsed = 0;
   createWrestlers(def1, def2);
 
   if (hudP1Name) hudP1Name.textContent = def1.name;
@@ -464,16 +609,18 @@ function startMatch(
 interface SelectState {
   mode: GameMode;
   diff?: Difficulty;
+  bo3: boolean;
   step: 1 | 2;        // P1 選択中 or P2 選択中
   p1Def?: CharacterDef;
   selectedIdx: number | null;
 }
 
-const sel: SelectState = { mode: "1p", step: 1, selectedIdx: null };
+const sel: SelectState = { mode: "1p", bo3: false, step: 1, selectedIdx: null };
 
-function openCharSelect(m: GameMode, d?: Difficulty): void {
+function openCharSelect(m: GameMode, d?: Difficulty, bo3 = false): void {
   sel.mode  = m;
   sel.diff  = d;
+  sel.bo3   = bo3;
   sel.step  = 1;
   sel.p1Def = undefined;
   sel.selectedIdx = null;
@@ -484,7 +631,7 @@ function openCharSelect(m: GameMode, d?: Difficulty): void {
   const confirm = document.getElementById("char-confirm-btn") as HTMLButtonElement;
 
   screen.style.display = "flex";
-  title.textContent = "SELECT YOUR FIGHTER";
+  title.textContent = bo3 ? "CHAMPIONSHIP — SELECT FIGHTER" : "SELECT YOUR FIGHTER";
   sub.textContent   = "P1 — choose your character";
   confirm.disabled  = true;
 
@@ -551,7 +698,7 @@ document.getElementById("char-confirm-btn")?.addEventListener("click", () => {
       // CPU は自動でランダム選択
       const cpuDef = ROSTER[Math.floor(Math.random() * ROSTER.length)]!;
       document.getElementById("char-select-screen")!.style.display = "none";
-      startMatch("1p", chosen, cpuDef, sel.diff);
+      startMatch("1p", chosen, cpuDef, sel.diff, sel.bo3);
     } else {
       // 2P: P2 選択へ
       sel.step = 2;
@@ -565,7 +712,7 @@ document.getElementById("char-confirm-btn")?.addEventListener("click", () => {
   } else {
     // 2P step 2
     document.getElementById("char-select-screen")!.style.display = "none";
-    startMatch("2p", sel.p1Def!, chosen);
+    startMatch("2p", sel.p1Def!, chosen, undefined, sel.bo3);
   }
 });
 
@@ -579,13 +726,19 @@ document.getElementById("char-back-btn")?.addEventListener("click", () => {
 document.querySelectorAll<HTMLButtonElement>("[data-diff]").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.getElementById("title-screen")!.style.display = "none";
-    openCharSelect("1p", btn.dataset["diff"] as Difficulty);
+    const isBo3 = btn.dataset["bo3"] === "1";
+    openCharSelect("1p", btn.dataset["diff"] as Difficulty, isBo3);
   });
 });
 
 document.getElementById("btn-2p")?.addEventListener("click", () => {
   document.getElementById("title-screen")!.style.display = "none";
   openCharSelect("2p");
+});
+
+document.getElementById("btn-bo3-2p")?.addEventListener("click", () => {
+  document.getElementById("title-screen")!.style.display = "none";
+  openCharSelect("2p", undefined, true);
 });
 
 // Retry
