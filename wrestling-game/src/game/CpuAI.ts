@@ -120,6 +120,19 @@ export class CpuAI {
     const sprint = this.cpu.stamina > this.p.sprintThreshold && len > 3.5;
     this.cpu.move(dx / len, dz / len, sprint, dt);
     this.cpu.faceTarget(this.player);
+
+    // スプリント中 + 射程内 → ランニングストライク
+    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady()) {
+      this.cpu.startRunningStrike();
+      const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
+      this.player.takeDamage(dmg);
+      if (this.player.hp < 35) this.player.startKnockdown();
+      this.effects.spawnHitSparks(this.player.position, 0xff2200);
+      this.effects.spawnHitSparks(this.player.position, 0xffaa00);
+      this.effects.shake(0.18);
+      audio.slam();
+      this.decisionTimer = this.p.decisionBase * 1.2;
+    }
   }
 
   private doAttack(dt: number): void {
@@ -186,6 +199,16 @@ export class CpuAI {
     const len = Math.sqrt(dx * dx + dz * dz) || 1;
     if (this.cpu.distanceTo(this.player) < 3.5) {
       this.cpu.move(dx / len, dz / len, false, dt);
+    }
+    // Hard 限定: 遠ければたまにタントして煽る
+    if (this.p.missChance < 0.1 &&
+        this.cpu.distanceTo(this.player) > 4 &&
+        this.cpu.state === "idle" &&
+        this.decisionTimer <= 0 &&
+        Math.random() < 0.008) {
+      this.cpu.startTaunt();
+      audio.crowd();
+      this.decisionTimer = 1.5;
     }
     if (this.cpu.stamina > this.p.recoverUntil) this.phase = "chase";
   }
