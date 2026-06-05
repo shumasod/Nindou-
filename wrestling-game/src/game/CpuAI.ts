@@ -68,6 +68,18 @@ export class CpuAI {
   }
 
   update(dt: number): void {
+    // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
+    if (this.cpu.canReversal()) {
+      const reversalChance = 1 - this.p.missChance * 2.5;
+      if (Math.random() < reversalChance) {
+        this.cpu.doReversal();
+        this.effects.spawnHitSparks(this.cpu.position, 0x00ffff);
+        this.effects.shake(0.1);
+        audio.punch();
+      }
+      return;
+    }
+
     if (!this.cpu.isActionReady()) return;
 
     this.updatePhase();
@@ -121,10 +133,12 @@ export class CpuAI {
     const dist = this.cpu.distanceTo(this.player);
     const roll  = Math.random();
 
+    const charDmg = this.cpu.damageMult;  // キャラクター固有の攻撃力
+
     // シグネチャー
     if (this.cpu.momentum >= 100 && dist < GRAPPLE_DIST) {
       this.cpu.startSignature(this.player);
-      this.player.takeDamage(35 * this.p.dmgMult);
+      this.player.takeDamage(35 * this.p.dmgMult * charDmg);
       this.effects.spawnSignatureBurst(this.player.position);
       this.effects.shake(0.35);
       audio.slam();
@@ -136,7 +150,7 @@ export class CpuAI {
     // グラップル中スラム
     if (this.cpu.state === "grappling" && this.cpu.grappleTarget) {
       this.cpu.startSlam(this.player);
-      this.player.takeDamage(18 * this.p.dmgMult);
+      this.player.takeDamage(18 * this.p.dmgMult * charDmg);
       this.effects.spawnDust(this.player.position);
       this.effects.shake(0.18);
       audio.slam();
@@ -152,7 +166,7 @@ export class CpuAI {
     } else if (dist < STRIKE_DIST && roll < 0.85) {
       if (this.cpu.canStrike(this.player)) {
         this.cpu.startStrike();
-        const dmg = (7 + Math.random() * 5) * this.p.dmgMult;
+        const dmg = (7 + Math.random() * 5) * this.p.dmgMult * charDmg;
         this.player.takeDamage(dmg);
         if (this.player.hp < 25) this.player.startKnockdown();
         this.effects.spawnHitSparks(this.player.position, 0xff6600);

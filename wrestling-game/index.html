@@ -174,6 +174,98 @@
         cursor: pointer; pointer-events: auto; transition: background 0.2s;
       }
       .retry-btn:hover { background: rgba(255,255,255,0.2); }
+
+      /* ── Match stats table ────────────────────────────────── */
+      #result-stats { margin-bottom: 28px; }
+      .stats-table {
+        border-collapse: collapse; width: 360px;
+        font-size: 13px; letter-spacing: 1px;
+      }
+      .stats-table thead th {
+        color: rgba(255,255,255,0.5); font-size: 11px;
+        text-transform: uppercase; padding: 0 12px 8px;
+      }
+      .stats-table thead th:first-child { text-align: right; }
+      .stats-table thead th:last-child  { text-align: left; }
+      .stats-table thead th:nth-child(2){ text-align: center; }
+      .stats-table tbody td {
+        padding: 5px 12px; color: rgba(255,255,255,0.65);
+        text-align: center;
+      }
+      .stats-table tbody td:first-child { text-align: right; }
+      .stats-table tbody td:last-child  { text-align: left; }
+      .stats-table .stat-label {
+        color: rgba(255,255,255,0.3); font-size: 10px;
+        text-transform: uppercase; letter-spacing: 2px;
+        padding: 5px 16px;
+      }
+      .stats-table .stat-hi { color: #ffd700; font-weight: bold; }
+
+      /* ── Character Select Screen ──────────────────────────── */
+      #char-select-screen {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse at center, #0d0620 0%, #000 100%);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 90;
+      }
+      #char-select-screen h2 {
+        font-size: 28px; font-weight: 900; color: #fff;
+        letter-spacing: 6px; text-transform: uppercase; margin-bottom: 6px;
+      }
+      .char-select-sub {
+        color: rgba(255,255,255,0.4); font-size: 12px;
+        letter-spacing: 3px; margin-bottom: 32px;
+      }
+      .char-grid {
+        display: grid; grid-template-columns: repeat(4, 180px);
+        gap: 16px; margin-bottom: 24px;
+      }
+      .char-card {
+        border: 2px solid rgba(255,255,255,0.15);
+        border-radius: 6px; padding: 18px 14px 14px;
+        cursor: pointer; pointer-events: auto;
+        text-align: center; transition: border-color 0.15s, transform 0.1s;
+        background: rgba(255,255,255,0.04);
+      }
+      .char-card:hover { border-color: rgba(255,255,255,0.6); transform: translateY(-3px); }
+      .char-card.selected { border-color: #ffd700; box-shadow: 0 0 18px rgba(255,215,0,0.4); }
+      .char-swatch {
+        width: 64px; height: 64px; border-radius: 50%;
+        margin: 0 auto 10px;
+        border: 3px solid rgba(255,255,255,0.2);
+      }
+      .char-name {
+        font-size: 15px; font-weight: 900; color: #fff;
+        letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px;
+      }
+      .char-title-text {
+        font-size: 10px; color: rgba(255,255,255,0.45);
+        letter-spacing: 1px; margin-bottom: 10px;
+      }
+      .stat-bars { display: flex; flex-direction: column; gap: 3px; }
+      .stat-row { display: flex; align-items: center; gap: 6px; font-size: 9px; color: rgba(255,255,255,0.5); letter-spacing: 1px; }
+      .stat-fill { height: 4px; border-radius: 2px; flex: 1; background: rgba(255,255,255,0.1); overflow: hidden; }
+      .stat-fill-inner { height: 100%; border-radius: 2px; transition: width 0.3s; }
+      .char-select-actions {
+        display: flex; gap: 20px; align-items: center;
+      }
+      .char-confirm-btn {
+        border: none; padding: 12px 40px;
+        font-size: 14px; font-weight: bold; letter-spacing: 4px;
+        cursor: pointer; pointer-events: auto; text-transform: uppercase;
+        clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+        background: linear-gradient(135deg,#c0392b,#e74c3c); color: #fff;
+        transition: transform 0.1s;
+      }
+      .char-confirm-btn:hover { transform: scale(1.06); }
+      .char-confirm-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+      .char-back-btn {
+        background: none; border: 1px solid rgba(255,255,255,0.25);
+        color: rgba(255,255,255,0.5); padding: 10px 24px;
+        font-size: 12px; letter-spacing: 2px; cursor: pointer; pointer-events: auto;
+        transition: border-color 0.15s;
+      }
+      .char-back-btn:hover { border-color: rgba(255,255,255,0.6); color: #fff; }
     </style>
   </head>
   <body>
@@ -223,6 +315,19 @@
       </div>
     </div>
 
+    <!-- Character Select Screen -->
+    <div id="char-select-screen">
+      <h2 id="char-select-title">SELECT YOUR FIGHTER</h2>
+      <div class="char-select-sub" id="char-select-sub">P1 — choose your character</div>
+      <div class="char-grid" id="char-grid">
+        <!-- populated by JS -->
+      </div>
+      <div class="char-select-actions">
+        <button class="char-back-btn" id="char-back-btn">← BACK</button>
+        <button class="char-confirm-btn" id="char-confirm-btn" disabled>CONFIRM</button>
+      </div>
+    </div>
+
     <!-- Match countdown -->
     <div id="match-start-msg"></div>
 
@@ -254,6 +359,7 @@
     <div id="result-screen">
       <div id="result-text"></div>
       <div id="result-sub"></div>
+      <div id="result-stats"></div>
       <button class="retry-btn" id="retry-btn">PLAY AGAIN</button>
     </div>
 
