@@ -190,7 +190,8 @@ function updateCombo(dt: number): void {
 // ─── カウントダウン ───────────────────────────────────────────────────────────
 function showMatchStart(cb: () => void): void {
   const el = document.getElementById("match-start-msg")!;
-  const msgs = ["3", "2", "1", "FIGHT!"];
+  const roundLabel = tournament.active ? [`ROUND ${tournament.roundNum}`] : [];
+  const msgs = [...roundLabel, "3", "2", "1", "FIGHT!"];
   let i = 0;
   function next(): void {
     const msg = msgs[i];
@@ -569,9 +570,23 @@ function startMatch(
   selectedMode: GameMode,
   def1: CharacterDef,
   def2: CharacterDef,
-  diff?: Difficulty
+  diff?: Difficulty,
+  bo3 = false
 ): void {
   mode = selectedMode;
+
+  // Initialise tournament state
+  tournament = {
+    active: bo3,
+    roundWins: { p1: 0, p2: 0 },
+    roundNum: 1,
+    def1,
+    def2,
+    diff,
+  };
+  updateWinPips();
+
+  matchElapsed = 0;
   createWrestlers(def1, def2);
 
   if (hudP1Name) hudP1Name.textContent = def1.name;
@@ -594,16 +609,18 @@ function startMatch(
 interface SelectState {
   mode: GameMode;
   diff?: Difficulty;
+  bo3: boolean;
   step: 1 | 2;        // P1 選択中 or P2 選択中
   p1Def?: CharacterDef;
   selectedIdx: number | null;
 }
 
-const sel: SelectState = { mode: "1p", step: 1, selectedIdx: null };
+const sel: SelectState = { mode: "1p", bo3: false, step: 1, selectedIdx: null };
 
-function openCharSelect(m: GameMode, d?: Difficulty): void {
+function openCharSelect(m: GameMode, d?: Difficulty, bo3 = false): void {
   sel.mode  = m;
   sel.diff  = d;
+  sel.bo3   = bo3;
   sel.step  = 1;
   sel.p1Def = undefined;
   sel.selectedIdx = null;
@@ -614,7 +631,7 @@ function openCharSelect(m: GameMode, d?: Difficulty): void {
   const confirm = document.getElementById("char-confirm-btn") as HTMLButtonElement;
 
   screen.style.display = "flex";
-  title.textContent = "SELECT YOUR FIGHTER";
+  title.textContent = bo3 ? "CHAMPIONSHIP — SELECT FIGHTER" : "SELECT YOUR FIGHTER";
   sub.textContent   = "P1 — choose your character";
   confirm.disabled  = true;
 
@@ -681,7 +698,7 @@ document.getElementById("char-confirm-btn")?.addEventListener("click", () => {
       // CPU は自動でランダム選択
       const cpuDef = ROSTER[Math.floor(Math.random() * ROSTER.length)]!;
       document.getElementById("char-select-screen")!.style.display = "none";
-      startMatch("1p", chosen, cpuDef, sel.diff);
+      startMatch("1p", chosen, cpuDef, sel.diff, sel.bo3);
     } else {
       // 2P: P2 選択へ
       sel.step = 2;
@@ -695,7 +712,7 @@ document.getElementById("char-confirm-btn")?.addEventListener("click", () => {
   } else {
     // 2P step 2
     document.getElementById("char-select-screen")!.style.display = "none";
-    startMatch("2p", sel.p1Def!, chosen);
+    startMatch("2p", sel.p1Def!, chosen, undefined, sel.bo3);
   }
 });
 
@@ -709,13 +726,19 @@ document.getElementById("char-back-btn")?.addEventListener("click", () => {
 document.querySelectorAll<HTMLButtonElement>("[data-diff]").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.getElementById("title-screen")!.style.display = "none";
-    openCharSelect("1p", btn.dataset["diff"] as Difficulty);
+    const isBo3 = btn.dataset["bo3"] === "1";
+    openCharSelect("1p", btn.dataset["diff"] as Difficulty, isBo3);
   });
 });
 
 document.getElementById("btn-2p")?.addEventListener("click", () => {
   document.getElementById("title-screen")!.style.display = "none";
   openCharSelect("2p");
+});
+
+document.getElementById("btn-bo3-2p")?.addEventListener("click", () => {
+  document.getElementById("title-screen")!.style.display = "none";
+  openCharSelect("2p", undefined, true);
 });
 
 // Retry
