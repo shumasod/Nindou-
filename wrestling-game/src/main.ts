@@ -7,6 +7,7 @@ import { CpuAI, type Difficulty } from "./game/CpuAI.js";
 import { EffectsSystem } from "./engine/effects.js";
 import { audio } from "./engine/audio.js";
 import { ROSTER, type CharacterDef } from "./game/characters.js";
+import { MatchTracker } from "./game/MatchStats.js";
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 const container = document.getElementById("canvas-container")!;
@@ -46,6 +47,7 @@ type GamePhase  = "title" | "countdown" | "match" | "result";
 let mode: GameMode  = "1p";
 let phase: GamePhase = "title";
 let cpuAI: CpuAI | null = null;
+let tracker = new MatchTracker();
 
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
@@ -146,6 +148,7 @@ const COMBO_WINDOW = 2.5;
 function addCombo(): void {
   comboCount++;
   comboTimer = COMBO_WINDOW;
+  tracker.recordCombo("p1", comboCount);
   if (hudCombo && comboCount >= 2) {
     hudCombo.style.display  = "block";
     hudCombo.textContent    = `${comboCount} HIT COMBO!`;
@@ -215,9 +218,9 @@ function animate(): void {
 
   if (phase === "match") {
     matchElapsed += dt;
-    handleInput(player1, input1, player2, dt, true);
+    handleInput(player1, input1, player2, dt, "p1");
     if (mode === "2p") {
-      handleInput(player2, input2, player1, dt, false);
+      handleInput(player2, input2, player1, dt, "p2");
     } else {
       cpuAI?.update(dt);
     }
@@ -243,9 +246,10 @@ function handleInput(
   inp: InputManager,
   opponent: Wrestler,
   dt: number,
-  trackCombo: boolean
+  side: "p1" | "p2"
 ): void {
   const s = inp.state;
+  const trackCombo = side === "p1";
 
   let dx = 0, dz = 0;
   if (s.left)  dx -= 1;
@@ -257,17 +261,30 @@ function handleInput(
   self.move(dx, dz, s.sprint, dt);
   self.faceTarget(opponent);
 
+  // リバーサル — グラップルされた直後に G を押す
+  if (s.grapplePressed && self.canReversal()) {
+    self.doReversal();
+    tracker.recordReversal(side);
+    effects.spawnHitSparks(self.position, 0x00ffff);
+    effects.shake(0.1);
+    audio.punch();
+    flashMoveName("REVERSAL!!");
+    return;
+  }
+
   if (!self.isActionReady()) return;
 
   // Strike
   if (s.strikePressed && self.canStrike(opponent)) {
     self.startStrike();
-    const dmg = 8 + Math.random() * 4;
+    const dmg = (8 + Math.random() * 4) * self.damageMult;
     opponent.takeDamage(dmg);
-    if (opponent.hp < 25) opponent.startKnockdown();
+    const knockdown = opponent.hp < 25;
+    if (knockdown) opponent.startKnockdown();
     effects.spawnHitSparks(opponent.position, 0xff6600);
     effects.shake(0.08);
     audio.punch();
+    tracker.recordStrike(side, dmg, knockdown);
     if (trackCombo) addCombo();
     flashMoveName("STRIKE!");
   }
@@ -277,10 +294,12 @@ function handleInput(
     if (self.state === "grappling" && self.grappleTarget) {
       const t = self.grappleTarget;
       self.startSlam(t);
-      t.takeDamage(18);
+      const dmg = 18 * self.damageMult;
+      t.takeDamage(dmg);
       effects.spawnDust(t.position);
       effects.shake(0.18);
       audio.slam();
+      tracker.recordSlam(side, dmg);
       if (trackCombo) addCombo();
       flashMoveName("SLAM!");
     } else if (self.canGrapple(opponent)) {
@@ -293,10 +312,12 @@ function handleInput(
   if (s.slamPressed && self.state === "grappling" && self.grappleTarget) {
     const t = self.grappleTarget;
     self.startSlam(t);
-    t.takeDamage(18);
+    const dmg = 18 * self.damageMult;
+    t.takeDamage(dmg);
     effects.spawnDust(t.position);
     effects.shake(0.18);
     audio.slam();
+    tracker.recordSlam(side, dmg);
     if (trackCombo) addCombo();
     flashMoveName("SLAM!");
   }
@@ -304,11 +325,13 @@ function handleInput(
   // Signature
   if (s.signaturePressed && self.momentum >= 100 && self.canGrapple(opponent)) {
     self.startSignature(opponent);
-    opponent.takeDamage(35);
+    const dmg = 35 * self.damageMult;
+    opponent.takeDamage(dmg);
     effects.spawnSignatureBurst(opponent.position);
     effects.shake(0.35);
     audio.slam();
     audio.crowd();
+    tracker.recordSignature(side, dmg);
     if (trackCombo) addCombo();
     flashMoveName("SIGNATURE MOVE!!");
   }
@@ -318,6 +341,7 @@ function handleInput(
     self.startPin();
     opponent.state = "being_pinned";
     audio.pinRoll();
+    tracker.recordPin(side);
     flashMoveName("PIN!");
   }
 }
@@ -379,6 +403,7 @@ function startMatch(
   const p2hint = document.getElementById("p2-controls");
   if (p2hint) p2hint.style.display = selectedMode === "2p" ? "inline" : "none";
 
+  tracker = new MatchTracker();
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
