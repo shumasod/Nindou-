@@ -6,8 +6,9 @@ export type WrestlerState =
   | "walking"
   | "sprinting"
   | "striking"
-  | "grappling"     // grapple 中 (攻撃側)
-  | "grappled"      // grapple 中 (被攻撃側)
+  | "running_strike" // スプリント中のストライク
+  | "grappling"      // grapple 中 (攻撃側)
+  | "grappled"       // grapple 中 (被攻撃側)
   | "slamming"
   | "being_slammed"
   | "knockdown"
@@ -15,7 +16,8 @@ export type WrestlerState =
   | "signature"
   | "pinning"
   | "being_pinned"
-  | "stunned";
+  | "stunned"
+  | "taunting";      // 挑発モーション
 
 export interface WrestlerConfig {
   name: string;
@@ -245,7 +247,8 @@ export class Wrestler {
   }
 
   takeDamage(amount: number): void {
-    this.hp = Math.max(0, this.hp - amount * this.defenceMult);
+    const tauntMult = this.state === "taunting" ? 2.0 : 1.0;
+    this.hp = Math.max(0, this.hp - amount * this.defenceMult * tauntMult);
     this.flashTimer = 0.15;
     this.momentum = Math.min(100, this.momentum + amount * 0.3);
   }
@@ -288,11 +291,39 @@ export class Wrestler {
       target.state !== "grappled";
   }
 
+  /** 現在スプリント中かどうか */
+  get isSprinting(): boolean {
+    return this.state === "sprinting";
+  }
+
   startStrike(): void {
     this.state = "striking";
     this.stateTimer = 0.35;
     this.actionCooldown = 0.5;
     this.stamina = Math.max(0, this.stamina - 5);
+  }
+
+  /** スプリント中ストライク — 通常より長いモーション、ダメージは呼び出し側で 1.5x */
+  startRunningStrike(): void {
+    this.state = "running_strike";
+    this.stateTimer = 0.45;
+    this.actionCooldown = 0.6;
+    this.stamina = Math.max(0, this.stamina - 10);
+  }
+
+  /**
+   * タント — 1.2 s アニメーション
+   * 被ダメージ 2 倍リスクあり、成功すれば momentum +20
+   */
+  startTaunt(): void {
+    this.state = "taunting";
+    this.stateTimer = 1.2;
+    this.actionCooldown = 1.4;
+  }
+
+  /** タント中かどうか (外部から参照用) */
+  isTaunting(): boolean {
+    return this.state === "taunting";
   }
 
   startGrapple(target: Wrestler): void {
@@ -381,9 +412,14 @@ export class Wrestler {
       if (this.stateTimer <= 0) {
         switch (this.state) {
           case "striking":
+          case "running_strike":
           case "slamming":
           case "signature":
             this.state = "idle";
+            break;
+          case "taunting":
+            this.state = "idle";
+            this.momentum = Math.min(100, this.momentum + 20); // タント成功でモメンタム +20
             break;
           case "pinning":
             this.state = "idle";
@@ -454,6 +490,28 @@ export class Wrestler {
       return;
     }
 
+    if (state === "running_strike") {
+      // 両腕を前方に突き出すモーション
+      this.strikeCycle += dt * 18;
+      const t = Math.min(1, this.strikeCycle / (Math.PI * 0.5));
+      this.upperArmL.rotation.x = -Math.sin(t * Math.PI) * 1.4;
+      this.upperArmR.rotation.x = -Math.sin(t * Math.PI) * 1.4;
+      this.torso.rotation.x     = Math.sin(t * Math.PI) * 0.25;
+      if (this.strikeCycle > Math.PI) this.strikeCycle = 0;
+      return;
+    }
+
+    if (state === "taunting") {
+      // 両腕を広げてガッツポーズ
+      this.breathTimer += dt * 4;
+      this.upperArmL.rotation.x = Math.sin(this.breathTimer) * 0.4 - 0.6;
+      this.upperArmR.rotation.x = Math.sin(this.breathTimer) * 0.4 - 0.6;
+      this.upperArmL.rotation.z =  0.8;
+      this.upperArmR.rotation.z = -0.8;
+      this.head.rotation.x = 0.3; // 上を向く
+      return;
+    }
+
     if (state === "knockdown" || state === "being_slammed") {
       const progress = this.state === "being_slammed"
         ? Math.min(1, 1 - this.stateTimer / 1.2)
@@ -493,6 +551,10 @@ export class Wrestler {
     this.upperLegR.rotation.x = THREE.MathUtils.lerp(this.upperLegR.rotation.x, 0, 0.1);
     this.upperArmL.rotation.x = THREE.MathUtils.lerp(this.upperArmL.rotation.x, 0.2, 0.1);
     this.upperArmR.rotation.x = THREE.MathUtils.lerp(this.upperArmR.rotation.x, 0.2, 0.1);
+    this.upperArmL.rotation.z = THREE.MathUtils.lerp(this.upperArmL.rotation.z, 0, 0.1);
+    this.upperArmR.rotation.z = THREE.MathUtils.lerp(this.upperArmR.rotation.z, 0, 0.1);
+    this.head.rotation.x      = THREE.MathUtils.lerp(this.head.rotation.x,      0, 0.1);
+    this.torso.rotation.x     = THREE.MathUtils.lerp(this.torso.rotation.x,     0, 0.1);
     this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.1);
     this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
   }

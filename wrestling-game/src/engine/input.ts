@@ -9,15 +9,17 @@ export interface InputState {
   signature: boolean;
   pin: boolean;
   sprint: boolean;
+  taunt: boolean;
   // Edge-triggered (pressed this frame only)
   strikePressed: boolean;
   grapplePressed: boolean;
   slamPressed: boolean;
   signaturePressed: boolean;
   pinPressed: boolean;
+  tauntPressed: boolean;
 }
 
-/** P1: WASD + F/G/H/Space/P/Shift */
+/** P1: WASD + F/G/H/Space/P/T/Shift */
 const P1_MAP = {
   up:        ["KeyW"],
   down:      ["KeyS"],
@@ -29,12 +31,13 @@ const P1_MAP = {
   signature: ["Space"],
   pin:       ["KeyP"],
   sprint:    ["ShiftLeft", "ShiftRight"],
+  taunt:     ["KeyT"],
 } as const;
 
 /**
  * P2: IJKL 移動
  *   U=ストライク  O=グラップル  N=スラム  M=シグネチャー
- *   Comma=ピン  RCtrl=ダッシュ
+ *   Comma=ピン  RCtrl=ダッシュ  B=タント
  */
 const P2_MAP = {
   up:        ["KeyI"],
@@ -47,6 +50,7 @@ const P2_MAP = {
   signature: ["KeyM"],
   pin:       ["Comma"],
   sprint:    ["ControlRight"],
+  taunt:     ["KeyB"],
 } as const;
 
 interface KeyMap {
@@ -60,6 +64,7 @@ interface KeyMap {
   readonly signature: readonly string[];
   readonly pin:       readonly string[];
   readonly sprint:    readonly string[];
+  readonly taunt:     readonly string[];
 }
 
 // 共有キーストア — 2インスタンスで同じイベントを参照
@@ -116,11 +121,13 @@ export class InputManager {
       signature: this.held(this.map.signature),
       pin:       this.held(this.map.pin),
       sprint:    this.held(this.map.sprint),
+      taunt:     this.held(this.map.taunt),
       strikePressed:    this.pressed(this.map.strike),
       grapplePressed:   this.pressed(this.map.grapple),
       slamPressed:      this.pressed(this.map.slam),
       signaturePressed: this.pressed(this.map.signature),
       pinPressed:       this.pressed(this.map.pin),
+      tauntPressed:     this.pressed(this.map.taunt),
     };
   }
 }
