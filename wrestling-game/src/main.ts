@@ -42,12 +42,30 @@ const input2 = new InputManager(2);
 
 // ─── Game mode ────────────────────────────────────────────────────────────────
 type GameMode   = "1p" | "2p";
-type GamePhase  = "title" | "countdown" | "match" | "result";
+type GamePhase  = "title" | "countdown" | "match" | "result" | "between_rounds";
 
 let mode: GameMode  = "1p";
 let phase: GamePhase = "title";
 let cpuAI: CpuAI | null = null;
 let tracker = new MatchTracker();
+
+// ─── Tournament state ─────────────────────────────────────────────────────────
+interface TournamentState {
+  active: boolean;
+  roundWins: { p1: number; p2: number };
+  roundNum: number;
+  def1: CharacterDef;
+  def2: CharacterDef;
+  diff?: Difficulty;
+}
+
+let tournament: TournamentState = {
+  active: false,
+  roundWins: { p1: 0, p2: 0 },
+  roundNum: 1,
+  def1: ROSTER[0]!,
+  def2: ROSTER[0]!,
+};
 
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
