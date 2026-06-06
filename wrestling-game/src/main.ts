@@ -50,6 +50,14 @@ let cpuAI: CpuAI | null = null;
 let tracker = new MatchTracker();
 
 // ─── Tournament state ─────────────────────────────────────────────────────────
+const WINS_NEEDED = 2;
+const MAX_ROUNDS  = WINS_NEEDED * 2 - 1;
+
+// P1 = blue, P2/CPU = red, draw = white
+const WINNER_COLOR: Record<string, string> = {
+  P1: "#4488ff", P2: "#ff4444", CPU: "#ff4444", DRAW: "#ffffff",
+};
+
 interface TournamentState {
   active: boolean;
   roundWins: { p1: number; p2: number };
@@ -66,6 +74,8 @@ let tournament: TournamentState = {
   def1: ROSTER[0]!,
   def2: ROSTER[0]!,
 };
+
+function p2Label(): string { return mode === "2p" ? "P2" : "CPU"; }
 
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
@@ -211,7 +221,7 @@ function showMatchStart(cb: () => void): void {
 let matchElapsed = 0;
 
 function pipStr(wins: number): string {
-  return "★".repeat(wins) + "☆".repeat(Math.max(0, 2 - wins));
+  return "★".repeat(wins) + "☆".repeat(Math.max(0, WINS_NEEDED - wins));
 }
 
 function updateWinPips(): void {
@@ -229,9 +239,7 @@ function updateWinPips(): void {
 function showRoundResult(winnerSide: "p1" | "p2" | "draw"): void {
   phase = "between_rounds";
 
-  const p2Label = mode === "2p" ? "P2" : "CPU";
-  const winnerName = winnerSide === "p1" ? "P1" : winnerSide === "p2" ? p2Label : "DRAW";
-  const colorMap: Record<string, string> = { P1: "#4488ff", P2: "#ff4444", CPU: "#ff4444", DRAW: "#ffffff" };
+  const winnerName = winnerSide === "p1" ? "P1" : winnerSide === "p2" ? p2Label() : "DRAW";
 
   const el       = document.getElementById("round-result-screen")!;
   const numEl    = document.getElementById("round-result-num")!;
@@ -244,20 +252,20 @@ function showRoundResult(winnerSide: "p1" | "p2" | "draw"): void {
 
   numEl.textContent    = `ROUND ${tournament.roundNum} COMPLETE`;
   winnerEl.textContent = winnerSide === "draw" ? "ROUND DRAW" : `${winnerName} WINS THE ROUND!`;
-  winnerEl.style.color = colorMap[winnerName] ?? "#ffffff";
+  winnerEl.style.color = WINNER_COLOR[winnerName] ?? "#ffffff";
   p1NameEl.textContent = player1.name;
   p2NameEl.textContent = player2.name;
   p1PipsEl.textContent = pipStr(tournament.roundWins.p1);
   p2PipsEl.textContent = pipStr(tournament.roundWins.p2);
   el.style.display     = "flex";
 
-  // Countdown until next round
-  let secs = 4;
-  nextMsg.textContent = `ROUND ${tournament.roundNum + 1} STARTS IN ${secs}...`;
+  // Countdown until next round — interval owns all text updates
+  let secs = 5;
+  const nextRound = tournament.roundNum + 1;
   const iv = setInterval(() => {
     secs--;
     if (secs > 0) {
-      nextMsg.textContent = `ROUND ${tournament.roundNum + 1} STARTS IN ${secs}...`;
+      nextMsg.textContent = `ROUND ${nextRound} STARTS IN ${secs}...`;
     } else {
       clearInterval(iv);
       el.style.display = "none";
@@ -285,30 +293,17 @@ function startNextRound(): void {
 }
 
 function showResult(winner: string, reason = ""): void {
-  // In tournament mode, tally wins first
-  if (tournament.active && winner !== "DRAW") {
+  if (!tournament.active) { showFinalResult(winner, reason); return; }
+
+  if (winner !== "DRAW") {
     const side = winner === "P1" ? "p1" : "p2";
     tournament.roundWins[side]++;
     updateWinPips();
-
-    // Check if someone clinched Best-of-3
-    if (tournament.roundWins.p1 >= 2 || tournament.roundWins.p2 >= 2) {
-      showFinalResult(winner, reason);
-    } else {
-      showRoundResult(side);
-    }
-    return;
+    const clinched = tournament.roundWins.p1 >= WINS_NEEDED || tournament.roundWins.p2 >= WINS_NEEDED;
+    clinched ? showFinalResult(winner, reason) : showRoundResult(side);
+  } else {
+    tournament.roundNum < MAX_ROUNDS ? showRoundResult("draw") : showFinalResult("DRAW", reason);
   }
-  if (tournament.active && winner === "DRAW") {
-    // Draw round — no wins awarded, just go next round if rounds remain
-    if (tournament.roundNum < 3) {
-      showRoundResult("draw");
-    } else {
-      showFinalResult("DRAW", reason);
-    }
-    return;
-  }
-  showFinalResult(winner, reason);
 }
 
 function showFinalResult(winner: string, reason = ""): void {
@@ -323,8 +318,7 @@ function showFinalResult(winner: string, reason = ""): void {
       ? (winner === "DRAW" ? "TOURNAMENT DRAW" : `${winner} WINS THE CHAMPIONSHIP!`)
       : (winner === "DRAW" ? "TIME UP! DRAW"    : `${winner} WINS!`);
     txt.textContent = label;
-    const p2Label = mode === "2p" ? "P2" : "CPU";
-    txt.style.color = winner === "P1" ? "#4488ff" : winner === p2Label ? "#ff4444" : "#ffffff";
+    txt.style.color = WINNER_COLOR[winner] ?? "#ffffff";
   }
   if (sub) {
     const m = Math.floor(matchElapsed / 60);
@@ -340,7 +334,7 @@ function showFinalResult(winner: string, reason = ""): void {
     const s1  = tracker.stats.p1;
     const s2  = tracker.stats.p2;
     const champRow = tournament.active
-      ? `<tr><td class="${tournament.roundWins.p1 > tournament.roundWins.p2 ? "stat-hi" : ""}">${tournament.roundWins.p1}</td><td class="stat-label">ROUNDS WON</td><td class="${tournament.roundWins.p2 > tournament.roundWins.p1 ? "stat-hi" : ""}">${tournament.roundWins.p2}</td></tr>`
+      ? statRow(tournament.roundWins.p1, tournament.roundWins.p2, "ROUNDS WON")
       : "";
     statsEl.innerHTML = `
       <table class="stats-table">
