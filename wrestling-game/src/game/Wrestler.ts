@@ -11,6 +11,8 @@ export type WrestlerState =
   | "grappled"       // grapple 中 (被攻撃側)
   | "slamming"
   | "being_slammed"
+  | "whipped"        // アイリッシュウィップ中 (ロープへ走る)
+  | "rebounding"     // ロープから跳ね返り中
   | "knockdown"
   | "getting_up"
   | "signature"
@@ -85,6 +87,9 @@ export class Wrestler {
   // Flash effect
   private flashTimer = 0;
   private bodyMeshes: THREE.Mesh[] = [];
+
+  // Irish whip velocity (X axis only)
+  private whipVelX = 0;
 
   constructor(config: WrestlerConfig) {
     this.config = config;
@@ -239,7 +244,9 @@ export class Wrestler {
       this.state !== "knockdown" &&
       this.state !== "getting_up" &&
       this.state !== "being_slammed" &&
-      this.state !== "being_pinned";
+      this.state !== "being_pinned" &&
+      this.state !== "whipped" &&
+      this.state !== "rebounding";
   }
 
   isDown(): boolean {
@@ -337,6 +344,34 @@ export class Wrestler {
     this.stamina = Math.max(0, this.stamina - 8);
   }
 
+  canWhip(target: Wrestler): boolean {
+    return this.state === "grappling" && this.grappleTarget === target;
+  }
+
+  /** アイリッシュウィップ — グラップル相手をロープへ投げる */
+  startWhip(target: Wrestler): void {
+    const pos = target.position;
+    // Throw toward nearest X-axis rope
+    const toRight = RING_BOUNDS - pos.x;
+    const toLeft  = pos.x + RING_BOUNDS;
+    target.whipVelX = toRight < toLeft ? 9 : -9;
+    target.state    = "whipped";
+    target.stateTimer = 2.5; // safety timeout
+    target.actionCooldown = 2.5;
+    target.grappleTarget = null;
+    // Face toward destination rope
+    target.facingAngle = target.whipVelX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+
+    this.state = "idle";
+    this.grappleTarget = null;
+    this.actionCooldown = 0.4;
+    this.stamina = Math.max(0, this.stamina - 10);
+  }
+
+  isRebounding(): boolean {
+    return this.state === "rebounding";
+  }
+
   /** グラップルを逆転する — reversalWindow 内かつグラップルされている状態のみ */
   canReversal(): boolean {
     return this.state === "grappled" && this.reversalWindow > 0;
@@ -406,8 +441,26 @@ export class Wrestler {
       this.stamina = Math.min(100, this.stamina + 4 * this.staminaMult * dt);
     }
 
+    // Irish whip movement
+    if (this.state === "whipped" || this.state === "rebounding") {
+      const newX = this.root.position.x + this.whipVelX * dt;
+      if (this.state === "whipped" && Math.abs(newX) >= RING_BOUNDS - 0.15) {
+        // Hit the rope — bounce back
+        this.root.position.x = Math.sign(newX) * (RING_BOUNDS - 0.15);
+        this.whipVelX = -this.whipVelX * 0.95;
+        this.state    = "rebounding";
+        this.stateTimer = 2.0;
+        this.actionCooldown = 2.0;
+        this.facingAngle = this.whipVelX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+      } else {
+        this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, newX));
+      }
+      this.stateTimer -= dt;
+      if (this.stateTimer <= 0) this.state = "idle";
+    }
+
     // State timers
-    if (this.stateTimer > 0) {
+    if (this.stateTimer > 0 && this.state !== "whipped" && this.state !== "rebounding") {
       this.stateTimer -= dt;
       if (this.stateTimer <= 0) {
         switch (this.state) {
@@ -509,6 +562,21 @@ export class Wrestler {
       this.upperArmL.rotation.z =  0.8;
       this.upperArmR.rotation.z = -0.8;
       this.head.rotation.x = 0.3; // 上を向く
+      return;
+    }
+
+    if (state === "whipped" || state === "rebounding") {
+      // Fast run animation toward/from ropes
+      this.walkCycle += dt * 12;
+      const s = Math.sin(this.walkCycle);
+      this.upperLegL.rotation.x = s * 0.6;
+      this.upperLegR.rotation.x = -s * 0.6;
+      this.upperArmL.rotation.x = -s * 0.5;
+      this.upperArmR.rotation.x = s * 0.5;
+      // Lean forward when rebounding (charging)
+      this.torso.rotation.x = state === "rebounding" ? 0.2 : -0.1;
+      this.root.rotation.x  = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.15);
+      this.root.position.y  = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
       return;
     }
 

@@ -160,14 +160,35 @@ export class CpuAI {
       return;
     }
 
-    // グラップル中スラム
+    // グラップル中: Irish Whip (25%) または Slam (75%)
     if (this.cpu.state === "grappling" && this.cpu.grappleTarget) {
-      this.cpu.startSlam(this.player);
-      this.player.takeDamage(18 * this.p.dmgMult * charDmg);
-      this.effects.spawnDust(this.player.position);
-      this.effects.shake(0.18);
+      if (Math.random() < 0.25 && this.cpu.canWhip(this.player)) {
+        this.cpu.startWhip(this.player);
+        this.effects.spawnDust(this.player.position);
+        audio.slam();
+        this.decisionTimer = 0.4; // 短い待機後にリバウンドを迎撃
+      } else {
+        this.cpu.startSlam(this.player);
+        this.player.takeDamage(18 * this.p.dmgMult * charDmg);
+        this.effects.spawnDust(this.player.position);
+        this.effects.shake(0.18);
+        audio.slam();
+        this.decisionTimer = this.p.decisionBase * 1.5;
+      }
+      return;
+    }
+
+    // クロスライン — リバウンド中プレイヤーを迎撃
+    if (this.player.isRebounding() && dist < STRIKE_DIST && this.cpu.canStrike(this.player)) {
+      this.cpu.startStrike();
+      const dmg = (16 + Math.random() * 6) * this.p.dmgMult * charDmg;
+      this.player.takeDamage(dmg);
+      if (this.player.hp < 55) this.player.startKnockdown();
+      this.effects.spawnHitSparks(this.player.position, 0xff2200);
+      this.effects.spawnHitSparks(this.player.position, 0xffaa00);
+      this.effects.shake(0.22);
       audio.slam();
-      this.decisionTimer = this.p.decisionBase * 1.5;
+      this.decisionTimer = this.p.decisionBase;
       return;
     }
 
