@@ -436,7 +436,24 @@ function handleInput(
   // Strike (F / U)
   if (s.strikePressed && self.canStrike(opponent)) {
     const isRunning = self.isSprinting;
-    if (isRunning) {
+    const isClothesline = !isRunning && opponent.isRebounding();
+
+    if (isClothesline) {
+      // クロスライン — リバウンド中の相手を迎撃する高威力打撃
+      self.startStrike();
+      const dmg = (16 + Math.random() * 6) * self.damageMult;
+      opponent.takeDamage(dmg);
+      const knockdown = opponent.hp < 55;
+      if (knockdown) opponent.startKnockdown();
+      else opponent.state = "stunned";
+      effects.spawnHitSparks(opponent.position, 0xff2200);
+      effects.spawnHitSparks(opponent.position, 0xffaa00);
+      effects.shake(0.22);
+      audio.slam();
+      tracker.recordStrike(side, dmg, knockdown);
+      if (trackCombo) addCombo();
+      flashMoveName("CLOTHESLINE!!");
+    } else if (isRunning) {
       // ランニングストライク — 1.5 倍ダメージ
       self.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * self.damageMult;
@@ -484,18 +501,12 @@ function handleInput(
     }
   }
 
-  // Slam explicit (H / N)
-  if (s.slamPressed && self.state === "grappling" && self.grappleTarget) {
-    const t = self.grappleTarget;
-    self.startSlam(t);
-    const dmg = 18 * self.damageMult;
-    t.takeDamage(dmg);
-    effects.spawnDust(t.position);
-    effects.shake(0.18);
+  // Irish Whip (H / N) while grappling — throw opponent into ropes
+  if (s.slamPressed && self.canWhip(opponent)) {
+    self.startWhip(opponent);
+    effects.spawnDust(opponent.position);
     audio.slam();
-    tracker.recordSlam(side, dmg);
-    if (trackCombo) addCombo();
-    flashMoveName("SLAM!");
+    flashMoveName("IRISH WHIP!");
   }
 
   // Signature
