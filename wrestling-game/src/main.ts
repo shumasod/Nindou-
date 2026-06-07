@@ -144,13 +144,25 @@ function updateHUD(elapsed: number): void {
   const p1HpPct = (player1.hp / player1.maxHp) * 100;
   const p2HpPct = (player2.hp / player2.maxHp) * 100;
   if (hudP1Hp)  { hudP1Hp.style.width  = pct(p1HpPct); hudP1Hp.style.background  = hpColor(p1HpPct); }
-  if (hudP1Sta)  hudP1Sta.style.width  = pct(player1.stamina);
+  if (hudP1Sta) {
+    hudP1Sta.style.width = pct(player1.stamina);
+    hudP1Sta.style.background = player1.isGassed
+      ? "linear-gradient(90deg,#c0392b,#e67e22)"
+      : "linear-gradient(90deg,#2980b9,#27ae60)";
+    hudP1Sta.style.animation = player1.isGassed ? "dangerBlink 0.35s infinite alternate" : "";
+  }
   if (hudP1Mom) {
     hudP1Mom.style.width = pct(player1.momentum);
     hudP1Mom.style.animation = player1.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
   if (hudP2Hp)  { hudP2Hp.style.width  = pct(p2HpPct); hudP2Hp.style.background  = hpColor(p2HpPct); }
-  if (hudP2Sta)  hudP2Sta.style.width  = pct(player2.stamina);
+  if (hudP2Sta) {
+    hudP2Sta.style.width = pct(player2.stamina);
+    hudP2Sta.style.background = player2.isGassed
+      ? "linear-gradient(90deg,#c0392b,#e67e22)"
+      : "linear-gradient(90deg,#2980b9,#27ae60)";
+    hudP2Sta.style.animation = player2.isGassed ? "dangerBlink 0.35s infinite alternate" : "";
+  }
 
   if (hudTimer) {
     const rem = Math.max(0, MATCH_TIME_LIMIT - elapsed);
@@ -187,6 +199,20 @@ function showDanger(active: boolean, id: string, side: string): void {
     document.getElementById("hud")?.appendChild(el);
   }
   el.style.display = "block";
+}
+
+// ─── ガス欠フラッシュ追跡 ────────────────────────────────────────────────────
+let p1WasGassed = false;
+let p2WasGassed = false;
+
+function checkGassedFlash(): void {
+  if (player1.isGassed && !p1WasGassed) flashMoveName("P1 GASSED!!");
+  if (player2.isGassed && !p2WasGassed) {
+    const who = mode === "2p" ? "P2" : "CPU";
+    flashMoveName(`${who} GASSED!!`);
+  }
+  p1WasGassed = player1.isGassed;
+  p2WasGassed = player2.isGassed;
 }
 
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
@@ -456,6 +482,7 @@ function animate(): void {
     effects.update(dt, camera);
     updateCombo(dt);
     updateSubmission(dt);
+    checkGassedFlash();
     updateHUD(matchElapsed);
     checkMatchEnd();
   } else if (phase === "countdown") {
@@ -719,6 +746,8 @@ function startMatch(
 
   tracker = new MatchTracker();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  p1WasGassed = false;
+  p2WasGassed = false;
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });

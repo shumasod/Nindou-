@@ -52,11 +52,21 @@ export class Wrestler {
 
   // Derived stat multipliers
   readonly speedMult:    number;
-  readonly damageMult:   number;
+  private readonly _damageMult:  number;
   readonly defenceMult:  number;
   readonly staminaMult:  number;
   readonly finisherName:  string;
   readonly finisherColor: number;
+
+  /** ガス欠時は 0.75 倍、通常は 1.0 倍 */
+  get damageMult(): number {
+    return this._damageMult * (this.isGassed ? 0.75 : 1.0);
+  }
+
+  /** スタミナが 20 未満 = ガス欠状態 */
+  get isGassed(): boolean {
+    return this.stamina < 20;
+  }
 
   // Stats
   hp:      number;
@@ -101,9 +111,9 @@ export class Wrestler {
   constructor(config: WrestlerConfig) {
     this.config = config;
     this.name = config.name;
-    this.speedMult   = config.speedMult   ?? 1.0;
-    this.damageMult  = config.damageMult  ?? 1.0;
-    this.defenceMult = config.defenceMult ?? 1.0;
+    this.speedMult    = config.speedMult   ?? 1.0;
+    this._damageMult  = config.damageMult  ?? 1.0;
+    this.defenceMult  = config.defenceMult ?? 1.0;
     this.staminaMult = config.staminaMult ?? 1.0;
     this.maxHp        = config.maxHp        ?? 100;
     this.hp           = this.maxHp;
@@ -275,7 +285,9 @@ export class Wrestler {
 
   move(dx: number, dz: number, sprint: boolean, dt: number): void {
     if (!this.isActionReady()) return;
-    const speed = (sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * this.speedMult * dt;
+    const canSprint = sprint && !this.isGassed;
+    const gassedFactor = this.isGassed ? 0.6 : 1.0;
+    const speed = (canSprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * this.speedMult * gassedFactor * dt;
     const nx = this.root.position.x + dx * speed;
     const nz = this.root.position.z + dz * speed;
     this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, nx));
@@ -283,7 +295,7 @@ export class Wrestler {
 
     if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
       this.facingAngle = Math.atan2(dx, dz);
-      this.state = sprint ? "sprinting" : "walking";
+      this.state = canSprint ? "sprinting" : "walking";
     } else {
       if (this.state === "walking" || this.state === "sprinting") {
         this.state = "idle";
@@ -672,19 +684,25 @@ export class Wrestler {
 
   private breathTimer = 0;
   private idleBreathing(dt: number): void {
-    this.breathTimer += dt * 1.5;
-    const b = Math.sin(this.breathTimer) * 0.015;
+    // Gassed: pant faster, hunch forward, arms on knees
+    const breathSpeed = this.isGassed ? 5.0 : 1.5;
+    const breathAmp   = this.isGassed ? 0.04 : 0.015;
+    this.breathTimer += dt * breathSpeed;
+    const b = Math.sin(this.breathTimer) * breathAmp;
     this.torso.scale.y = 1 + b;
 
-    // Reset limbs
+    const torsoTarget = this.isGassed ? 0.28 : 0;
+    const headTarget  = this.isGassed ? 0.25 : 0;
+    const armXTarget  = this.isGassed ? 0.7  : 0.2;
+
     this.upperLegL.rotation.x = THREE.MathUtils.lerp(this.upperLegL.rotation.x, 0, 0.1);
     this.upperLegR.rotation.x = THREE.MathUtils.lerp(this.upperLegR.rotation.x, 0, 0.1);
-    this.upperArmL.rotation.x = THREE.MathUtils.lerp(this.upperArmL.rotation.x, 0.2, 0.1);
-    this.upperArmR.rotation.x = THREE.MathUtils.lerp(this.upperArmR.rotation.x, 0.2, 0.1);
+    this.upperArmL.rotation.x = THREE.MathUtils.lerp(this.upperArmL.rotation.x, armXTarget, 0.1);
+    this.upperArmR.rotation.x = THREE.MathUtils.lerp(this.upperArmR.rotation.x, armXTarget, 0.1);
     this.upperArmL.rotation.z = THREE.MathUtils.lerp(this.upperArmL.rotation.z, 0, 0.1);
     this.upperArmR.rotation.z = THREE.MathUtils.lerp(this.upperArmR.rotation.z, 0, 0.1);
-    this.head.rotation.x      = THREE.MathUtils.lerp(this.head.rotation.x,      0, 0.1);
-    this.torso.rotation.x     = THREE.MathUtils.lerp(this.torso.rotation.x,     0, 0.1);
+    this.head.rotation.x      = THREE.MathUtils.lerp(this.head.rotation.x,  headTarget,  0.1);
+    this.torso.rotation.x     = THREE.MathUtils.lerp(this.torso.rotation.x, torsoTarget, 0.1);
     this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.1);
     this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
   }
