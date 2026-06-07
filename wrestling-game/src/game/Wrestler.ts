@@ -33,6 +33,9 @@ export interface WrestlerConfig {
   defenceMult?: number;
   maxHp?:       number;
   staminaMult?: number;
+  // Per-character finisher (passed from CharacterDef.finisher)
+  finisherName?:  string;
+  finisherColor?: number;
 }
 
 const MOVE_SPEED   = 4.5;
@@ -46,10 +49,12 @@ export class Wrestler {
   name: string;
 
   // Derived stat multipliers
-  readonly speedMult:   number;
-  readonly damageMult:  number;
-  readonly defenceMult: number;
-  readonly staminaMult: number;
+  readonly speedMult:    number;
+  readonly damageMult:   number;
+  readonly defenceMult:  number;
+  readonly staminaMult:  number;
+  readonly finisherName:  string;
+  readonly finisherColor: number;
 
   // Stats
   hp:      number;
@@ -98,8 +103,10 @@ export class Wrestler {
     this.damageMult  = config.damageMult  ?? 1.0;
     this.defenceMult = config.defenceMult ?? 1.0;
     this.staminaMult = config.staminaMult ?? 1.0;
-    this.maxHp = config.maxHp ?? 100;
-    this.hp    = this.maxHp;
+    this.maxHp        = config.maxHp        ?? 100;
+    this.hp           = this.maxHp;
+    this.finisherName  = config.finisherName  ?? "SIGNATURE MOVE!!";
+    this.finisherColor = config.finisherColor ?? 0xffd700;
     this.root  = new THREE.Group();
     this.root.position.set(config.startX, MAT_Y, 0);
     this.buildBody();
