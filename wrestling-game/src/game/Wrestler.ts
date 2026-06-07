@@ -86,6 +86,7 @@ export class Wrestler {
   knockdownTimer  = 0;
   pinCount        = 0;   // 現在のピンカウント (0-3)
   reversalWindow  = 0;   // > 0 の間リバーサル受付中
+  ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
 
   private config: WrestlerConfig;
 
@@ -270,6 +271,19 @@ export class Wrestler {
       this.state !== "in_submission";
   }
 
+  /** ロープ際にいるか (X or Z 軸でリング端から 1.5 units 以内) */
+  isNearRope(): boolean {
+    return Math.abs(this.position.x) > RING_BOUNDS - 1.5 ||
+           Math.abs(this.position.z) > RING_BOUNDS - 1.5;
+  }
+
+  /** ロープブレイク可能 — 未使用かつロープ際、かつピンまたはサブミッション中 */
+  canRopeBreak(): boolean {
+    return !this.ropeBreakUsed &&
+      this.isNearRope() &&
+      (this.state === "being_pinned" || this.state === "in_submission");
+  }
+
   isDown(): boolean {
     return this.state === "knockdown" ||
            this.state === "being_pinned" ||
@@ -445,6 +459,7 @@ export class Wrestler {
     this.knockdownTimer = 3.5 - this.hp * 0.015; // HP が低いほど長く倒れる
     this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
     this.grappleTarget = null;
+    this.ropeBreakUsed = false; // 新しいノックダウンごとにリセット
   }
 
   /** サブミッション開始 — 攻撃側・被攻撃側双方をロック */
