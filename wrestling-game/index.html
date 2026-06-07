@@ -211,6 +211,28 @@
       }
       .stats-table .stat-hi { color: #ffd700; font-weight: bold; }
 
+      /* ── Submission display ──────────────────────────────── */
+      #sub-display {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        display: none; flex-direction: column; align-items: center; gap: 8px;
+        background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.15);
+        padding: 18px 32px; border-radius: 6px; min-width: 280px;
+        pointer-events: none;
+      }
+      .sub-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+      .sub-row-label {
+        font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,0.5);
+        text-transform: uppercase; width: 76px; flex-shrink: 0;
+      }
+      .sub-track {
+        flex: 1; height: 10px; border-radius: 5px;
+        background: rgba(255,255,255,0.1); overflow: hidden;
+      }
+      #sub-bar    { height: 100%; width: 0%; background: linear-gradient(90deg,#c0392b,#e74c3c); border-radius: 5px; transition: width 0.08s; }
+      #escape-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#27ae60,#2ecc71); border-radius: 5px; transition: width 0.08s; }
+      #sub-title  { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.35); margin-bottom: 4px; text-transform: uppercase; }
+
       /* ── Finisher banner ─────────────────────────────────── */
       #finisher-banner {
         position: absolute; top: 38%; left: 50%;
@@ -369,6 +391,19 @@
 
       <!-- Pin counter -->
       <div id="pin-display">1</div>
+
+      <!-- Submission meter -->
+      <div id="sub-display">
+        <div id="sub-title">SUBMISSION</div>
+        <div class="sub-row">
+          <div class="sub-row-label">TAP OUT</div>
+          <div class="sub-track"><div id="sub-bar"></div></div>
+        </div>
+        <div class="sub-row">
+          <div class="sub-row-label">ESCAPE</div>
+          <div class="sub-track"><div id="escape-bar"></div></div>
+        </div>
+      </div>
 
       <!-- Combo -->
       <div id="combo-display"></div>
