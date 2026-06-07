@@ -27,8 +27,14 @@ function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
   if (player1) scene.remove(player1.root);
   if (player2) scene.remove(player2.root);
 
-  player1 = new Wrestler({ ...def1, name: def1.name, startX: -2.5 });
-  player2 = new Wrestler({ ...def2, name: def2.name, startX:  2.5 });
+  player1 = new Wrestler({
+    ...def1, startX: -2.5,
+    finisherName: def1.finisher.name, finisherColor: def1.finisher.color,
+  });
+  player2 = new Wrestler({
+    ...def2, startX: 2.5,
+    finisherName: def2.finisher.name, finisherColor: def2.finisher.color,
+  });
   player1.addToScene(scene);
   player2.addToScene(scene);
 }
@@ -509,18 +515,18 @@ function handleInput(
     flashMoveName("IRISH WHIP!");
   }
 
-  // Signature
+  // Finisher (Signature with character-specific name + burst)
   if (s.signaturePressed && self.momentum >= 100 && self.canGrapple(opponent)) {
     self.startSignature(opponent);
     const dmg = 35 * self.damageMult;
     opponent.takeDamage(dmg);
-    effects.spawnSignatureBurst(opponent.position);
-    effects.shake(0.35);
+    effects.spawnFinisherBurst(opponent.position, self.finisherColor);
+    effects.shake(0.5);
     audio.slam();
     audio.crowd();
     tracker.recordSignature(side, dmg);
     if (trackCombo) addCombo();
-    flashMoveName("SIGNATURE MOVE!!");
+    flashFinisher(self.name, self.finisherName, self.finisherColor);
   }
 
   // Pin
@@ -568,6 +574,28 @@ function flashMoveName(text: string): void {
   el.style.opacity = "1";
   if (flashTimeout) clearTimeout(flashTimeout);
   flashTimeout = setTimeout(() => { el.style.opacity = "0"; }, 900);
+}
+
+function flashFinisher(wrestlerName: string, moveName: string, color: number): void {
+  const banner  = document.getElementById("finisher-banner");
+  const nameEl  = document.getElementById("finisher-wrestler-label");
+  const moveEl  = document.getElementById("finisher-move-label");
+  if (!banner || !nameEl || !moveEl) return;
+
+  const r = (color >> 16) & 0xff;
+  const g = (color >> 8)  & 0xff;
+  const b =  color        & 0xff;
+  const css = `rgb(${r},${g},${b})`;
+
+  nameEl.textContent = wrestlerName;
+  moveEl.textContent = moveName;
+  moveEl.style.color = css;
+
+  banner.style.display   = "block";
+  banner.style.animation = "none";
+  void banner.offsetWidth;
+  banner.style.animation = "finisherAppear 1.9s forwards";
+  setTimeout(() => { banner.style.display = "none"; }, 1900);
 }
 
 // ─── 起動 ─────────────────────────────────────────────────────────────────────
