@@ -475,6 +475,10 @@ function animate(): void {
       handleInput(player2, input2, player1, dt, "p2");
     } else {
       cpuAI?.update(dt);
+      // CPU ロープブレイク (Hard ≈ 0.33s 待機, Normal ≈ 0.61s, Easy は不使用)
+      if (cpuAI && player2.canRopeBreak() && Math.random() < cpuAI.ropeBreakChance * dt * 3) {
+        doRopeBreak("p2");
+      }
     }
     player1.update(dt);
     player2.update(dt);
@@ -514,6 +518,13 @@ function handleInput(
 
   self.move(dx, dz, s.sprint, dt);
   self.faceTarget(opponent);
+
+  // ロープブレイク — ロープ際でピン or サブミッションから脱出
+  if (self.canRopeBreak()) {
+    const anyPress = s.strikePressed || s.grapplePressed || s.slamPressed ||
+                     s.signaturePressed || s.pinPressed || s.tauntPressed;
+    if (anyPress) { doRopeBreak(side); return; }
+  }
 
   // サブミッション中の脱出 (被攻撃側がボタンを連打)
   if (self.state === "in_submission" && sub.active) {
@@ -674,6 +685,30 @@ function checkMatchEnd(): void {
     else if (player2.hp > player1.hp) showResult(p2Label, "TIME UP  ");
     else                               showResult("DRAW",  "TIME UP  ");
   }
+}
+
+// ─── ロープブレイク ───────────────────────────────────────────────────────────
+function doRopeBreak(victimSide: "p1" | "p2"): void {
+  const victim = victimSide === "p1" ? player1 : player2;
+  const holder = victimSide === "p1" ? player2 : player1;
+
+  if (victim.state === "being_pinned") {
+    holder.state = "idle";
+    holder.actionCooldown = 1.2;
+    victim.state = "knockdown";
+    victim.knockdownTimer = 1.5;
+  } else if (victim.state === "in_submission" && sub.active) {
+    sub.active = false;
+    if (hudSubDisp) hudSubDisp.style.display = "none";
+    holder.state = "idle";
+    holder.actionCooldown = 1.5;
+    victim.breakSubmission(); // → startKnockdown() resets ropeBreakUsed
+  }
+
+  victim.ropeBreakUsed = true; // 消費済みにする (startKnockdown のリセットを上書き)
+  effects.shake(0.15);
+  audio.punch();
+  flashMoveName("ROPE BREAK!");
 }
 
 // ─── Move name flash ─────────────────────────────────────────────────────────
