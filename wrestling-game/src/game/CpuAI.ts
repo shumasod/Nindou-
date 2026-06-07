@@ -108,7 +108,8 @@ export class CpuAI {
       this.phase = "pin";
       return;
     }
-    if (this.cpu.stamina < this.p.recoverAt) {
+    // Force recover when gassed regardless of configured threshold
+    if (this.cpu.isGassed || this.cpu.stamina < this.p.recoverAt) {
       this.phase = "recover";
       return;
     }
@@ -143,9 +144,14 @@ export class CpuAI {
 
   private doAttack(dt: number): void {
     if (this.decisionTimer > 0) return;
-    // miss チャンス
-    if (Math.random() < this.p.missChance) {
-      this.decisionTimer = this.p.decisionBase;
+    // ガス欠中プレイヤーには判断を速める (半分の待機)
+    const effectiveMiss = this.player.isGassed
+      ? this.p.missChance * 0.4
+      : this.p.missChance;
+    if (Math.random() < effectiveMiss) {
+      this.decisionTimer = this.player.isGassed
+        ? this.p.decisionBase * 0.5
+        : this.p.decisionBase;
       return;
     }
 
