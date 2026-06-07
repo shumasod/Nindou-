@@ -118,6 +118,88 @@ export class EffectsSystem {
     }
   }
 
+  /**
+   * フィニッシャー専用: 3波のカラーバースト
+   *  Wave 1 — 白フラッシュリング (速・小・短命)
+   *  Wave 2 — キャラカラー球形爆発 (中速・大量)
+   *  Wave 3 — 大きく長く残る破片 (遅・大)
+   */
+  spawnFinisherBurst(pos: THREE.Vector3, color: number): void {
+    const center = pos.clone().add(new THREE.Vector3(0, 1.3, 0));
+
+    // Wave 1: white ring flash
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2;
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 4,
+        transparent: true,
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), mat);
+      mesh.position.copy(center).add(
+        new THREE.Vector3(Math.cos(angle) * 0.6, 0, Math.sin(angle) * 0.6)
+      );
+      this.scene.add(mesh);
+      const speed = 6 + Math.random() * 3;
+      this.particles.push({
+        mesh,
+        vel: new THREE.Vector3(Math.cos(angle) * speed, 1.5 + Math.random(), Math.sin(angle) * speed),
+        life: 0.25,
+        maxLife: 0.25,
+      });
+    }
+
+    // Wave 2: character-color spherical burst
+    for (let i = 0; i < 36; i++) {
+      const phi   = Math.random() * Math.PI * 2;
+      const theta = Math.random() * Math.PI;
+      const speed = 4 + Math.random() * 6;
+      const scale = 0.09 + Math.random() * 0.12;
+      const mat = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 3,
+        transparent: true,
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(scale, scale, scale), mat);
+      mesh.position.copy(center);
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        vel: new THREE.Vector3(
+          Math.sin(theta) * Math.cos(phi) * speed,
+          Math.cos(theta) * speed * 0.8 + 3,
+          Math.sin(theta) * Math.sin(phi) * speed
+        ),
+        life: 0.8 + Math.random() * 0.6,
+        maxLife: 1.4,
+      });
+    }
+
+    // Wave 3: large, slow, lingering shards
+    for (let i = 0; i < 10; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const scale = 0.18 + Math.random() * 0.18;
+      const mat = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 2,
+        transparent: true,
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(scale, scale * 0.5, scale), mat);
+      mesh.position.copy(center);
+      this.scene.add(mesh);
+      const speed = 2 + Math.random() * 2;
+      this.particles.push({
+        mesh,
+        vel: new THREE.Vector3(Math.cos(angle) * speed, 4 + Math.random() * 2, Math.sin(angle) * speed),
+        life: 1.2 + Math.random() * 0.5,
+        maxLife: 1.7,
+      });
+    }
+  }
+
   /** カメラシェイクをトリガー */
   shake(strength: number): void {
     this.shakeStrength = Math.max(this.shakeStrength, strength);

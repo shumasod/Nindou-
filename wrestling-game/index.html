@@ -32,6 +32,12 @@
         0%   { opacity: 0; transform: scale(0.85); }
         100% { opacity: 1; transform: scale(1); }
       }
+      @keyframes finisherAppear {
+        0%   { opacity: 0; letter-spacing: 24px; transform: translateX(-50%) scale(0.55); }
+        18%  { opacity: 1; letter-spacing: 8px;  transform: translateX(-50%) scale(1.08); }
+        55%  { opacity: 1; letter-spacing: 8px;  transform: translateX(-50%) scale(1); }
+        100% { opacity: 0; letter-spacing: 4px;  transform: translateX(-50%) scale(1.25); }
+      }
 
       /* ── HUD ──────────────────────────────────────────────── */
       #hud {
@@ -205,6 +211,23 @@
       }
       .stats-table .stat-hi { color: #ffd700; font-weight: bold; }
 
+      /* ── Finisher banner ─────────────────────────────────── */
+      #finisher-banner {
+        position: absolute; top: 38%; left: 50%;
+        transform: translateX(-50%);
+        text-align: center; display: none;
+        pointer-events: none; z-index: 25; white-space: nowrap;
+      }
+      #finisher-wrestler-label {
+        font-size: 13px; letter-spacing: 6px; color: rgba(255,255,255,0.55);
+        text-transform: uppercase; margin-bottom: 6px;
+      }
+      #finisher-move-label {
+        font-size: 54px; font-weight: 900; letter-spacing: 8px;
+        text-transform: uppercase;
+        text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+      }
+
       /* ── Win pips ────────────────────────────────────────── */
       .win-pips {
         font-size: 16px; letter-spacing: 6px; margin-top: 2px;
@@ -371,6 +394,12 @@
         <button class="char-back-btn" id="char-back-btn">← BACK</button>
         <button class="char-confirm-btn" id="char-confirm-btn" disabled>CONFIRM</button>
       </div>
+    </div>
+
+    <!-- Finisher banner -->
+    <div id="finisher-banner">
+      <div id="finisher-wrestler-label"></div>
+      <div id="finisher-move-label"></div>
     </div>
 
     <!-- Match countdown -->
