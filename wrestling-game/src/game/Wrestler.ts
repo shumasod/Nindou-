@@ -19,7 +19,9 @@ export type WrestlerState =
   | "pinning"
   | "being_pinned"
   | "stunned"
-  | "taunting";      // 挑発モーション
+  | "taunting"       // 挑発モーション
+  | "submitting"     // サブミッション中 (攻撃側)
+  | "in_submission"; // サブミッション中 (被攻撃側)
 
 export interface WrestlerConfig {
   name: string;
@@ -253,11 +255,15 @@ export class Wrestler {
       this.state !== "being_slammed" &&
       this.state !== "being_pinned" &&
       this.state !== "whipped" &&
-      this.state !== "rebounding";
+      this.state !== "rebounding" &&
+      this.state !== "submitting" &&
+      this.state !== "in_submission";
   }
 
   isDown(): boolean {
-    return this.state === "knockdown" || this.state === "being_pinned";
+    return this.state === "knockdown" ||
+           this.state === "being_pinned" ||
+           this.state === "in_submission";
   }
 
   takeDamage(amount: number): void {
@@ -429,6 +435,30 @@ export class Wrestler {
     this.grappleTarget = null;
   }
 
+  /** サブミッション開始 — 攻撃側・被攻撃側双方をロック */
+  startSubmission(target: Wrestler): void {
+    this.state = "submitting";
+    this.actionCooldown = 0.3;
+    target.state = "in_submission";
+    target.actionCooldown = 0;
+    target.grappleTarget = null;
+    this.stamina = Math.max(0, this.stamina - 12);
+  }
+
+  /** サブミッション可能か — ダウン中の相手が射程内かつ自分がアイドル */
+  canSubmit(target: Wrestler): boolean {
+    return this.isActionReady() &&
+      this.state !== "grappling" &&
+      target.state === "knockdown" &&
+      this.distanceTo(target) < 1.5;
+  }
+
+  /** サブミッション強制解除 */
+  breakSubmission(): void {
+    if (this.state === "submitting") this.state = "idle";
+    if (this.state === "in_submission") this.startKnockdown();
+  }
+
   startPin(): void {
     this.state = "pinning";
     this.stateTimer = 2.5;
@@ -569,6 +599,31 @@ export class Wrestler {
       this.upperArmL.rotation.z =  0.8;
       this.upperArmR.rotation.z = -0.8;
       this.head.rotation.x = 0.3; // 上を向く
+      return;
+    }
+
+    if (state === "submitting") {
+      // 前傾みで締め上げ
+      this.breathTimer += dt * 5;
+      this.torso.rotation.x = 0.35;
+      this.upperArmL.rotation.x = 0.9 + Math.sin(this.breathTimer) * 0.15;
+      this.upperArmR.rotation.x = 0.9 + Math.sin(this.breathTimer) * 0.15;
+      this.upperArmL.rotation.z =  0.3;
+      this.upperArmR.rotation.z = -0.3;
+      this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, 0, 0.1);
+      this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y, 0.1);
+      return;
+    }
+
+    if (state === "in_submission") {
+      // 半身で苦悶
+      this.breathTimer += dt * 8;
+      this.root.rotation.x = THREE.MathUtils.lerp(this.root.rotation.x, -Math.PI / 3, 0.08);
+      this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y + 0.05, 0.1);
+      this.upperArmL.rotation.x = -0.6 + Math.sin(this.breathTimer) * 0.3;
+      this.upperArmR.rotation.x = -0.6 + Math.sin(this.breathTimer + 1) * 0.3;
+      this.upperArmL.rotation.z =  0.5;
+      this.upperArmR.rotation.z = -0.5;
       return;
     }
 
