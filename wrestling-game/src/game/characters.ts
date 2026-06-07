@@ -11,6 +11,8 @@ export interface CharacterDef {
   defenceMult: number;   // 被ダメ軽減 (< 1.0 で硬い)
   maxHp:      number;    // 最大 HP
   staminaMult: number;   // スタミナ回復速度
+  // Per-character finisher
+  finisher: { name: string; color: number };
 }
 
 export const ROSTER: CharacterDef[] = [
@@ -26,6 +28,7 @@ export const ROSTER: CharacterDef[] = [
     defenceMult: 1.0,
     maxHp:       100,
     staminaMult: 1.0,
+    finisher: { name: "THUNDER BOLT!!", color: 0x44aaff },
   },
   {
     id: "steel",
@@ -39,6 +42,7 @@ export const ROSTER: CharacterDef[] = [
     defenceMult: 0.75,
     maxHp:       130,
     staminaMult: 0.8,
+    finisher: { name: "STEEL CRUSHER!!", color: 0xff2200 },
   },
   {
     id: "shadow",
@@ -52,6 +56,7 @@ export const ROSTER: CharacterDef[] = [
     defenceMult: 1.2,
     maxHp:       80,
     staminaMult: 1.4,
+    finisher: { name: "PHANTOM STRIKE!!", color: 0xcc44ff },
   },
   {
     id: "blaze",
@@ -65,5 +70,6 @@ export const ROSTER: CharacterDef[] = [
     defenceMult: 0.85,
     maxHp:       120,
     staminaMult: 1.15,
+    finisher: { name: "BLAZING INFERNO!!", color: 0xff8800 },
   },
 ];
