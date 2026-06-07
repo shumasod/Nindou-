@@ -73,6 +73,11 @@ export class CpuAI {
     return (1 - this.p.missChance) * 0.25;
   }
 
+  /** ロープブレイクを使用する確率係数 (Hard: ~0.88, Normal: ~0.55, Easy: 0) */
+  get ropeBreakChance(): number {
+    return Math.max(0, 1 - this.p.missChance * 3);
+  }
+
   update(dt: number): void {
     // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
     if (this.cpu.canReversal()) {
