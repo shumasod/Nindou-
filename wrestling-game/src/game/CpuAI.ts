@@ -67,6 +67,12 @@ export class CpuAI {
     this.p = DIFFICULTY[difficulty];
   }
 
+  /** サブミッション中の CPU 脱出速度 (per second, 0–1 scale) */
+  get escapeRate(): number {
+    // Hard: ~0.22/s, Normal: ~0.13/s, Easy: ~0.06/s
+    return (1 - this.p.missChance) * 0.25;
+  }
+
   update(dt: number): void {
     // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
     if (this.cpu.canReversal()) {

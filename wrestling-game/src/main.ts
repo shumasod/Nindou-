@@ -83,6 +83,18 @@ let tournament: TournamentState = {
 
 function p2Label(): string { return mode === "2p" ? "P2" : "CPU"; }
 
+// ─── Submission state ─────────────────────────────────────────────────────────
+interface SubState {
+  active: boolean;
+  holderSide: "p1" | "p2";
+  subProgress:    number; // 0-1; hits 1 = tap-out
+  escapeProgress: number; // 0-1; hits 1 = escape
+}
+let sub: SubState = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+
+const SUB_RATE    = 0.185; // fills in ~5.4 s without escape
+const ESCAPE_JUMP = 0.12;  // added per distinct mash press
+
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
 const camTarget = new THREE.Vector3();
@@ -110,8 +122,11 @@ const hudP2Sta  = document.getElementById("cpu-sta")      as HTMLElement | null;
 const hudTimer  = document.getElementById("match-timer")  as HTMLElement | null;
 const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
-const hudP1Name = document.getElementById("hud-p1-name") as HTMLElement | null;
-const hudP2Name = document.getElementById("hud-p2-name") as HTMLElement | null;
+const hudP1Name  = document.getElementById("hud-p1-name")  as HTMLElement | null;
+const hudP2Name  = document.getElementById("hud-p2-name")  as HTMLElement | null;
+const hudSubDisp = document.getElementById("sub-display")  as HTMLElement | null;
+const hudSubBar  = document.getElementById("sub-bar")      as HTMLElement | null;
+const hudEscBar  = document.getElementById("escape-bar")   as HTMLElement | null;
 
 function pct(v: number): string {
   return `${Math.round(Math.max(0, Math.min(100, v)))}%`;
@@ -203,6 +218,58 @@ function updateCombo(dt: number): void {
   }
 }
 
+// ─── サブミッション更新 ───────────────────────────────────────────────────────
+function updateSubmission(dt: number): void {
+  if (!sub.active) {
+    if (hudSubDisp) hudSubDisp.style.display = "none";
+    return;
+  }
+  const holder = sub.holderSide === "p1" ? player1 : player2;
+  const victim = sub.holderSide === "p1" ? player2 : player1;
+
+  // Abort if either wrestler left the state externally
+  if (holder.state !== "submitting" || victim.state !== "in_submission") {
+    sub.active = false;
+    if (hudSubDisp) hudSubDisp.style.display = "none";
+    return;
+  }
+
+  sub.subProgress    = Math.min(1, sub.subProgress    + SUB_RATE * dt);
+  sub.escapeProgress = Math.min(1, sub.escapeProgress);
+
+  // CPU auto-escape when CPU is the victim
+  if (mode === "1p" && sub.holderSide === "p1" && cpuAI) {
+    sub.escapeProgress = Math.min(1, sub.escapeProgress + cpuAI.escapeRate * dt);
+  }
+
+  // HUD
+  if (hudSubDisp) hudSubDisp.style.display = "flex";
+  if (hudSubBar)  hudSubBar.style.width  = `${sub.subProgress    * 100}%`;
+  if (hudEscBar)  hudEscBar.style.width  = `${sub.escapeProgress * 100}%`;
+
+  // Escape wins
+  if (sub.escapeProgress >= 1) {
+    sub.active = false;
+    if (hudSubDisp) hudSubDisp.style.display = "none";
+    holder.state = "idle";
+    holder.actionCooldown = 1.0;
+    victim.breakSubmission();
+    flashMoveName("ESCAPED!!");
+    effects.shake(0.1);
+    audio.punch();
+    return;
+  }
+
+  // Tap-out wins
+  if (sub.subProgress >= 1) {
+    sub.active = false;
+    if (hudSubDisp) hudSubDisp.style.display = "none";
+    holder.state = "idle";
+    victim.hp = 0;
+    showResult(sub.holderSide === "p1" ? "P1" : p2Label(), "SUBMISSION  ");
+  }
+}
+
 // ─── カウントダウン ───────────────────────────────────────────────────────────
 function showMatchStart(cb: () => void): void {
   const el = document.getElementById("match-start-msg")!;
@@ -286,6 +353,7 @@ function startNextRound(): void {
   matchElapsed = 0;
   comboCount = 0;
   comboTimer = 0;
+  sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -387,6 +455,7 @@ function animate(): void {
     updateCamera(dt);
     effects.update(dt, camera);
     updateCombo(dt);
+    updateSubmission(dt);
     updateHUD(matchElapsed);
     checkMatchEnd();
   } else if (phase === "countdown") {
@@ -418,6 +487,14 @@ function handleInput(
 
   self.move(dx, dz, s.sprint, dt);
   self.faceTarget(opponent);
+
+  // サブミッション中の脱出 (被攻撃側がボタンを連打)
+  if (self.state === "in_submission" && sub.active) {
+    const anyPress = s.strikePressed || s.grapplePressed || s.slamPressed ||
+                     s.signaturePressed || s.pinPressed || s.tauntPressed;
+    if (anyPress) sub.escapeProgress = Math.min(1, sub.escapeProgress + ESCAPE_JUMP);
+    return;
+  }
 
   // リバーサル — グラップルされた直後に G を押す
   if (s.grapplePressed && self.canReversal()) {
@@ -486,6 +563,14 @@ function handleInput(
       if (trackCombo) addCombo();
       flashMoveName("STRIKE!");
     }
+  }
+
+  // Submission (G near knocked-down opponent — takes priority over grapple)
+  if (s.grapplePressed && !sub.active && self.canSubmit(opponent)) {
+    self.startSubmission(opponent);
+    sub = { active: true, holderSide: side, subProgress: 0, escapeProgress: 0 };
+    flashMoveName("SUBMISSION HOLD!");
+    audio.crowd();
   }
 
   // Grapple / Slam follow-up (G)
@@ -633,6 +718,7 @@ function startMatch(
   if (p2hint) p2hint.style.display = selectedMode === "2p" ? "inline" : "none";
 
   tracker = new MatchTracker();
+  sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
