@@ -148,12 +148,12 @@ export class CpuAI {
 
     const charDmg = this.cpu.damageMult;  // キャラクター固有の攻撃力
 
-    // シグネチャー
+    // フィニッシャー (シグネチャー + キャラ固有演出)
     if (this.cpu.momentum >= 100 && dist < GRAPPLE_DIST) {
       this.cpu.startSignature(this.player);
       this.player.takeDamage(35 * this.p.dmgMult * charDmg);
-      this.effects.spawnSignatureBurst(this.player.position);
-      this.effects.shake(0.35);
+      this.effects.spawnFinisherBurst(this.player.position, this.cpu.finisherColor);
+      this.effects.shake(0.5);
       audio.slam();
       audio.crowd();
       this.decisionTimer = 1.4;
