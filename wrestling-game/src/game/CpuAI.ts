@@ -86,7 +86,28 @@ export class CpuAI {
     return Math.max(0, 1 - this.p.missChance * 3);
   }
 
+  /** ストライクカウンター発動確率 (Hard: ~0.36, Normal: ~0.18, Easy: ~0.05) */
+  get counterChance(): number {
+    return Math.max(0, 0.4 - this.p.missChance);
+  }
+
   update(dt: number): void {
+    // ストライクカウンター (難易度依存の確率)
+    if (this.cpu.canCounter() && Math.random() < this.counterChance) {
+      this.cpu.counterWindow = 0;
+      this.player.state = "stunned";
+      this.player.stateTimer = 0.7;
+      this.player.actionCooldown = 0.7;
+      const dmg = (5 + Math.random() * 4) * this.cpu.damageMult;
+      this.player.takeDamage(dmg);
+      this.cpu.momentum = Math.min(100, this.cpu.momentum + 12);
+      this.effects.spawnHitSparks(this.cpu.position, 0x00ffff);
+      this.effects.spawnHitSparks(this.cpu.position, 0xffffff);
+      this.effects.shake(0.1);
+      audio.punch();
+      return;
+    }
+
     // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
     if (this.cpu.canReversal()) {
       const reversalChance = 1 - this.p.missChance * 2.5;
@@ -151,6 +172,7 @@ export class CpuAI {
       const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
       if (this.player.hp < this.knockdownThreshold(35)) this.player.startKnockdown();
+      else this.player.openCounterWindow();
       this.effects.spawnHitSparks(this.player.position, 0xff2200);
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.18);
@@ -215,6 +237,7 @@ export class CpuAI {
       const dmg = (16 + Math.random() * 6) * this.p.dmgMult * charDmg;
       this.player.takeDamage(dmg);
       if (this.player.hp < this.knockdownThreshold(55)) this.player.startKnockdown();
+      else this.player.openCounterWindow();
       this.effects.spawnHitSparks(this.player.position, 0xff2200);
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.22);
@@ -234,6 +257,7 @@ export class CpuAI {
         const dmg = (7 + Math.random() * 5) * this.p.dmgMult * charDmg;
         this.player.takeDamage(dmg);
         if (this.player.hp < this.knockdownThreshold(25)) this.player.startKnockdown();
+        else this.player.openCounterWindow();
         this.effects.spawnHitSparks(this.player.position, 0xff6600);
         this.effects.shake(0.08);
         audio.punch();
