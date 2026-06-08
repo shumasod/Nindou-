@@ -201,9 +201,11 @@ function showDanger(active: boolean, id: string, side: string): void {
   el.style.display = "block";
 }
 
-// ─── ガス欠フラッシュ追跡 ────────────────────────────────────────────────────
-let p1WasGassed = false;
-let p2WasGassed = false;
+// ─── ガス欠 / ファイアアップフラッシュ追跡 ──────────────────────────────────
+let p1WasGassed  = false;
+let p2WasGassed  = false;
+let p1WasDanger  = false;
+let p2WasDanger  = false;
 
 function checkGassedFlash(): void {
   if (player1.isGassed && !p1WasGassed) flashMoveName("P1 GASSED!!");
@@ -213,6 +215,20 @@ function checkGassedFlash(): void {
   }
   p1WasGassed = player1.isGassed;
   p2WasGassed = player2.isGassed;
+}
+
+function checkDangerFlash(): void {
+  if (player1.isDanger && !p1WasDanger) {
+    flashMoveName("P1 FIRED UP!!");
+    effects.shake(0.08);
+  }
+  if (player2.isDanger && !p2WasDanger) {
+    const who = mode === "2p" ? "P2" : "CPU";
+    flashMoveName(`${who} FIRED UP!!`);
+    effects.shake(0.08);
+  }
+  p1WasDanger = player1.isDanger;
+  p2WasDanger = player2.isDanger;
 }
 
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
@@ -380,6 +396,8 @@ function startNextRound(): void {
   comboCount = 0;
   comboTimer = 0;
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  p1WasDanger = false;
+  p2WasDanger = false;
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -487,6 +505,7 @@ function animate(): void {
     updateCombo(dt);
     updateSubmission(dt);
     checkGassedFlash();
+    checkDangerFlash();
     updateHUD(matchElapsed);
     checkMatchEnd();
   } else if (phase === "countdown") {
@@ -783,6 +802,8 @@ function startMatch(
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
   p1WasGassed = false;
   p2WasGassed = false;
+  p1WasDanger = false;
+  p2WasDanger = false;
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
