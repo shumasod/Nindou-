@@ -110,6 +110,14 @@ export class Wrestler {
   private lowerLegL!: THREE.Mesh;
   private lowerLegR!: THREE.Mesh;
 
+  // Momentum decay tracking
+  private _idleTimer = 0;
+
+  /** アイドルが 2.5s 超え かつ momentum > 0 の場合 true */
+  get momentumDecaying(): boolean {
+    return this._idleTimer > 2.5 && this.momentum > 0;
+  }
+
   // Flash / danger pulse
   private flashTimer       = 0;
   private dangerPulseTimer = 0;
@@ -514,6 +522,16 @@ export class Wrestler {
       this.stamina = Math.min(100, this.stamina + 12 * this.staminaMult * dt);
     } else {
       this.stamina = Math.min(100, this.stamina + 4 * this.staminaMult * dt);
+    }
+
+    // Momentum decay — 2.5s アイドル後、6/s で減少
+    if (this.state === "idle") {
+      this._idleTimer += dt;
+    } else {
+      this._idleTimer = 0;
+    }
+    if (this._idleTimer > 2.5 && this.momentum > 0) {
+      this.momentum = Math.max(0, this.momentum - 6 * dt);
     }
 
     // Irish whip movement
