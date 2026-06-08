@@ -58,14 +58,21 @@ export class Wrestler {
   readonly finisherName:  string;
   readonly finisherColor: number;
 
-  /** ガス欠時は 0.75 倍、通常は 1.0 倍 */
+  /** ガス欠: ×0.75 / 瀕死コンバック: ×1.25 / 両方: ×0.9375 */
   get damageMult(): number {
-    return this._damageMult * (this.isGassed ? 0.75 : 1.0);
+    return this._damageMult *
+      (this.isGassed  ? 0.75 : 1.0) *
+      (this.isDanger  ? 1.25 : 1.0);
   }
 
   /** スタミナが 20 未満 = ガス欠状態 */
   get isGassed(): boolean {
     return this.stamina < 20;
+  }
+
+  /** HP が 20 未満かつ生存 = ファイアアップ状態 */
+  get isDanger(): boolean {
+    return this.hp > 0 && this.hp < 20;
   }
 
   // Stats
@@ -102,8 +109,9 @@ export class Wrestler {
   private lowerLegL!: THREE.Mesh;
   private lowerLegR!: THREE.Mesh;
 
-  // Flash effect
-  private flashTimer = 0;
+  // Flash / danger pulse
+  private flashTimer       = 0;
+  private dangerPulseTimer = 0;
   private bodyMeshes: THREE.Mesh[] = [];
 
   // Irish whip velocity (X axis only)
@@ -497,6 +505,7 @@ export class Wrestler {
     this.actionCooldown = Math.max(0, this.actionCooldown - dt);
     this.flashTimer     = Math.max(0, this.flashTimer - dt);
     this.reversalWindow = Math.max(0, this.reversalWindow - dt);
+    if (this.isDanger) this.dangerPulseTimer += dt;
 
     // Stamina recovery
     if (this.state === "idle") {
@@ -723,8 +732,20 @@ export class Wrestler {
   }
 
   private applyFlash(): void {
-    const emissive = this.flashTimer > 0 ? 0xff2222 : 0x000000;
-    const intensity = this.flashTimer > 0 ? 0.5 : 0;
+    let emissive  = 0x000000;
+    let intensity = 0;
+    if (this.flashTimer > 0) {
+      // ヒットフラッシュ (赤) — 最優先
+      emissive  = 0xff2222;
+      intensity = 0.5;
+    } else if (this.isDanger) {
+      // 瀕死パルス: 0.6 s 周期でオレンジに点滅
+      const pulse = Math.sin(this.dangerPulseTimer * Math.PI / 0.6);
+      if (pulse > 0) {
+        emissive  = 0xff6600;
+        intensity = pulse * 0.45;
+      }
+    }
     this.bodyMeshes.forEach((m) => {
       const mat = m.material as THREE.MeshStandardMaterial;
       mat.emissive.setHex(emissive);
