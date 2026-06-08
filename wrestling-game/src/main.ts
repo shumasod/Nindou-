@@ -584,7 +584,7 @@ function handleInput(
       const dmg = (16 + Math.random() * 6) * self.damageMult;
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 55;
-      if (knockdown) opponent.startKnockdown();
+      if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
       else opponent.state = "stunned";
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
@@ -592,33 +592,33 @@ function handleInput(
       audio.slam();
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
-      flashMoveName("CLOTHESLINE!!");
+      if (!knockdown) flashMoveName("CLOTHESLINE!!");
     } else if (isRunning) {
       // ランニングストライク — 1.5 倍ダメージ
       self.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * self.damageMult;
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 35;
-      if (knockdown) opponent.startKnockdown();
+      if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.18);
       audio.slam();
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
-      flashMoveName("RUNNING STRIKE!!");
+      if (!knockdown) flashMoveName("RUNNING STRIKE!!");
     } else {
       self.startStrike();
       const dmg = (8 + Math.random() * 4) * self.damageMult;
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 25;
-      if (knockdown) opponent.startKnockdown();
+      if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
       effects.spawnHitSparks(opponent.position, 0xff6600);
       effects.shake(0.08);
       audio.punch();
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
-      flashMoveName("STRIKE!");
+      if (!knockdown) flashMoveName("STRIKE!");
     }
   }
 
@@ -678,6 +678,21 @@ function handleInput(
     audio.pinRoll();
     tracker.recordPin(side);
     flashMoveName("PIN!");
+  }
+}
+
+// ─── TKO フラッシュ ──────────────────────────────────────────────────────────
+const KD_LABELS = ["1ST KNOCKDOWN!", "2ND KNOCKDOWN!", "TKO!!"];
+
+/** ノックダウン後に呼ぶ — 回数に応じたメッセージ + TKO 判定 */
+function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: string): void {
+  const n = victim.knockdownCount; // startKnockdown() で既にインクリメント済み
+  const label = KD_LABELS[Math.min(n, KD_LABELS.length) - 1];
+  if (label) flashMoveName(`${victimLabel} ${label}`);
+  if (n >= 3) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult(winnerLabel, "TKO  ");
   }
 }
 

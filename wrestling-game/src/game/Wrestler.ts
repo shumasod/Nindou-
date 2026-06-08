@@ -94,6 +94,7 @@ export class Wrestler {
   pinCount        = 0;   // 現在のピンカウント (0-3)
   reversalWindow  = 0;   // > 0 の間リバーサル受付中
   ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
+  knockdownCount  = 0;     // 試合中の累計ノックダウン数 (3 で TKO)
 
   private config: WrestlerConfig;
 
@@ -468,6 +469,7 @@ export class Wrestler {
     this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
     this.grappleTarget = null;
     this.ropeBreakUsed = false; // 新しいノックダウンごとにリセット
+    this.knockdownCount++;
   }
 
   /** サブミッション開始 — 攻撃側・被攻撃側双方をロック */
