@@ -15,6 +15,13 @@ services:
         --appendfsync everysec
     volumes:
       - redis_data:/data
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -36,6 +43,10 @@ services:
       DB_DIR: /data/db
     volumes:
       - sqlite_data:/data/db
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       redis:
         condition: service_healthy
@@ -56,6 +67,10 @@ services:
       NODE_ENV: production
       PORT: "3000"
       SERVER_URL: http://server:3001
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       server:
         condition: service_healthy
@@ -74,6 +89,16 @@ services:
     restart: unless-stopped
     ports:
       - "${HOST_PORT:-80}:80"
+    networks:
+      - internal
+      - public
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
     depends_on:
       frontend:
         condition: service_healthy
@@ -90,3 +115,9 @@ volumes:
     driver: local
   sqlite_data:
     driver: local
+
+networks:
+  internal:
+    internal: true
+  public:
+    driver: bridge

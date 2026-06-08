@@ -149,14 +149,16 @@ export class CpuAI {
 
   private doAttack(dt: number): void {
     if (this.decisionTimer > 0) return;
+    // 瀕死 (isDanger) のときは 0.7 倍速で反応 (ファイアアップ)
+    const dangerMult = this.cpu.isDanger ? 0.7 : 1.0;
     // ガス欠中プレイヤーには判断を速める (半分の待機)
     const effectiveMiss = this.player.isGassed
       ? this.p.missChance * 0.4
       : this.p.missChance;
     if (Math.random() < effectiveMiss) {
-      this.decisionTimer = this.player.isGassed
+      this.decisionTimer = (this.player.isGassed
         ? this.p.decisionBase * 0.5
-        : this.p.decisionBase;
+        : this.p.decisionBase) * dangerMult;
       return;
     }
 
@@ -190,7 +192,7 @@ export class CpuAI {
         this.effects.spawnDust(this.player.position);
         this.effects.shake(0.18);
         audio.slam();
-        this.decisionTimer = this.p.decisionBase * 1.5;
+        this.decisionTimer = this.p.decisionBase * 1.5 * dangerMult;
       }
       return;
     }
@@ -205,14 +207,14 @@ export class CpuAI {
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.22);
       audio.slam();
-      this.decisionTimer = this.p.decisionBase;
+      this.decisionTimer = this.p.decisionBase * dangerMult;
       return;
     }
 
     if (dist < GRAPPLE_DIST && roll < 0.45) {
       if (this.cpu.canGrapple(this.player)) {
         this.cpu.startGrapple(this.player);
-        this.decisionTimer = this.p.decisionBase * 0.6;
+        this.decisionTimer = this.p.decisionBase * 0.6 * dangerMult;
       }
     } else if (dist < STRIKE_DIST && roll < 0.85) {
       if (this.cpu.canStrike(this.player)) {
@@ -223,11 +225,11 @@ export class CpuAI {
         this.effects.spawnHitSparks(this.player.position, 0xff6600);
         this.effects.shake(0.08);
         audio.punch();
-        this.decisionTimer = this.p.decisionBase;
+        this.decisionTimer = this.p.decisionBase * dangerMult;
       }
     } else {
       this.doChase(dt);
-      this.decisionTimer = this.p.decisionBase * 0.4;
+      this.decisionTimer = this.p.decisionBase * 0.4 * dangerMult;
     }
   }
 

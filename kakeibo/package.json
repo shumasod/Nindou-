@@ -1,0 +1,37 @@
+{
+  "name": "kakeibo",
+  "version": "0.1.0",
+  "description": "ターミナル家計簿アプリ (Ink + TypeScript)",
+  "type": "module",
+  "bin": {
+    "kakeibo": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.tsx",
+    "build": "tsup",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "ink": "^4.4.1",
+    "ink-text-input": "^5.0.1",
+    "lowdb": "^7.0.1",
+    "meow": "^13.2.0",
+    "nanoid": "^5.0.7",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@vitest/coverage-v8": "^4.1.7",
+    "tsup": "^8.1.0",
+    "tsx": "^4.15.7",
+    "typescript": "^5.5.3",
+    "vitest": "^4.1.7"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

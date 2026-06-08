@@ -8,6 +8,13 @@ import fs from "fs";
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
+
+// In production, require explicit env vars; never fall back to insecure defaults.
+const IS_PROD = process.env.NODE_ENV === "production";
+if (IS_PROD && !process.env.ALLOWED_ORIGIN) {
+  console.error("FATAL: ALLOWED_ORIGIN env var is required in production");
+  process.exit(1);
+}
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const DB_DIR = process.env.DB_DIR ?? path.join(__dirname, "../../.db");
@@ -43,6 +50,20 @@ const saveLimiter = rateLimit({
 
 // Disable X-Powered-By header
 app.disable("x-powered-by");
+
+// CSRF mitigation: reject cross-site state-changing requests that include a
+// Sec-Fetch-Site header (set by all modern browsers) with a non-same-origin value.
+// Old browsers that omit the header are allowed through (no downgrade).
+app.use((req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    return next();
+  }
+  const fetchSite = req.headers["sec-fetch-site"];
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "same-site" && fetchSite !== "none") {
+    return res.status(403).json({ error: "Cross-site request rejected" });
+  }
+  next();
+});
 
 // ===== Database =====
 fs.mkdirSync(DB_DIR, { recursive: true });
@@ -124,12 +145,18 @@ app.get("/saves/:slot", async (req, res) => {
 
   const row = db
     .prepare("SELECT data FROM saves WHERE slot = ? ORDER BY saved_at DESC LIMIT 1")
-    .get(slot) as { data: string } | undefined;
+    .get(slot);
 
-  if (!row) return res.status(404).json({ error: "セーブデータが見つかりません" });
+  if (!row || typeof row !== "object") {
+    return res.status(404).json({ error: "セーブデータが見つかりません" });
+  }
+  const rawData = (row as Record<string, unknown>).data;
+  if (typeof rawData !== "string") {
+    return res.status(500).json({ error: "セーブデータの読み込みに失敗しました" });
+  }
 
   try {
-    const parsed = JSON.parse(row.data);
+    const parsed = JSON.parse(rawData);
     await setCache(slot, parsed);
     return res.json(parsed);
   } catch {

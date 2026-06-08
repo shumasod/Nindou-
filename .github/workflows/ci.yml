@@ -6,11 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+# Deny all permissions by default; each job grants only what it needs.
+permissions: {}
+
 jobs:
   # ---- Frontend ----
   frontend:
     name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +43,8 @@ jobs:
   server:
     name: Server (type-check + test + build)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +75,8 @@ jobs:
     name: Docker build (dry-run)
     runs-on: ubuntu-latest
     needs: [frontend, server]
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
