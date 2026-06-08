@@ -153,6 +153,9 @@ function updateHUD(elapsed: number): void {
   }
   if (hudP1Mom) {
     hudP1Mom.style.width = pct(player1.momentum);
+    hudP1Mom.style.background = player1.momentumDecaying
+      ? "linear-gradient(90deg,#c0392b,#e74c3c)"
+      : "linear-gradient(90deg,#f39c12,#f1c40f)";
     hudP1Mom.style.animation = player1.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
   if (hudP2Hp)  { hudP2Hp.style.width  = pct(p2HpPct); hudP2Hp.style.background  = hpColor(p2HpPct); }
@@ -215,6 +218,20 @@ function checkGassedFlash(): void {
   }
   p1WasGassed = player1.isGassed;
   p2WasGassed = player2.isGassed;
+}
+
+let p1WasMomDecay = false;
+let p2WasMomDecay = false;
+
+function checkMomentumDecayFlash(): void {
+  if (player1.momentumDecaying && !p1WasMomDecay && player1.momentum > 10) {
+    flashMoveName("USE IT OR LOSE IT!");
+  }
+  if (player2.momentumDecaying && !p2WasMomDecay && player2.momentum > 10) {
+    if (mode === "2p") flashMoveName("USE IT OR LOSE IT!");
+  }
+  p1WasMomDecay = player1.momentumDecaying;
+  p2WasMomDecay = player2.momentumDecaying;
 }
 
 function checkDangerFlash(): void {
@@ -396,8 +413,10 @@ function startNextRound(): void {
   comboCount = 0;
   comboTimer = 0;
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
-  p1WasDanger = false;
-  p2WasDanger = false;
+  p1WasDanger   = false;
+  p2WasDanger   = false;
+  p1WasMomDecay = false;
+  p2WasMomDecay = false;
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -506,6 +525,7 @@ function animate(): void {
     updateSubmission(dt);
     checkGassedFlash();
     checkDangerFlash();
+    checkMomentumDecayFlash();
     updateHUD(matchElapsed);
     checkMatchEnd();
   } else if (phase === "countdown") {
@@ -817,8 +837,10 @@ function startMatch(
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
   p1WasGassed = false;
   p2WasGassed = false;
-  p1WasDanger = false;
-  p2WasDanger = false;
+  p1WasDanger  = false;
+  p2WasDanger  = false;
+  p1WasMomDecay = false;
+  p2WasMomDecay = false;
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
