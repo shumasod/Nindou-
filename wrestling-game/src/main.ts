@@ -127,6 +127,7 @@ const hudP2Name  = document.getElementById("hud-p2-name")  as HTMLElement | null
 const hudSubDisp = document.getElementById("sub-display")  as HTMLElement | null;
 const hudSubBar  = document.getElementById("sub-bar")      as HTMLElement | null;
 const hudEscBar  = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudCrowdBar = document.getElementById("crowd-bar")   as HTMLElement | null;
 
 function pct(v: number): string {
   return `${Math.round(Math.max(0, Math.min(100, v)))}%`;
@@ -246,6 +247,37 @@ function checkDangerFlash(): void {
   }
   p1WasDanger = player1.isDanger;
   p2WasDanger = player2.isDanger;
+}
+
+// ─── クラウドメーター ─────────────────────────────────────────────────────────
+const CROWD_HOT_THRESHOLD = 75;
+const CROWD_DECAY         = 4;    // /s
+const CROWD_MOM_BONUS     = 1.5;  // /s 両者へのモメンタム加算 (HOT 時)
+
+let crowdMeter   = 0;
+let wasHotCrowd  = false;
+
+function addCrowdPop(amount: number): void {
+  crowdMeter = Math.min(100, crowdMeter + amount);
+}
+
+function updateCrowd(dt: number): void {
+  crowdMeter = Math.max(0, crowdMeter - CROWD_DECAY * dt);
+  const hot = crowdMeter >= CROWD_HOT_THRESHOLD;
+  if (hot) {
+    player1.momentum = Math.min(100, player1.momentum + CROWD_MOM_BONUS * dt);
+    player2.momentum = Math.min(100, player2.momentum + CROWD_MOM_BONUS * dt);
+  }
+  if (hudCrowdBar) {
+    hudCrowdBar.style.width = `${crowdMeter}%`;
+    hudCrowdBar.classList.toggle("hot", hot);
+  }
+}
+
+function checkCrowdFlash(): void {
+  const hot = crowdMeter >= CROWD_HOT_THRESHOLD;
+  if (hot && !wasHotCrowd) flashMoveName("HOT CROWD!!");
+  wasHotCrowd = hot;
 }
 
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
@@ -417,6 +449,8 @@ function startNextRound(): void {
   p2WasDanger   = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
+  crowdMeter    = 0;
+  wasHotCrowd   = false;
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -526,6 +560,8 @@ function animate(): void {
     checkGassedFlash();
     checkDangerFlash();
     checkMomentumDecayFlash();
+    updateCrowd(dt);
+    checkCrowdFlash();
     updateHUD(matchElapsed);
     checkMatchEnd();
   } else if (phase === "countdown") {
@@ -573,6 +609,26 @@ function handleInput(
     return;
   }
 
+  // ストライクカウンター — 被弾直後の G でスタン反撃
+  if (s.grapplePressed && self.canCounter()) {
+    self.counterWindow = 0;
+    opponent.state = "stunned";
+    opponent.stateTimer = 0.7;
+    opponent.actionCooldown = 0.7;
+    const dmg = (5 + Math.random() * 4) * self.damageMult;
+    opponent.takeDamage(dmg);
+    self.momentum = Math.min(100, self.momentum + 12);
+    effects.spawnHitSparks(opponent.position, 0x00ffff);
+    effects.spawnHitSparks(opponent.position, 0xffffff);
+    effects.shake(0.1);
+    audio.punch();
+    addCrowdPop(10);
+    tracker.recordStrike(side, dmg, false);
+    if (side === "p1") addCombo();
+    flashMoveName("COUNTER!!");
+    return;
+  }
+
   // リバーサル — グラップルされた直後に G を押す
   if (s.grapplePressed && self.canReversal()) {
     self.doReversal();
@@ -605,11 +661,12 @@ function handleInput(
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 55;
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
-      else opponent.state = "stunned";
+      else { opponent.state = "stunned"; opponent.openCounterWindow(); }
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.22);
       audio.slam();
+      addCrowdPop(knockdown ? 15 : 8);
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
       if (!knockdown) flashMoveName("CLOTHESLINE!!");
@@ -620,10 +677,12 @@ function handleInput(
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 35;
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
+      else opponent.openCounterWindow();
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.18);
       audio.slam();
+      addCrowdPop(knockdown ? 12 : 5);
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
       if (!knockdown) flashMoveName("RUNNING STRIKE!!");
@@ -633,9 +692,11 @@ function handleInput(
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 25;
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
+      else opponent.openCounterWindow();
       effects.spawnHitSparks(opponent.position, 0xff6600);
       effects.shake(0.08);
       audio.punch();
+      addCrowdPop(knockdown ? 10 : 3);
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
       if (!knockdown) flashMoveName("STRIKE!");
@@ -646,6 +707,7 @@ function handleInput(
   if (s.grapplePressed && !sub.active && self.canSubmit(opponent)) {
     self.startSubmission(opponent);
     sub = { active: true, holderSide: side, subProgress: 0, escapeProgress: 0 };
+    addCrowdPop(12);
     flashMoveName("SUBMISSION HOLD!");
     audio.crowd();
   }
@@ -660,6 +722,7 @@ function handleInput(
       effects.spawnDust(t.position);
       effects.shake(0.18);
       audio.slam();
+      addCrowdPop(8);
       tracker.recordSlam(side, dmg);
       if (trackCombo) addCombo();
       flashMoveName("SLAM!");
@@ -686,6 +749,7 @@ function handleInput(
     effects.shake(0.5);
     audio.slam();
     audio.crowd();
+    addCrowdPop(30);
     tracker.recordSignature(side, dmg);
     if (trackCombo) addCombo();
     flashFinisher(self.name, self.finisherName, self.finisherColor);
@@ -709,6 +773,7 @@ function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: s
   const n = victim.knockdownCount; // startKnockdown() で既にインクリメント済み
   const label = KD_LABELS[Math.min(n, KD_LABELS.length) - 1];
   if (label) flashMoveName(`${victimLabel} ${label}`);
+  addCrowdPop(n >= 3 ? 30 : 12);
   if (n >= 3) {
     effects.shake(0.4);
     audio.crowd();
@@ -841,6 +906,8 @@ function startMatch(
   p2WasDanger  = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
+  crowdMeter   = 0;
+  wasHotCrowd  = false;
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
