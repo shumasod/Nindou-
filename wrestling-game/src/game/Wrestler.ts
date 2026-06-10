@@ -94,6 +94,7 @@ export class Wrestler {
   pinCount        = 0;   // 現在のピンカウント (0-3)
   reversalWindow  = 0;   // > 0 の間リバーサル受付中
   ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
+  knockdownCount  = 0;     // 試合中の累計ノックダウン数 (3 で TKO)
 
   private config: WrestlerConfig;
 
@@ -108,6 +109,14 @@ export class Wrestler {
   private upperLegR!: THREE.Group;
   private lowerLegL!: THREE.Mesh;
   private lowerLegR!: THREE.Mesh;
+
+  // Momentum decay tracking
+  private _idleTimer = 0;
+
+  /** アイドルが 2.5s 超え かつ momentum > 0 の場合 true */
+  get momentumDecaying(): boolean {
+    return this._idleTimer > 2.5 && this.momentum > 0;
+  }
 
   // Flash / danger pulse
   private flashTimer       = 0;
@@ -468,6 +477,7 @@ export class Wrestler {
     this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
     this.grappleTarget = null;
     this.ropeBreakUsed = false; // 新しいノックダウンごとにリセット
+    this.knockdownCount++;
   }
 
   /** サブミッション開始 — 攻撃側・被攻撃側双方をロック */
@@ -512,6 +522,16 @@ export class Wrestler {
       this.stamina = Math.min(100, this.stamina + 12 * this.staminaMult * dt);
     } else {
       this.stamina = Math.min(100, this.stamina + 4 * this.staminaMult * dt);
+    }
+
+    // Momentum decay — 2.5s アイドル後、6/s で減少
+    if (this.state === "idle") {
+      this._idleTimer += dt;
+    } else {
+      this._idleTimer = 0;
+    }
+    if (this._idleTimer > 2.5 && this.momentum > 0) {
+      this.momentum = Math.max(0, this.momentum - 6 * dt);
     }
 
     // Irish whip movement

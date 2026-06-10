@@ -67,6 +67,14 @@ export class CpuAI {
     this.p = DIFFICULTY[difficulty];
   }
 
+  /**
+   * TKO 狙い: プレイヤーが 2 ノックダウン済みなら基準 HP を 1.6 倍に引き上げ
+   * → より積極的にノックダウンを狙う
+   */
+  private knockdownThreshold(base: number): number {
+    return this.player.knockdownCount >= 2 ? Math.round(base * 1.6) : base;
+  }
+
   /** サブミッション中の CPU 脱出速度 (per second, 0–1 scale) */
   get escapeRate(): number {
     // Hard: ~0.22/s, Normal: ~0.13/s, Easy: ~0.06/s
@@ -118,7 +126,9 @@ export class CpuAI {
       this.phase = "recover";
       return;
     }
-    if (dist < CHASE_DIST) {
+    // フィニッシャー準備中は広い距離から attack フェーズへ
+    const attackDist = this.cpu.momentum >= 80 ? CHASE_DIST * 1.4 : CHASE_DIST;
+    if (dist < attackDist) {
       this.phase = "attack";
       return;
     }
@@ -129,7 +139,9 @@ export class CpuAI {
     const dx = this.player.position.x - this.cpu.position.x;
     const dz = this.player.position.z - this.cpu.position.z;
     const len = Math.sqrt(dx * dx + dz * dz) || 1;
-    const sprint = this.cpu.stamina > this.p.sprintThreshold && len > 3.5;
+    // モメンタムが 80% 以上なら常にスプリントで詰める (フィニッシャー前のダッシュ)
+    const urgentFinisher = this.cpu.momentum >= 80;
+    const sprint = (urgentFinisher || this.cpu.stamina > this.p.sprintThreshold) && len > 1.5;
     this.cpu.move(dx / len, dz / len, sprint, dt);
     this.cpu.faceTarget(this.player);
 
@@ -138,7 +150,7 @@ export class CpuAI {
       this.cpu.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
-      if (this.player.hp < 35) this.player.startKnockdown();
+      if (this.player.hp < this.knockdownThreshold(35)) this.player.startKnockdown();
       this.effects.spawnHitSparks(this.player.position, 0xff2200);
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.18);
@@ -202,7 +214,7 @@ export class CpuAI {
       this.cpu.startStrike();
       const dmg = (16 + Math.random() * 6) * this.p.dmgMult * charDmg;
       this.player.takeDamage(dmg);
-      if (this.player.hp < 55) this.player.startKnockdown();
+      if (this.player.hp < this.knockdownThreshold(55)) this.player.startKnockdown();
       this.effects.spawnHitSparks(this.player.position, 0xff2200);
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.22);
@@ -221,7 +233,7 @@ export class CpuAI {
         this.cpu.startStrike();
         const dmg = (7 + Math.random() * 5) * this.p.dmgMult * charDmg;
         this.player.takeDamage(dmg);
-        if (this.player.hp < 25) this.player.startKnockdown();
+        if (this.player.hp < this.knockdownThreshold(25)) this.player.startKnockdown();
         this.effects.spawnHitSparks(this.player.position, 0xff6600);
         this.effects.shake(0.08);
         audio.punch();
