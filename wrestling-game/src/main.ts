@@ -573,6 +573,25 @@ function handleInput(
     return;
   }
 
+  // ストライクカウンター — 被弾直後の G でスタン反撃
+  if (s.grapplePressed && self.canCounter()) {
+    self.counterWindow = 0;
+    opponent.state = "stunned";
+    opponent.stateTimer = 0.7;
+    opponent.actionCooldown = 0.7;
+    const dmg = (5 + Math.random() * 4) * self.damageMult;
+    opponent.takeDamage(dmg);
+    self.momentum = Math.min(100, self.momentum + 12);
+    effects.spawnHitSparks(opponent.position, 0x00ffff);
+    effects.spawnHitSparks(opponent.position, 0xffffff);
+    effects.shake(0.1);
+    audio.punch();
+    tracker.recordStrike(side, dmg, false);
+    if (side === "p1") addCombo();
+    flashMoveName("COUNTER!!");
+    return;
+  }
+
   // リバーサル — グラップルされた直後に G を押す
   if (s.grapplePressed && self.canReversal()) {
     self.doReversal();
@@ -605,7 +624,7 @@ function handleInput(
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 55;
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
-      else opponent.state = "stunned";
+      else { opponent.state = "stunned"; opponent.openCounterWindow(); }
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.22);
@@ -620,6 +639,7 @@ function handleInput(
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 35;
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
+      else opponent.openCounterWindow();
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.18);
@@ -633,6 +653,7 @@ function handleInput(
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 25;
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
+      else opponent.openCounterWindow();
       effects.spawnHitSparks(opponent.position, 0xff6600);
       effects.shake(0.08);
       audio.punch();

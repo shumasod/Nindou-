@@ -95,6 +95,7 @@ export class Wrestler {
   reversalWindow  = 0;   // > 0 の間リバーサル受付中
   ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
   knockdownCount  = 0;     // 試合中の累計ノックダウン数 (3 で TKO)
+  counterWindow   = 0;     // > 0 の間カウンター受付中 (ストライク被弾後 0.3 s)
 
   private config: WrestlerConfig;
 
@@ -286,6 +287,23 @@ export class Wrestler {
       this.state !== "rebounding" &&
       this.state !== "submitting" &&
       this.state !== "in_submission";
+  }
+
+  /**
+   * ストライク被弾直後にカウンターウィンドウを開く。
+   * ダウン中は受け付けない。
+   */
+  openCounterWindow(): void {
+    if (!this.isDown()) this.counterWindow = 0.3;
+  }
+
+  /** カウンター可能 — 立ち状態かつウィンドウ内 */
+  canCounter(): boolean {
+    return this.counterWindow > 0 &&
+      !this.isDown() &&
+      this.state !== "striking" &&
+      this.state !== "slamming" &&
+      this.state !== "grappling";
   }
 
   /** ロープ際にいるか (X or Z 軸でリング端から 1.5 units 以内) */
@@ -515,6 +533,7 @@ export class Wrestler {
     this.actionCooldown = Math.max(0, this.actionCooldown - dt);
     this.flashTimer     = Math.max(0, this.flashTimer - dt);
     this.reversalWindow = Math.max(0, this.reversalWindow - dt);
+    this.counterWindow  = Math.max(0, this.counterWindow  - dt);
     if (this.isDanger) this.dangerPulseTimer += dt;
 
     // Stamina recovery
