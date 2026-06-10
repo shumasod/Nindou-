@@ -250,7 +250,33 @@
         text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
       }
 
-      /* ── Win pips ────────────────────────────────────────── */
+      @keyframes crowdPulse {
+        from { opacity: 0.8; }
+        to   { opacity: 1; box-shadow: 0 0 12px #ffd700, 0 0 24px #ffd700; }
+      }
+
+      /* ── Crowd meter ─────────────────────────────────────── */
+      #crowd-wrap {
+        margin-top: 8px; text-align: center;
+      }
+      #crowd-label {
+        font-size: 9px; letter-spacing: 2px;
+        color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 3px;
+      }
+      #crowd-track {
+        width: 160px; height: 8px; margin: 0 auto;
+        background: rgba(255,255,255,0.1); border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.15); overflow: hidden;
+      }
+      #crowd-bar {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg,#e67e22,#f1c40f);
+        border-radius: 4px; transition: width 0.15s, background 0.4s;
+      }
+      #crowd-bar.hot {
+        background: linear-gradient(90deg,#ffd700,#fff176);
+        animation: crowdPulse 0.5s infinite alternate;
+      }
       .win-pips {
         font-size: 16px; letter-spacing: 6px; margin-top: 2px;
         color: #ffd700; text-shadow: 0 0 8px rgba(255,215,0,0.7);
@@ -384,9 +410,13 @@
         <div class="bar-label">STAMINA</div>
       </div>
 
-      <!-- Timer -->
+      <!-- Timer + Crowd meter -->
       <div id="center-info">
         <div id="match-timer">3:00</div>
+        <div id="crowd-wrap">
+          <div id="crowd-label">CROWD</div>
+          <div id="crowd-track"><div id="crowd-bar"></div></div>
+        </div>
       </div>
 
       <!-- Pin counter -->
