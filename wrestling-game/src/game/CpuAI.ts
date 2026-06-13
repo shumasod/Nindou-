@@ -153,6 +153,9 @@ export class CpuAI {
       this.phase = "recover";
       return;
     }
+    // コーナーに追い詰めた場合は常に chase (doChase がスプリント + splash を処理)
+    if (this.player.isInCorner()) { this.phase = "chase"; return; }
+
     // フィニッシャー準備中は広い距離から attack フェーズへ
     const attackDist = this.cpu.momentum >= 80 ? CHASE_DIST * 1.4 : CHASE_DIST;
     if (dist < attackDist) {
@@ -171,6 +174,22 @@ export class CpuAI {
     const sprint = (urgentFinisher || this.cpu.stamina > this.p.sprintThreshold) && len > 1.5;
     this.cpu.move(dx / len, dz / len, sprint, dt);
     this.cpu.faceTarget(this.player);
+
+    // スプリント中 + コーナー追い詰め → コーナースプラッシュ (優先)
+    if (sprint && this.player.isInCorner() && len < 2.5 && this.cpu.isActionReady()) {
+      this.cpu.startCornerSplash();
+      const dmg = (22 + Math.random() * 8) * this.p.dmgMult * this.cpu.damageMult;
+      this.player.takeDamage(dmg);
+      this.player.startKnockdown();
+      this.effects.spawnHitSparks(this.player.position, 0xff2200);
+      this.effects.spawnHitSparks(this.player.position, 0xffaa00);
+      this.effects.spawnHitSparks(this.player.position, 0xffffff);
+      this.effects.shake(0.3);
+      audio.slam();
+      audio.crowd();
+      this.decisionTimer = this.p.decisionBase * 1.4;
+      return;
+    }
 
     // スプリント中 + 射程内 → ランニングストライク
     if (sprint && len < STRIKE_DIST && this.cpu.isActionReady()) {

@@ -21,7 +21,8 @@ export type WrestlerState =
   | "stunned"
   | "taunting"       // 挑発モーション
   | "submitting"     // サブミッション中 (攻撃側)
-  | "in_submission"; // サブミッション中 (被攻撃側)
+  | "in_submission"  // サブミッション中 (被攻撃側)
+  | "corner_splash"; // コーナースプラッシュ
 
 export interface WrestlerConfig {
   name: string;
@@ -313,6 +314,12 @@ export class Wrestler {
            Math.abs(this.position.z) > RING_BOUNDS - 1.5;
   }
 
+  /** コーナーポスト付近にいるか (X 軸・Z 軸ともにロープ内から 1.4 units 以内) */
+  isInCorner(): boolean {
+    return Math.abs(this.position.x) > RING_BOUNDS - 1.4 &&
+           Math.abs(this.position.z) > RING_BOUNDS - 1.4;
+  }
+
   /** リングの外にいるか */
   get isOutside(): boolean {
     return Math.abs(this.position.x) > RING_BOUNDS + 0.1 ||
@@ -418,6 +425,14 @@ export class Wrestler {
     this.stateTimer = 0.45;
     this.actionCooldown = 0.6;
     this.stamina = Math.max(0, this.stamina - 10);
+  }
+
+  /** コーナースプラッシュ — コーナーに追い詰めた相手への特大打撃 */
+  startCornerSplash(): void {
+    this.state = "corner_splash";
+    this.stateTimer = 0.55;
+    this.actionCooldown = 0.7;
+    this.stamina = Math.max(0, this.stamina - 12);
   }
 
   /**
@@ -614,6 +629,7 @@ export class Wrestler {
         switch (this.state) {
           case "striking":
           case "running_strike":
+          case "corner_splash":
           case "slamming":
           case "signature":
             this.state = "idle";
@@ -698,6 +714,21 @@ export class Wrestler {
       this.upperArmL.rotation.x = -Math.sin(t * Math.PI) * 1.4;
       this.upperArmR.rotation.x = -Math.sin(t * Math.PI) * 1.4;
       this.torso.rotation.x     = Math.sin(t * Math.PI) * 0.25;
+      if (this.strikeCycle > Math.PI) this.strikeCycle = 0;
+      return;
+    }
+
+    if (state === "corner_splash") {
+      // 全身を前方に叩き付けるモーション
+      this.strikeCycle += dt * 20;
+      const t = Math.min(1, this.strikeCycle / (Math.PI * 0.5));
+      const s = Math.sin(t * Math.PI);
+      this.upperArmL.rotation.x = -s * 1.6;
+      this.upperArmR.rotation.x = -s * 1.6;
+      this.upperArmL.rotation.z =  s * 0.5;
+      this.upperArmR.rotation.z = -s * 0.5;
+      this.torso.rotation.x     =  s * 0.35;
+      this.root.position.y = THREE.MathUtils.lerp(this.root.position.y, MAT_Y + s * 0.2, 0.15);
       if (this.strikeCycle > Math.PI) this.strikeCycle = 0;
       return;
     }

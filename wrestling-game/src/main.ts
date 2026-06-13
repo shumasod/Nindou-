@@ -221,8 +221,19 @@ function checkGassedFlash(): void {
   p2WasGassed = player2.isGassed;
 }
 
-let p1WasMomDecay = false;
-let p2WasMomDecay = false;
+let p1WasMomDecay  = false;
+let p2WasMomDecay  = false;
+let p1WasCorner    = false;
+let p2WasCorner    = false;
+
+function checkCornerFlash(): void {
+  const p1c = player1.isInCorner();
+  const p2c = player2.isInCorner();
+  if (p1c && !p1WasCorner) flashMoveName("P1 IN THE CORNER!");
+  if (p2c && !p2WasCorner) flashMoveName(`${p2Label()} IN THE CORNER!`);
+  p1WasCorner = p1c;
+  p2WasCorner = p2c;
+}
 
 function checkMomentumDecayFlash(): void {
   if (player1.momentumDecaying && !p1WasMomDecay && player1.momentum > 10) {
@@ -512,6 +523,8 @@ function startNextRound(): void {
   p2WasDanger   = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
+  p1WasCorner   = false;
+  p2WasCorner   = false;
   crowdMeter    = 0;
   wasHotCrowd   = false;
   resetRingOut();
@@ -632,6 +645,7 @@ function animate(): void {
     checkGassedFlash();
     checkDangerFlash();
     checkMomentumDecayFlash();
+    checkCornerFlash();
     updateCrowd(dt);
     checkCrowdFlash();
     updateHUD(matchElapsed);
@@ -724,9 +738,27 @@ function handleInput(
   // Strike (F / U)
   if (s.strikePressed && self.canStrike(opponent)) {
     const isRunning = self.isSprinting;
+    const isCornerSplash = isRunning && opponent.isInCorner() && self.distanceTo(opponent) < 2.5;
     const isClothesline = !isRunning && opponent.isRebounding();
 
-    if (isClothesline) {
+    if (isCornerSplash) {
+      // コーナースプラッシュ — コーナーに追い詰めた相手への特大打撃
+      self.startCornerSplash();
+      const dmg = (22 + Math.random() * 8) * self.damageMult;
+      opponent.takeDamage(dmg);
+      opponent.startKnockdown();   // コーナー技は必ずダウン
+      onKnockdown(opponent, opponent.name, self.name);
+      effects.spawnHitSparks(opponent.position, 0xff2200);
+      effects.spawnHitSparks(opponent.position, 0xffaa00);
+      effects.spawnHitSparks(opponent.position, 0xffffff);
+      effects.shake(0.3);
+      audio.slam();
+      audio.crowd();
+      addCrowdPop(22);
+      tracker.recordStrike(side, dmg, true);
+      if (trackCombo) addCombo();
+      flashMoveName("CORNER SPLASH!!");
+    } else if (isClothesline) {
       // クロスライン — リバウンド中の相手を迎撃する高威力打撃
       self.startStrike();
       const dmg = (16 + Math.random() * 6) * self.damageMult;
@@ -996,6 +1028,8 @@ function startMatch(
   p2WasDanger  = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
+  p1WasCorner  = false;
+  p2WasCorner  = false;
   crowdMeter   = 0;
   wasHotCrowd  = false;
   resetRingOut();
