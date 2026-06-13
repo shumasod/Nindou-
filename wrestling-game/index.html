@@ -72,6 +72,30 @@
         text-shadow: 0 0 10px rgba(255,200,0,0.8); letter-spacing: 3px;
       }
 
+      /* ── Ring-out count ──────────────────────────────────── */
+      #ringout-display {
+        position: absolute; bottom: 170px; left: 50%;
+        transform: translateX(-50%);
+        text-align: center; display: none; pointer-events: none;
+      }
+      #ringout-who {
+        font-size: 11px; letter-spacing: 4px; color: rgba(255,255,255,0.6);
+        text-transform: uppercase; margin-bottom: 4px;
+      }
+      #ringout-count {
+        font-size: 72px; font-weight: 900; color: #ff4444;
+        text-shadow: 0 0 24px rgba(255,68,68,0.8), 0 0 48px rgba(255,0,0,0.4);
+        letter-spacing: 4px; line-height: 1;
+      }
+      @keyframes ringoutPulse {
+        from { transform: translateX(-50%) scale(1);    opacity: 0.85; }
+        to   { transform: translateX(-50%) scale(1.08); opacity: 1; }
+      }
+      #ringout-label {
+        font-size: 10px; letter-spacing: 3px; color: rgba(255,100,100,0.7);
+        text-transform: uppercase; margin-top: 2px;
+      }
+
       /* ── Pin counter ──────────────────────────────────────── */
       #pin-display {
         position: absolute; top: 50%; left: 50%;
@@ -417,6 +441,13 @@
           <div id="crowd-label">CROWD</div>
           <div id="crowd-track"><div id="crowd-bar"></div></div>
         </div>
+      </div>
+
+      <!-- Ring-out countdown -->
+      <div id="ringout-display">
+        <div id="ringout-who"></div>
+        <div id="ringout-count">1</div>
+        <div id="ringout-label">COUNT OUT</div>
       </div>
 
       <!-- Pin counter -->
