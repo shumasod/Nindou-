@@ -138,6 +138,12 @@ export class CpuAI {
   private updatePhase(): void {
     const dist = this.cpu.distanceTo(this.player);
 
+    // 場外なら即リカバリー (リングに戻ることを最優先)
+    if (this.cpu.isOutside) {
+      this.phase = "recover";
+      return;
+    }
+
     if (this.p.pinChase && this.player.isDown() && dist < 2.5) {
       this.phase = "pin";
       return;
@@ -171,7 +177,8 @@ export class CpuAI {
       this.cpu.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
-      if (this.player.hp < this.knockdownThreshold(35)) this.player.startKnockdown();
+      const kd = this.player.hp < this.knockdownThreshold(35);
+      if (kd) this.player.startKnockdown(this.player.isNearRope());
       else this.player.openCounterWindow();
       this.effects.spawnHitSparks(this.player.position, 0xff2200);
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
@@ -236,7 +243,8 @@ export class CpuAI {
       this.cpu.startStrike();
       const dmg = (16 + Math.random() * 6) * this.p.dmgMult * charDmg;
       this.player.takeDamage(dmg);
-      if (this.player.hp < this.knockdownThreshold(55)) this.player.startKnockdown();
+      const clotheslineKD = this.player.hp < this.knockdownThreshold(55);
+      if (clotheslineKD) this.player.startKnockdown(this.player.isNearRope());
       else this.player.openCounterWindow();
       this.effects.spawnHitSparks(this.player.position, 0xff2200);
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);

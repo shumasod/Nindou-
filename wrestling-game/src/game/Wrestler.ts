@@ -96,6 +96,7 @@ export class Wrestler {
   ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
   knockdownCount  = 0;     // 試合中の累計ノックダウン数 (3 で TKO)
   counterWindow   = 0;     // > 0 の間カウンター受付中 (ストライク被弾後 0.3 s)
+  private _knockdownOutside = false; // 次の startKnockdown で場外へ押し出す
 
   private config: WrestlerConfig;
 
@@ -312,6 +313,26 @@ export class Wrestler {
            Math.abs(this.position.z) > RING_BOUNDS - 1.5;
   }
 
+  /** リングの外にいるか */
+  get isOutside(): boolean {
+    return Math.abs(this.position.x) > RING_BOUNDS + 0.1 ||
+           Math.abs(this.position.z) > RING_BOUNDS + 0.1;
+  }
+
+  /** 場外方向へ吹き飛ばす — 最も近いロープ方向へ */
+  pushOutsideRing(): void {
+    if (Math.abs(this.position.x) >= Math.abs(this.position.z)) {
+      this.root.position.x = Math.sign(this.position.x || 1) * (RING_BOUNDS + 0.9);
+    } else {
+      this.root.position.z = Math.sign(this.position.z || 1) * (RING_BOUNDS + 0.9);
+    }
+  }
+
+  /** 次の knockdown で場外に押し出す (大技後にリング外に落とす) */
+  scheduleOutsidePush(): void {
+    this._knockdownOutside = true;
+  }
+
   /** ロープブレイク可能 — 未使用かつロープ際、かつピンまたはサブミッション中 */
   canRopeBreak(): boolean {
     return !this.ropeBreakUsed &&
@@ -333,24 +354,31 @@ export class Wrestler {
   }
 
   move(dx: number, dz: number, sprint: boolean, dt: number): void {
-    if (!this.isActionReady()) return;
-    const canSprint = sprint && !this.isGassed;
+    // 場外にいる場合は這って戻ることができる (isActionReady チェックをスキップ)
+    const crawling = this.isOutside;
+    if (!crawling && !this.isActionReady()) return;
+    const canSprint = sprint && !this.isGassed && !crawling;
     const gassedFactor = this.isGassed ? 0.6 : 1.0;
-    const speed = (canSprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * this.speedMult * gassedFactor * dt;
+    const crawlFactor = crawling ? 0.45 : 1.0;
+    const speed = (canSprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED)
+      * this.speedMult * gassedFactor * crawlFactor * dt;
     const nx = this.root.position.x + dx * speed;
     const nz = this.root.position.z + dz * speed;
-    this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, nx));
-    this.root.position.z = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, nz));
+    const limit = crawling ? RING_BOUNDS + 3.5 : RING_BOUNDS;
+    this.root.position.x = Math.max(-limit, Math.min(limit, nx));
+    this.root.position.z = Math.max(-limit, Math.min(limit, nz));
 
-    if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
-      this.facingAngle = Math.atan2(dx, dz);
-      this.state = canSprint ? "sprinting" : "walking";
-    } else {
-      if (this.state === "walking" || this.state === "sprinting") {
-        this.state = "idle";
+    if (!crawling) {
+      if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+        this.facingAngle = Math.atan2(dx, dz);
+        this.state = canSprint ? "sprinting" : "walking";
+      } else {
+        if (this.state === "walking" || this.state === "sprinting") {
+          this.state = "idle";
+        }
       }
+      this.stamina = Math.max(0, this.stamina - (sprint ? 8 : 2) * dt);
     }
-    this.stamina = Math.max(0, this.stamina - (sprint ? 8 : 2) * dt);
   }
 
   faceTarget(target: Wrestler): void {
@@ -487,15 +515,23 @@ export class Wrestler {
     target.stateTimer = 2.0;
     target.actionCooldown = 2.5;
     this.stamina = Math.max(0, this.stamina - 20);
+    // フィニッシャー技でロープ際なら場外へ吹き飛ばす
+    if (target.isNearRope() || this.isNearRope()) {
+      target.scheduleOutsidePush();
+    }
   }
 
-  startKnockdown(): void {
+  startKnockdown(outsidePush = false): void {
     this.state = "knockdown";
     this.knockdownTimer = 3.5 - this.hp * 0.015; // HP が低いほど長く倒れる
     this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
     this.grappleTarget = null;
     this.ropeBreakUsed = false; // 新しいノックダウンごとにリセット
     this.knockdownCount++;
+    if (outsidePush || this._knockdownOutside) {
+      this._knockdownOutside = false;
+      this.pushOutsideRing();
+    }
   }
 
   /** サブミッション開始 — 攻撃側・被攻撃側双方をロック */

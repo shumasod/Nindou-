@@ -280,6 +280,69 @@ function checkCrowdFlash(): void {
   wasHotCrowd = hot;
 }
 
+// ─── 場外カウントアウト ───────────────────────────────────────────────────────
+const RINGOUT_MAX   = 10;   // 10カウントで場外負け
+const RINGOUT_SPEED = 0.95; // 1カウントに要する秒数
+
+interface RingOutSide { count: number; secTimer: number; wasOutside: boolean }
+let ringout: { p1: RingOutSide; p2: RingOutSide } = {
+  p1: { count: 0, secTimer: 0, wasOutside: false },
+  p2: { count: 0, secTimer: 0, wasOutside: false },
+};
+
+const hudRingoutDisp  = document.getElementById("ringout-display") as HTMLElement | null;
+const hudRingoutWho   = document.getElementById("ringout-who")     as HTMLElement | null;
+const hudRingoutCount = document.getElementById("ringout-count")   as HTMLElement | null;
+
+function resetRingOut(): void {
+  ringout = {
+    p1: { count: 0, secTimer: 0, wasOutside: false },
+    p2: { count: 0, secTimer: 0, wasOutside: false },
+  };
+  if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
+}
+
+function updateRingOut(dt: number): void {
+  let anyOutside = false;
+
+  const sides: Array<{ side: "p1" | "p2"; wrestler: Wrestler }> = [
+    { side: "p1", wrestler: player1 },
+    { side: "p2", wrestler: player2 },
+  ];
+
+  for (const { side, wrestler } of sides) {
+    const rs = ringout[side];
+    if (!wrestler.isOutside) {
+      if (rs.wasOutside && rs.count > 0) {
+        rs.count = 0;
+        rs.secTimer = 0;
+        flashMoveName(`${side === "p1" ? "P1" : p2Label()} BACK IN!`);
+      }
+      rs.wasOutside = false;
+      continue;
+    }
+
+    anyOutside = true;
+    rs.wasOutside = true;
+    rs.secTimer += dt;
+    if (rs.secTimer >= RINGOUT_SPEED) {
+      rs.secTimer -= RINGOUT_SPEED;
+      rs.count++;
+      audio.pinRoll();
+      if (hudRingoutDisp) hudRingoutDisp.style.display = "block";
+      if (hudRingoutWho)  hudRingoutWho.textContent   = side === "p1" ? "P1 — COUNT OUT" : `${p2Label()} — COUNT OUT`;
+      if (hudRingoutCount) {
+        hudRingoutCount.textContent = rs.count.toString();
+        hudRingoutCount.style.animation = "none";
+        void hudRingoutCount.offsetWidth;
+        hudRingoutCount.style.animation = "ringoutPulse 0.85s infinite alternate";
+      }
+    }
+  }
+
+  if (!anyOutside && hudRingoutDisp) hudRingoutDisp.style.display = "none";
+}
+
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
 let comboCount = 0;
 let comboTimer = 0;
@@ -451,6 +514,7 @@ function startNextRound(): void {
   p2WasMomDecay = false;
   crowdMeter    = 0;
   wasHotCrowd   = false;
+  resetRingOut();
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -550,6 +614,13 @@ function animate(): void {
       if (cpuAI && player2.canRopeBreak() && Math.random() < cpuAI.ropeBreakChance * dt * 3) {
         doRopeBreak("p2");
       }
+      // CPU 場外カウントアウト: リングに戻る
+      if (player2.isOutside) {
+        const cx = -player2.position.x;
+        const cz = -player2.position.z;
+        const len = Math.sqrt(cx * cx + cz * cz) || 1;
+        player2.move(cx / len, cz / len, false, dt);
+      }
     }
     player1.update(dt);
     player2.update(dt);
@@ -557,6 +628,7 @@ function animate(): void {
     effects.update(dt, camera);
     updateCombo(dt);
     updateSubmission(dt);
+    updateRingOut(dt);
     checkGassedFlash();
     checkDangerFlash();
     checkMomentumDecayFlash();
@@ -660,32 +732,36 @@ function handleInput(
       const dmg = (16 + Math.random() * 6) * self.damageMult;
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 55;
-      if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
+      const outsideKD = knockdown && opponent.isNearRope();
+      if (knockdown) { opponent.startKnockdown(outsideKD); onKnockdown(opponent, opponent.name, self.name); }
       else { opponent.state = "stunned"; opponent.openCounterWindow(); }
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.22);
       audio.slam();
-      addCrowdPop(knockdown ? 15 : 8);
+      addCrowdPop(knockdown ? (outsideKD ? 20 : 15) : 8);
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
       if (!knockdown) flashMoveName("CLOTHESLINE!!");
+      else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else if (isRunning) {
       // ランニングストライク — 1.5 倍ダメージ
       self.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * self.damageMult;
       opponent.takeDamage(dmg);
       const knockdown = opponent.hp < 35;
-      if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
+      const outsideKD = knockdown && opponent.isNearRope();
+      if (knockdown) { opponent.startKnockdown(outsideKD); onKnockdown(opponent, opponent.name, self.name); }
       else opponent.openCounterWindow();
       effects.spawnHitSparks(opponent.position, 0xff2200);
       effects.spawnHitSparks(opponent.position, 0xffaa00);
       effects.shake(0.18);
       audio.slam();
-      addCrowdPop(knockdown ? 12 : 5);
+      addCrowdPop(knockdown ? (outsideKD ? 18 : 12) : 5);
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
       if (!knockdown) flashMoveName("RUNNING STRIKE!!");
+      else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else {
       self.startStrike();
       const dmg = (8 + Math.random() * 4) * self.damageMult;
@@ -799,6 +875,20 @@ function checkMatchEnd(): void {
     if (player2.pinCount >= 3) { showResult(p2Label, "PINFALL  "); return; }
   }
 
+  // 場外カウントアウト (10カウント到達)
+  if (ringout.p1.count >= RINGOUT_MAX) {
+    if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
+    effects.shake(0.35); audio.crowd();
+    showResult(p2Label, "COUNT OUT  ");
+    return;
+  }
+  if (ringout.p2.count >= RINGOUT_MAX) {
+    if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
+    effects.shake(0.35); audio.crowd();
+    showResult("P1", "COUNT OUT  ");
+    return;
+  }
+
   if (matchElapsed >= MATCH_TIME_LIMIT) {
     if (player1.hp > player2.hp)      showResult("P1",    "TIME UP  ");
     else if (player2.hp > player1.hp) showResult(p2Label, "TIME UP  ");
@@ -908,6 +998,7 @@ function startMatch(
   p2WasMomDecay = false;
   crowdMeter   = 0;
   wasHotCrowd  = false;
+  resetRingOut();
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
