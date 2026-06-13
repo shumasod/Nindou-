@@ -190,6 +190,21 @@ function updateHUD(elapsed: number): void {
 
   showDanger(p1HpPct < 20, "p1-danger", "left:20px");
   showDanger(p2HpPct < 20, "p2-danger", "right:20px");
+  showGrappleDrain(player1.state === "grappling", "p1-gdrain", "left:20px;top:115px");
+  showGrappleDrain(player2.state === "grappling", "p2-gdrain", "right:20px;top:115px");
+}
+
+function showGrappleDrain(active: boolean, id: string, cssPos: string): void {
+  let el = document.getElementById(id);
+  if (!active) { if (el) el.style.display = "none"; return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = id;
+    el.textContent = "▼ STA";
+    el.style.cssText = `position:absolute;${cssPos};color:#e67e22;font-size:10px;font-weight:bold;letter-spacing:2px;animation:dangerBlink 0.5s infinite alternate`;
+    document.getElementById("hud")?.appendChild(el);
+  }
+  el.style.display = "block";
 }
 
 function showDanger(active: boolean, id: string, side: string): void {
@@ -244,6 +259,27 @@ function checkMomentumDecayFlash(): void {
   }
   p1WasMomDecay = player1.momentumDecaying;
   p2WasMomDecay = player2.momentumDecaying;
+}
+
+// ─── グラップル疲弊ブレイク ────────────────────────────────────────────────────
+function checkGrappleFatigue(): void {
+  const tryBreak = (attacker: Wrestler, victim: Wrestler, attackerLabel: string): void => {
+    if (attacker.state !== "grappling" || !attacker.isGassed) return;
+    attacker.state = "idle";
+    attacker.actionCooldown = 1.0;
+    attacker.grappleTarget = null;
+    if (victim.state === "grappled") {
+      victim.state = "idle";
+      victim.grappleTarget = null;
+      victim.momentum = Math.min(100, victim.momentum + 20);
+    }
+    flashMoveName(`${attackerLabel} GRAPPLE BREAK!`);
+    effects.shake(0.06);
+    audio.punch();
+    addCrowdPop(8);
+  };
+  tryBreak(player1, player2, "P1");
+  tryBreak(player2, player1, p2Label());
 }
 
 function checkDangerFlash(): void {
@@ -642,6 +678,7 @@ function animate(): void {
     updateCombo(dt);
     updateSubmission(dt);
     updateRingOut(dt);
+    checkGrappleFatigue();
     checkGassedFlash();
     checkDangerFlash();
     checkMomentumDecayFlash();
