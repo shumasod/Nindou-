@@ -587,9 +587,15 @@ export class Wrestler {
     this.counterWindow  = Math.max(0, this.counterWindow  - dt);
     if (this.isDanger) this.dangerPulseTimer += dt;
 
-    // Stamina recovery
+    // Stamina — グラップル中は消耗、それ以外は回復
     if (this.state === "idle") {
       this.stamina = Math.min(100, this.stamina + 12 * this.staminaMult * dt);
+    } else if (this.state === "grappling") {
+      // 攻撃側: 消耗が大きい (8/s)
+      this.stamina = Math.max(0, this.stamina - 8 * dt);
+    } else if (this.state === "grappled") {
+      // 被攻撃側: やや消耗 (5/s)
+      this.stamina = Math.max(0, this.stamina - 5 * dt);
     } else {
       this.stamina = Math.min(100, this.stamina + 4 * this.staminaMult * dt);
     }
