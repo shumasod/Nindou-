@@ -858,10 +858,20 @@ function handleInput(
   if (!self.isActionReady()) return;
 
   // Taunt (T / B) — ハイリスク・ハイリターン
+  // HOT CROWD 中のタントは即時スタミナ +25 + モメンタム +10 ボーナス
   if (s.tauntPressed && self.state === "idle") {
+    const isHot = crowdMeter >= CROWD_HOT_THRESHOLD;
     self.startTaunt();
     audio.crowd();
-    flashMoveName("TAUNT!");
+    if (isHot) {
+      self.stamina  = Math.min(100, self.stamina  + 25);
+      self.momentum = Math.min(100, self.momentum + 10);
+      effects.spawnHitSparks(self.position, 0xffd700);
+      addCrowdPop(10);
+      flashMoveName("🔥 HOT CROWD TAUNT!!");
+    } else {
+      flashMoveName("TAUNT!");
+    }
   }
 
   // Strike (F / U)
