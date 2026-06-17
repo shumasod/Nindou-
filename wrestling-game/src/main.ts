@@ -735,11 +735,13 @@ function showFinalResult(winner: string, reason = ""): void {
           ${champRow}
           ${statRow(s1.strikesLanded,    s2.strikesLanded,    "STRIKES")}
           ${statRow(s1.slamsLanded,      s2.slamsLanded,      "SLAMS")}
+          ${statRow(s1.cornerSplashes,   s2.cornerSplashes,   "CORNER SPLASH")}
           ${statRow(s1.signaturesMade,   s2.signaturesMade,   "SIGNATURES")}
           ${statRow(s1.reversals,        s2.reversals,        "REVERSALS")}
           ${statRow(Math.round(s1.totalDamage), Math.round(s2.totalDamage), "DAMAGE")}
           ${statRow(s1.knockdownsCaused, s2.knockdownsCaused, "KNOCKDOWNS")}
           ${statRow(s1.pinAttempts,      s2.pinAttempts,      "PINS")}
+          ${statRow(s1.ringoutsScored,   s2.ringoutsScored,   "RING OUTS")}
           ${statRow(s1.maxCombo,         s2.maxCombo,         "MAX COMBO")}
         </tbody>
       </table>`;
@@ -938,7 +940,7 @@ function handleInput(
       audio.slam();
       audio.crowd();
       addCrowdPop(22);
-      tracker.recordStrike(side, dmg, true);
+      tracker.recordCornerSplash(side, dmg);
       if (trackCombo) addCombo();
       flashMoveName("CORNER SPLASH!!");
     } else if (isClothesline) {
@@ -1132,12 +1134,14 @@ function checkMatchEnd(): void {
   if (ringout.p1.count >= RINGOUT_MAX) {
     if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
     effects.shake(0.35); audio.crowd();
+    tracker.recordRingout("p2");
     showResult(p2Label, "COUNT OUT  ");
     return;
   }
   if (ringout.p2.count >= RINGOUT_MAX) {
     if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
     effects.shake(0.35); audio.crowd();
+    tracker.recordRingout("p1");
     showResult("P1", "COUNT OUT  ");
     return;
   }
