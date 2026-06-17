@@ -827,6 +827,7 @@ function handleInput(
 ): void {
   const s = inp.state;
   const trackCombo = side === "p1";
+  const oppSide: "p1" | "p2" = side === "p1" ? "p2" : "p1";
 
   let dx = 0, dz = 0;
   if (s.left)  dx -= 1;
@@ -1073,17 +1074,35 @@ function handleInput(
 
   // Finisher (Signature with character-specific name + burst)
   if (s.signaturePressed && self.momentum >= 100 && self.canGrapple(opponent)) {
-    self.startSignature(opponent);
-    const dmg = 35 * self.damageMult;
-    opponent.takeDamage(dmg);
-    effects.spawnFinisherBurst(opponent.position, self.finisherColor);
-    effects.shake(0.5);
-    audio.slam();
-    audio.crowd();
-    addCrowdPop(30);
-    tracker.recordSignature(side, dmg);
-    if (trackCombo) addCombo();
-    flashFinisher(self.name, self.finisherName, self.finisherColor);
+    // フィニッシャー・リバーサル: 相手モメンタム >= 30% で確率的に反転
+    const reversalProb = (opponent.momentum / 100) * 0.28;
+    if (!opponent.isDown() && !opponent.isGassed && Math.random() < reversalProb) {
+      // リバーサル成功 — フィニッシャー無効化 + モメンタム移転
+      self.momentum = 0;
+      self.state = "stunned";
+      self.stateTimer = 1.0;
+      self.actionCooldown = 1.0;
+      opponent.momentum = Math.min(100, opponent.momentum + 30);
+      effects.spawnHitSparks(self.position, 0x00ffff);
+      effects.spawnHitSparks(self.position, 0xffffff);
+      effects.shake(0.22);
+      audio.punch();
+      addCrowdPop(25);
+      tracker.recordReversal(oppSide);
+      flashMoveName("FINISHER REVERSED!!");
+    } else {
+      self.startSignature(opponent);
+      const dmg = 35 * self.damageMult;
+      opponent.takeDamage(dmg);
+      effects.spawnFinisherBurst(opponent.position, self.finisherColor);
+      effects.shake(0.5);
+      audio.slam();
+      audio.crowd();
+      addCrowdPop(30);
+      tracker.recordSignature(side, dmg);
+      if (trackCombo) addCombo();
+      flashFinisher(self.name, self.finisherName, self.finisherColor);
+    }
   }
 
   // Pin
