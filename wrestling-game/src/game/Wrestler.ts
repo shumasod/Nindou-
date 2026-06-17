@@ -39,6 +39,9 @@ export interface WrestlerConfig {
   // Per-character finisher (passed from CharacterDef.finisher)
   finisherName?:  string;
   finisherColor?: number;
+  // Per-character special at 50% momentum
+  specialName?:  string;
+  specialColor?: number;
 }
 
 const MOVE_SPEED   = 4.5;
@@ -58,6 +61,8 @@ export class Wrestler {
   readonly staminaMult:  number;
   readonly finisherName:  string;
   readonly finisherColor: number;
+  readonly specialName:   string;
+  readonly specialColor:  number;
 
   /** ガス欠: ×0.75 / 瀕死コンバック: ×1.25 / 両方: ×0.9375 */
   get damageMult(): number {
@@ -140,6 +145,8 @@ export class Wrestler {
     this.hp           = this.maxHp;
     this.finisherName  = config.finisherName  ?? "SIGNATURE MOVE!!";
     this.finisherColor = config.finisherColor ?? 0xffd700;
+    this.specialName   = config.specialName   ?? "SPECIAL MOVE!";
+    this.specialColor  = config.specialColor  ?? 0x88aaff;
     this.root  = new THREE.Group();
     this.root.position.set(config.startX, MAT_Y, 0);
     this.buildBody();

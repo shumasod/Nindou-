@@ -30,10 +30,12 @@ function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
   player1 = new Wrestler({
     ...def1, startX: -2.5,
     finisherName: def1.finisher.name, finisherColor: def1.finisher.color,
+    specialName:  def1.special.name,  specialColor:  def1.special.color,
   });
   player2 = new Wrestler({
     ...def2, startX: 2.5,
     finisherName: def2.finisher.name, finisherColor: def2.finisher.color,
+    specialName:  def2.special.name,  specialColor:  def2.special.color,
   });
   player1.addToScene(scene);
   player2.addToScene(scene);
