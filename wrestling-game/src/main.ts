@@ -709,6 +709,16 @@ function animate(): void {
         const len = Math.sqrt(cx * cx + cz * cz) || 1;
         player2.move(cx / len, cz / len, false, dt);
       }
+      // CPU キックアウト試行 (難易度に応じた確率で自動試行)
+      if (cpuAI && player2.state === "being_pinned" && Math.random() < cpuAI.ropeBreakChance * dt * 2) {
+        if (tryKickout(player2, player1, "p2")) {
+          flashMoveName("CPU KICKOUT!!");
+          effects.spawnHitSparks(player2.position, 0x00ff88);
+          effects.shake(0.12);
+          audio.punch();
+          addCrowdPop(14);
+        }
+      }
     }
     player1.update(dt);
     player2.update(dt);
