@@ -602,6 +602,7 @@ function startNextRound(): void {
   crowdMeter    = 0;
   wasHotCrowd   = false;
   resetRingOut();
+  resetKickout();
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -760,6 +761,23 @@ function handleInput(
     const anyPress = s.strikePressed || s.grapplePressed || s.slamPressed ||
                      s.signaturePressed || s.pinPressed || s.tauntPressed;
     if (anyPress) { doRopeBreak(side); return; }
+  }
+
+  // ピンのキックアウト — カウント中にボタン連打で脱出試行
+  if (self.state === "being_pinned") {
+    const anyPress = s.strikePressed || s.grapplePressed || s.slamPressed ||
+                     s.signaturePressed || s.pinPressed || s.tauntPressed;
+    if (anyPress) {
+      const pinner = side === "p1" ? player2 : player1;
+      if (tryKickout(self, pinner, side)) {
+        flashMoveName("KICKOUT!!");
+        effects.spawnHitSparks(self.position, 0x00ff88);
+        effects.shake(0.12);
+        audio.punch();
+        addCrowdPop(16);
+      }
+    }
+    return;
   }
 
   // サブミッション中の脱出 (被攻撃側がボタンを連打)
@@ -1108,6 +1126,7 @@ function startMatch(
   crowdMeter   = 0;
   wasHotCrowd  = false;
   resetRingOut();
+  resetKickout();
   phase = "countdown";
   clock.start();
   showMatchStart(() => { phase = "match"; audio.crowd(); });
