@@ -95,6 +95,44 @@ let sub: SubState = { active: false, holderSide: "p1", subProgress: 0, escapePro
 const SUB_RATE    = 0.185; // fills in ~5.4 s without escape
 const ESCAPE_JUMP = 0.12;  // added per distinct mash press
 
+// ─── Pin kickout ──────────────────────────────────────────────────────────────
+// 各サイドのキックアウト試行済みカウント (1カウント・2カウントで一度ずつ試行可能)
+const kickoutAttempted: { p1: Set<number>; p2: Set<number> } = {
+  p1: new Set(), p2: new Set(),
+};
+
+function resetKickout(): void {
+  kickoutAttempted.p1.clear();
+  kickoutAttempted.p2.clear();
+}
+
+/**
+ * ピンカウント中のキックアウト判定。
+ * カウント 1: HP% × 0.9 の確率で成功
+ * カウント 2: HP% × 0.45 の確率で成功
+ * カウント 3: 自動失敗 (checkMatchEnd が勝利を決定)
+ */
+function tryKickout(victim: Wrestler, pinner: Wrestler, victimSide: "p1" | "p2"): boolean {
+  const count = Math.floor(pinner.pinCount); // 0, 1, 2
+  if (count >= 2) return false; // カウント 3 はキックアウト不可
+  if (kickoutAttempted[victimSide].has(count)) return false; // 同カウントで再試行不可
+  kickoutAttempted[victimSide].add(count);
+
+  const hpRatio = victim.hp / victim.maxHp;
+  const chance  = count === 0 ? hpRatio * 0.9 : hpRatio * 0.45;
+  if (Math.random() >= chance) return false;
+
+  // キックアウト成功
+  pinner.state = "idle";
+  pinner.actionCooldown = 1.2;
+  pinner.grappleTarget  = null;
+  victim.state = "getting_up";
+  victim.stateTimer = 0.9;
+  victim.grappleTarget = null;
+  resetKickout();
+  return true;
+}
+
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
 const camTarget = new THREE.Vector3();
