@@ -578,6 +578,48 @@ function updateSubmission(dt: number): void {
   }
 }
 
+// ─── マッチイントロ ──────────────────────────────────────────────────────────
+function showMatchIntro(cb: () => void): void {
+  // 2ラウンド目以降はイントロをスキップ
+  if (tournament.active && tournament.roundNum > 1) { cb(); return; }
+
+  const overlay = document.getElementById("match-intro");
+  const p1NameEl  = document.getElementById("intro-p1-name");
+  const p1TitleEl = document.getElementById("intro-p1-title");
+  const p2NameEl  = document.getElementById("intro-p2-name");
+  const p2TitleEl = document.getElementById("intro-p2-title");
+  if (!overlay) { cb(); return; }
+
+  if (p1NameEl)  p1NameEl.textContent  = player1.name;
+  if (p1TitleEl) p1TitleEl.textContent = player1.title ?? "";
+  if (p2NameEl)  p2NameEl.textContent  = player2.name;
+  if (p2TitleEl) p2TitleEl.textContent = player2.title ?? "";
+
+  // キャラクターカラーを名前に反映
+  const p1El = document.getElementById("intro-p1");
+  const p2El = document.getElementById("intro-p2");
+  const toHex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
+  if (p1El) {
+    const nameDiv = p1El.querySelector<HTMLElement>(".intro-fighter-name");
+    if (nameDiv) nameDiv.style.color = toHex(player1.primaryColor);
+  }
+  if (p2El) {
+    const nameDiv = p2El.querySelector<HTMLElement>(".intro-fighter-name");
+    if (nameDiv) nameDiv.style.color = toHex(player2.primaryColor);
+  }
+
+  // アニメーションをリセットしてから表示
+  overlay.style.display = "flex";
+  const els = overlay.querySelectorAll<HTMLElement>("#intro-p1, #intro-vs, #intro-p2");
+  els.forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+
+  audio.crowd();
+  setTimeout(() => {
+    overlay.style.display = "none";
+    cb();
+  }, 2000);
+}
+
 // ─── カウントダウン ───────────────────────────────────────────────────────────
 function showMatchStart(cb: () => void): void {
   const el = document.getElementById("match-start-msg")!;
@@ -681,7 +723,9 @@ function startNextRound(): void {
 
   phase = "countdown";
   clock.start();
-  showMatchStart(() => { phase = "match"; audio.crowd(); });
+  showMatchIntro(() => {
+    showMatchStart(() => { phase = "match"; audio.crowd(); });
+  });
 }
 
 function showResult(winner: string, reason = ""): void {
@@ -1281,7 +1325,9 @@ function startMatch(
   resetKickout();
   phase = "countdown";
   clock.start();
-  showMatchStart(() => { phase = "match"; audio.crowd(); });
+  showMatchIntro(() => {
+    showMatchStart(() => { phase = "match"; audio.crowd(); });
+  });
 }
 
 // ─── キャラクター選択フロー ───────────────────────────────────────────────────
