@@ -100,6 +100,7 @@ export class Wrestler {
   pinCount        = 0;   // 現在のピンカウント (0-3)
   reversalWindow  = 0;   // > 0 の間リバーサル受付中
   ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
+  cornered        = false;  // コーナーポスト激突中
   knockdownCount  = 0;     // 試合中の累計ノックダウン数 (3 で TKO)
   counterWindow   = 0;     // > 0 の間カウンター受付中 (ストライク被弾後 0.3 s)
   private _knockdownOutside = false; // 次の startKnockdown で場外へ押し出す
@@ -548,7 +549,8 @@ export class Wrestler {
     this.knockdownTimer = 3.5 - this.hp * 0.015; // HP が低いほど長く倒れる
     this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
     this.grappleTarget = null;
-    this.ropeBreakUsed = false; // 新しいノックダウンごとにリセット
+    this.ropeBreakUsed = false;
+    this.cornered      = false;
     this.knockdownCount++;
     if (outsidePush || this._knockdownOutside) {
       this._knockdownOutside = false;
@@ -621,18 +623,27 @@ export class Wrestler {
     if (this.state === "whipped" || this.state === "rebounding") {
       const newX = this.root.position.x + this.whipVelX * dt;
       if (this.state === "whipped" && Math.abs(newX) >= RING_BOUNDS - 0.15) {
-        // Hit the rope — bounce back
         this.root.position.x = Math.sign(newX) * (RING_BOUNDS - 0.15);
-        this.whipVelX = -this.whipVelX * 0.95;
-        this.state    = "rebounding";
-        this.stateTimer = 2.0;
-        this.actionCooldown = 2.0;
-        this.facingAngle = this.whipVelX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+        if (this.isInCorner()) {
+          // コーナーポストに激突 → スタン (リバウンドなし)
+          this.whipVelX = 0;
+          this.state    = "stunned";
+          this.stateTimer = 1.6;
+          this.actionCooldown = 1.6;
+          this.cornered = true;
+        } else {
+          // ロープで跳ね返り
+          this.whipVelX = -this.whipVelX * 0.95;
+          this.state    = "rebounding";
+          this.stateTimer = 2.0;
+          this.actionCooldown = 2.0;
+          this.facingAngle = this.whipVelX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+        }
       } else {
         this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, newX));
       }
       this.stateTimer -= dt;
-      if (this.stateTimer <= 0) this.state = "idle";
+      if (this.stateTimer <= 0) { this.state = "idle"; this.cornered = false; }
     }
 
     // State timers

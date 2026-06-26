@@ -281,13 +281,37 @@ let p2WasMomDecay  = false;
 let p1WasCorner    = false;
 let p2WasCorner    = false;
 
+let p1WasCornered = false;
+let p2WasCornered = false;
+
 function checkCornerFlash(): void {
-  const p1c = player1.isInCorner();
-  const p2c = player2.isInCorner();
+  const p1c  = player1.isInCorner();
+  const p2c  = player2.isInCorner();
+  // 通常コーナー入り警告
   if (p1c && !p1WasCorner) flashMoveName("P1 IN THE CORNER!");
   if (p2c && !p2WasCorner) flashMoveName(`${p2Label()} IN THE CORNER!`);
   p1WasCorner = p1c;
   p2WasCorner = p2c;
+
+  // ウィップによるコーナー激突
+  if (player1.cornered && !p1WasCornered) {
+    flashMoveName("P1 CORNER CRASH!!");
+    effects.spawnHitSparks(player1.position, 0xffcc44);
+    effects.shake(0.2);
+    audio.slam();
+    player2.momentum = Math.min(100, player2.momentum + 18);
+    addCrowdPop(16);
+  }
+  if (player2.cornered && !p2WasCornered) {
+    flashMoveName("CORNER CRASH!!");
+    effects.spawnHitSparks(player2.position, 0xffcc44);
+    effects.shake(0.2);
+    audio.slam();
+    player1.momentum = Math.min(100, player1.momentum + 18);
+    addCrowdPop(16);
+  }
+  p1WasCornered = player1.cornered;
+  p2WasCornered = player2.cornered;
 }
 
 function checkMomentumDecayFlash(): void {
