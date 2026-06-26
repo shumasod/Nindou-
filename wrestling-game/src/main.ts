@@ -30,10 +30,12 @@ function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
   player1 = new Wrestler({
     ...def1, startX: -2.5,
     finisherName: def1.finisher.name, finisherColor: def1.finisher.color,
+    specialName:  def1.special.name,  specialColor:  def1.special.color,
   });
   player2 = new Wrestler({
     ...def2, startX: 2.5,
     finisherName: def2.finisher.name, finisherColor: def2.finisher.color,
+    specialName:  def2.special.name,  specialColor:  def2.special.color,
   });
   player1.addToScene(scene);
   player2.addToScene(scene);
@@ -949,6 +951,30 @@ function handleInput(
     effects.spawnDust(opponent.position);
     audio.slam();
     flashMoveName("IRISH WHIP!");
+  }
+
+  // 50% Special move (weaker, no crowd burst, costs half momentum)
+  if (s.signaturePressed && self.momentum >= 50 && self.momentum < 100 && self.canGrapple(opponent)) {
+    self.startSignature(opponent);
+    self.momentum = Math.max(0, self.momentum - 50); // 100% 消費ではなく半分だけ
+    const dmg = 20 * self.damageMult;
+    opponent.takeDamage(dmg);
+    const r = (self.specialColor >> 16) & 0xff;
+    const g = (self.specialColor >> 8)  & 0xff;
+    const b =  self.specialColor        & 0xff;
+    effects.spawnHitSparks(opponent.position, self.specialColor);
+    effects.spawnHitSparks(opponent.position, 0xffffff);
+    effects.shake(0.28);
+    audio.slam();
+    addCrowdPop(14);
+    tracker.recordSignature(side, dmg);
+    if (trackCombo) addCombo();
+    const el = document.getElementById("move-name");
+    if (el) {
+      el.style.color = `rgb(${r},${g},${b})`;
+      flashMoveName(self.specialName);
+      setTimeout(() => { if (el) el.style.color = "#ffd700"; }, 1100);
+    }
   }
 
   // Finisher (Signature with character-specific name + burst)

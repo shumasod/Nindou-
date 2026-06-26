@@ -239,6 +239,20 @@ export class CpuAI {
       return;
     }
 
+    // 50% スペシャル — missChance が低い (Hard/Normal) CPU が積極的に使用
+    if (this.cpu.momentum >= 50 && this.cpu.momentum < 100 && dist < GRAPPLE_DIST &&
+        Math.random() < (1 - this.p.missChance) * 0.35) {
+      this.cpu.startSignature(this.player);
+      this.cpu.momentum = Math.max(0, this.cpu.momentum - 50);
+      this.player.takeDamage(20 * this.p.dmgMult * charDmg);
+      this.effects.spawnHitSparks(this.player.position, this.cpu.specialColor);
+      this.effects.spawnHitSparks(this.player.position, 0xffffff);
+      this.effects.shake(0.28);
+      audio.slam();
+      this.decisionTimer = this.p.decisionBase * 1.2 * dangerMult;
+      return;
+    }
+
     // グラップル中: Irish Whip (25%) または Slam (75%)
     if (this.cpu.state === "grappling" && this.cpu.grappleTarget) {
       if (Math.random() < 0.25 && this.cpu.canWhip(this.player)) {
