@@ -454,6 +454,27 @@ function updateRingOut(dt: number): void {
   if (!anyOutside && hudRingoutDisp) hudRingoutDisp.style.display = "none";
 }
 
+// ─── トリプルストライクチェーン ───────────────────────────────────────────────
+const STRIKE_CHAIN_WINDOW = 1.2; // 秒 — 連続ストライクのタイムウィンドウ
+const strikeChain: { p1: number; p2: number; timer: { p1: number; p2: number } } = {
+  p1: 0, p2: 0, timer: { p1: 0, p2: 0 },
+};
+
+function incrementStrikeChain(side: "p1" | "p2"): boolean {
+  strikeChain.timer[side] = STRIKE_CHAIN_WINDOW;
+  strikeChain[side]++;
+  return strikeChain[side] >= 3;
+}
+
+function updateStrikeChains(dt: number): void {
+  for (const side of ["p1", "p2"] as const) {
+    if (strikeChain.timer[side] > 0) {
+      strikeChain.timer[side] -= dt;
+      if (strikeChain.timer[side] <= 0) strikeChain[side] = 0;
+    }
+  }
+}
+
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
 let comboCount = 0;
 let comboTimer = 0;
@@ -751,6 +772,7 @@ function animate(): void {
     updateCamera(dt);
     effects.update(dt, camera);
     updateCombo(dt);
+    updateStrikeChains(dt);
     updateSubmission(dt);
     updateRingOut(dt);
     checkGrappleFatigue();
@@ -935,18 +957,32 @@ function handleInput(
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else {
       self.startStrike();
-      const dmg = (8 + Math.random() * 4) * self.damageMult;
+      const isTriple = incrementStrikeChain(side);
+      // 3連続ストライクはダメージ 1.6 倍 + 特別演出
+      const chainMult = isTriple ? 1.6 : 1.0;
+      const dmg = (8 + Math.random() * 4) * self.damageMult * chainMult;
       opponent.takeDamage(dmg);
-      const knockdown = opponent.hp < 25;
+      const knockdown = opponent.hp < (isTriple ? 40 : 25);
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
       else opponent.openCounterWindow();
-      effects.spawnHitSparks(opponent.position, 0xff6600);
-      effects.shake(0.08);
-      audio.punch();
-      addCrowdPop(knockdown ? 10 : 3);
+      if (isTriple) {
+        effects.spawnHitSparks(opponent.position, 0xff2200);
+        effects.spawnHitSparks(opponent.position, 0xffaa00);
+        effects.spawnHitSparks(opponent.position, 0xffffff);
+        effects.shake(0.22);
+        audio.slam();
+        addCrowdPop(knockdown ? 20 : 12);
+        strikeChain[side] = 0;
+        flashMoveName("TRIPLE STRIKE!!");
+      } else {
+        effects.spawnHitSparks(opponent.position, 0xff6600);
+        effects.shake(0.08);
+        audio.punch();
+        addCrowdPop(knockdown ? 10 : 3);
+        if (!knockdown) flashMoveName("STRIKE!");
+      }
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
-      if (!knockdown) flashMoveName("STRIKE!");
     }
   }
 
