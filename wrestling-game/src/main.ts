@@ -164,9 +164,11 @@ const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
 const hudP1Name  = document.getElementById("hud-p1-name")  as HTMLElement | null;
 const hudP2Name  = document.getElementById("hud-p2-name")  as HTMLElement | null;
-const hudSubDisp = document.getElementById("sub-display")  as HTMLElement | null;
-const hudSubBar  = document.getElementById("sub-bar")      as HTMLElement | null;
-const hudEscBar  = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudSubDisp   = document.getElementById("sub-display")  as HTMLElement | null;
+const hudSubBar    = document.getElementById("sub-bar")      as HTMLElement | null;
+const hudEscBar    = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudSubMash   = document.getElementById("sub-mash")     as HTMLElement | null;
+const hudSubMashWho = document.getElementById("sub-mash-who") as HTMLElement | null;
 const hudCrowdBar = document.getElementById("crowd-bar")   as HTMLElement | null;
 
 function pct(v: number): string {
@@ -505,9 +507,15 @@ function updateCombo(dt: number): void {
 }
 
 // ─── サブミッション更新 ───────────────────────────────────────────────────────
+function hideMashIndicator(): void {
+  if (hudSubMash)    hudSubMash.style.display    = "none";
+  if (hudSubMashWho) hudSubMashWho.style.display = "none";
+}
+
 function updateSubmission(dt: number): void {
   if (!sub.active) {
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     return;
   }
   const holder = sub.holderSide === "p1" ? player1 : player2;
@@ -517,6 +525,7 @@ function updateSubmission(dt: number): void {
   if (holder.state !== "submitting" || victim.state !== "in_submission") {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     return;
   }
 
@@ -533,10 +542,22 @@ function updateSubmission(dt: number): void {
   if (hudSubBar)  hudSubBar.style.width  = `${sub.subProgress    * 100}%`;
   if (hudEscBar)  hudEscBar.style.width  = `${sub.escapeProgress * 100}%`;
 
+  // MASH indicator — show for human victim only
+  const victimSide = sub.holderSide === "p1" ? "p2" : "p1";
+  const victimIsHuman = mode === "2p" || victimSide === "p1";
+  if (hudSubMash) {
+    hudSubMash.style.display = victimIsHuman ? "block" : "none";
+  }
+  if (hudSubMashWho) {
+    hudSubMashWho.style.display = victimIsHuman ? "block" : "none";
+    hudSubMashWho.textContent   = victimSide === "p1" ? "P1 — PRESS ANY BUTTON" : "P2 — PRESS ANY BUTTON";
+  }
+
   // Escape wins
   if (sub.escapeProgress >= 1) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     holder.actionCooldown = 1.0;
     victim.breakSubmission();
@@ -550,6 +571,7 @@ function updateSubmission(dt: number): void {
   if (sub.subProgress >= 1) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     victim.hp = 0;
     showResult(sub.holderSide === "p1" ? "P1" : p2Label(), "SUBMISSION  ");
@@ -1140,6 +1162,7 @@ function doRopeBreak(victimSide: "p1" | "p2"): void {
   } else if (victim.state === "in_submission" && sub.active) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     holder.actionCooldown = 1.5;
     victim.breakSubmission(); // → startKnockdown() resets ropeBreakUsed
