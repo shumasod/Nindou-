@@ -292,6 +292,57 @@
         text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
       }
 
+      /* ── Match intro ─────────────────────────────────────── */
+      #match-intro {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.88);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 50; pointer-events: none;
+        gap: 0;
+      }
+      @keyframes introSlideLeft {
+        0%   { opacity: 0; transform: translateX(120px); }
+        18%  { opacity: 1; transform: translateX(0); }
+        80%  { opacity: 1; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(-60px); }
+      }
+      @keyframes introSlideRight {
+        0%   { opacity: 0; transform: translateX(-120px); }
+        18%  { opacity: 1; transform: translateX(0); }
+        80%  { opacity: 1; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(60px); }
+      }
+      @keyframes introVs {
+        0%   { opacity: 0; transform: scale(0.4); }
+        25%  { opacity: 1; transform: scale(1.15); }
+        55%  { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.8); }
+      }
+      .intro-fighter {
+        text-align: center; padding: 12px 0;
+      }
+      .intro-fighter-tag {
+        font-size: 11px; letter-spacing: 5px;
+        color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 6px;
+      }
+      .intro-fighter-name {
+        font-size: 52px; font-weight: 900;
+        letter-spacing: 8px; text-transform: uppercase;
+        text-shadow: 0 0 30px currentColor, 0 4px 8px #000;
+      }
+      .intro-fighter-title {
+        font-size: 13px; letter-spacing: 3px;
+        color: rgba(255,255,255,0.45); text-transform: uppercase; margin-top: 6px;
+      }
+      #intro-vs {
+        font-size: 36px; font-weight: 900; color: rgba(255,255,255,0.25);
+        letter-spacing: 10px; padding: 8px 0;
+      }
+      #intro-p1 { animation: introSlideLeft  1.8s forwards; }
+      #intro-vs { animation: introVs         1.8s forwards; }
+      #intro-p2 { animation: introSlideRight 1.8s forwards; }
+
       @keyframes crowdPulse {
         from { opacity: 0.8; }
         to   { opacity: 1; box-shadow: 0 0 12px #ffd700, 0 0 24px #ffd700; }
@@ -516,6 +567,21 @@
     <div id="finisher-banner">
       <div id="finisher-wrestler-label"></div>
       <div id="finisher-move-label"></div>
+    </div>
+
+    <!-- Match intro -->
+    <div id="match-intro">
+      <div class="intro-fighter" id="intro-p1">
+        <div class="intro-fighter-tag">INTRODUCING FIRST</div>
+        <div class="intro-fighter-name" id="intro-p1-name">P1</div>
+        <div class="intro-fighter-title" id="intro-p1-title"></div>
+      </div>
+      <div id="intro-vs">VS</div>
+      <div class="intro-fighter" id="intro-p2">
+        <div class="intro-fighter-tag">AND THEIR OPPONENT</div>
+        <div class="intro-fighter-name" id="intro-p2-name">CPU</div>
+        <div class="intro-fighter-title" id="intro-p2-title"></div>
+      </div>
     </div>
 
     <!-- Match countdown -->
