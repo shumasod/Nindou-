@@ -26,6 +26,7 @@ export type WrestlerState =
 
 export interface WrestlerConfig {
   name: string;
+  title?: string;
   primaryColor: number;
   secondaryColor: number;
   skinColor: number;
@@ -53,6 +54,8 @@ const MAT_Y        = 0.15;
 export class Wrestler {
   root: THREE.Group;
   name: string;
+  readonly title: string;
+  readonly primaryColor: number;
 
   // Derived stat multipliers
   readonly speedMult:    number;
@@ -137,7 +140,9 @@ export class Wrestler {
 
   constructor(config: WrestlerConfig) {
     this.config = config;
-    this.name = config.name;
+    this.name  = config.name;
+    this.title = config.title ?? "";
+    this.primaryColor = config.primaryColor;
     this.speedMult    = config.speedMult   ?? 1.0;
     this._damageMult  = config.damageMult  ?? 1.0;
     this.defenceMult  = config.defenceMult ?? 1.0;
