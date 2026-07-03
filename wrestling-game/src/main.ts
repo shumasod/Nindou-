@@ -164,9 +164,11 @@ const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
 const hudP1Name  = document.getElementById("hud-p1-name")  as HTMLElement | null;
 const hudP2Name  = document.getElementById("hud-p2-name")  as HTMLElement | null;
-const hudSubDisp = document.getElementById("sub-display")  as HTMLElement | null;
-const hudSubBar  = document.getElementById("sub-bar")      as HTMLElement | null;
-const hudEscBar  = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudSubDisp   = document.getElementById("sub-display")  as HTMLElement | null;
+const hudSubBar    = document.getElementById("sub-bar")      as HTMLElement | null;
+const hudEscBar    = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudSubMash   = document.getElementById("sub-mash")     as HTMLElement | null;
+const hudSubMashWho = document.getElementById("sub-mash-who") as HTMLElement | null;
 const hudCrowdBar = document.getElementById("crowd-bar")   as HTMLElement | null;
 
 function pct(v: number): string {
@@ -454,6 +456,27 @@ function updateRingOut(dt: number): void {
   if (!anyOutside && hudRingoutDisp) hudRingoutDisp.style.display = "none";
 }
 
+// ─── トリプルストライクチェーン ───────────────────────────────────────────────
+const STRIKE_CHAIN_WINDOW = 1.2; // 秒 — 連続ストライクのタイムウィンドウ
+const strikeChain: { p1: number; p2: number; timer: { p1: number; p2: number } } = {
+  p1: 0, p2: 0, timer: { p1: 0, p2: 0 },
+};
+
+function incrementStrikeChain(side: "p1" | "p2"): boolean {
+  strikeChain.timer[side] = STRIKE_CHAIN_WINDOW;
+  strikeChain[side]++;
+  return strikeChain[side] >= 3;
+}
+
+function updateStrikeChains(dt: number): void {
+  for (const side of ["p1", "p2"] as const) {
+    if (strikeChain.timer[side] > 0) {
+      strikeChain.timer[side] -= dt;
+      if (strikeChain.timer[side] <= 0) strikeChain[side] = 0;
+    }
+  }
+}
+
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
 let comboCount = 0;
 let comboTimer = 0;
@@ -484,9 +507,15 @@ function updateCombo(dt: number): void {
 }
 
 // ─── サブミッション更新 ───────────────────────────────────────────────────────
+function hideMashIndicator(): void {
+  if (hudSubMash)    hudSubMash.style.display    = "none";
+  if (hudSubMashWho) hudSubMashWho.style.display = "none";
+}
+
 function updateSubmission(dt: number): void {
   if (!sub.active) {
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     return;
   }
   const holder = sub.holderSide === "p1" ? player1 : player2;
@@ -496,6 +525,7 @@ function updateSubmission(dt: number): void {
   if (holder.state !== "submitting" || victim.state !== "in_submission") {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     return;
   }
 
@@ -512,10 +542,22 @@ function updateSubmission(dt: number): void {
   if (hudSubBar)  hudSubBar.style.width  = `${sub.subProgress    * 100}%`;
   if (hudEscBar)  hudEscBar.style.width  = `${sub.escapeProgress * 100}%`;
 
+  // MASH indicator — show for human victim only
+  const victimSide = sub.holderSide === "p1" ? "p2" : "p1";
+  const victimIsHuman = mode === "2p" || victimSide === "p1";
+  if (hudSubMash) {
+    hudSubMash.style.display = victimIsHuman ? "block" : "none";
+  }
+  if (hudSubMashWho) {
+    hudSubMashWho.style.display = victimIsHuman ? "block" : "none";
+    hudSubMashWho.textContent   = victimSide === "p1" ? "P1 — PRESS ANY BUTTON" : "P2 — PRESS ANY BUTTON";
+  }
+
   // Escape wins
   if (sub.escapeProgress >= 1) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     holder.actionCooldown = 1.0;
     victim.breakSubmission();
@@ -529,10 +571,53 @@ function updateSubmission(dt: number): void {
   if (sub.subProgress >= 1) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     victim.hp = 0;
     showResult(sub.holderSide === "p1" ? "P1" : p2Label(), "SUBMISSION  ");
   }
+}
+
+// ─── マッチイントロ ──────────────────────────────────────────────────────────
+function showMatchIntro(cb: () => void): void {
+  // 2ラウンド目以降はイントロをスキップ
+  if (tournament.active && tournament.roundNum > 1) { cb(); return; }
+
+  const overlay = document.getElementById("match-intro");
+  const p1NameEl  = document.getElementById("intro-p1-name");
+  const p1TitleEl = document.getElementById("intro-p1-title");
+  const p2NameEl  = document.getElementById("intro-p2-name");
+  const p2TitleEl = document.getElementById("intro-p2-title");
+  if (!overlay) { cb(); return; }
+
+  if (p1NameEl)  p1NameEl.textContent  = player1.name;
+  if (p1TitleEl) p1TitleEl.textContent = player1.title ?? "";
+  if (p2NameEl)  p2NameEl.textContent  = player2.name;
+  if (p2TitleEl) p2TitleEl.textContent = player2.title ?? "";
+
+  // キャラクターカラーを名前に反映
+  const p1El = document.getElementById("intro-p1");
+  const p2El = document.getElementById("intro-p2");
+  const toHex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
+  if (p1El) {
+    const nameDiv = p1El.querySelector<HTMLElement>(".intro-fighter-name");
+    if (nameDiv) nameDiv.style.color = toHex(player1.primaryColor);
+  }
+  if (p2El) {
+    const nameDiv = p2El.querySelector<HTMLElement>(".intro-fighter-name");
+    if (nameDiv) nameDiv.style.color = toHex(player2.primaryColor);
+  }
+
+  // アニメーションをリセットしてから表示
+  overlay.style.display = "flex";
+  const els = overlay.querySelectorAll<HTMLElement>("#intro-p1, #intro-vs, #intro-p2");
+  els.forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+
+  audio.crowd();
+  setTimeout(() => {
+    overlay.style.display = "none";
+    cb();
+  }, 2000);
 }
 
 // ─── カウントダウン ───────────────────────────────────────────────────────────
@@ -638,7 +723,9 @@ function startNextRound(): void {
 
   phase = "countdown";
   clock.start();
-  showMatchStart(() => { phase = "match"; audio.crowd(); });
+  showMatchIntro(() => {
+    showMatchStart(() => { phase = "match"; audio.crowd(); });
+  });
 }
 
 function showResult(winner: string, reason = ""): void {
@@ -692,11 +779,13 @@ function showFinalResult(winner: string, reason = ""): void {
           ${champRow}
           ${statRow(s1.strikesLanded,    s2.strikesLanded,    "STRIKES")}
           ${statRow(s1.slamsLanded,      s2.slamsLanded,      "SLAMS")}
+          ${statRow(s1.cornerSplashes,   s2.cornerSplashes,   "CORNER SPLASH")}
           ${statRow(s1.signaturesMade,   s2.signaturesMade,   "SIGNATURES")}
           ${statRow(s1.reversals,        s2.reversals,        "REVERSALS")}
           ${statRow(Math.round(s1.totalDamage), Math.round(s2.totalDamage), "DAMAGE")}
           ${statRow(s1.knockdownsCaused, s2.knockdownsCaused, "KNOCKDOWNS")}
           ${statRow(s1.pinAttempts,      s2.pinAttempts,      "PINS")}
+          ${statRow(s1.ringoutsScored,   s2.ringoutsScored,   "RING OUTS")}
           ${statRow(s1.maxCombo,         s2.maxCombo,         "MAX COMBO")}
         </tbody>
       </table>`;
@@ -751,6 +840,7 @@ function animate(): void {
     updateCamera(dt);
     effects.update(dt, camera);
     updateCombo(dt);
+    updateStrikeChains(dt);
     updateSubmission(dt);
     updateRingOut(dt);
     checkGrappleFatigue();
@@ -781,6 +871,7 @@ function handleInput(
 ): void {
   const s = inp.state;
   const trackCombo = side === "p1";
+  const oppSide: "p1" | "p2" = side === "p1" ? "p2" : "p1";
 
   let dx = 0, dz = 0;
   if (s.left)  dx -= 1;
@@ -858,10 +949,20 @@ function handleInput(
   if (!self.isActionReady()) return;
 
   // Taunt (T / B) — ハイリスク・ハイリターン
+  // HOT CROWD 中のタントは即時スタミナ +25 + モメンタム +10 ボーナス
   if (s.tauntPressed && self.state === "idle") {
+    const isHot = crowdMeter >= CROWD_HOT_THRESHOLD;
     self.startTaunt();
     audio.crowd();
-    flashMoveName("TAUNT!");
+    if (isHot) {
+      self.stamina  = Math.min(100, self.stamina  + 25);
+      self.momentum = Math.min(100, self.momentum + 10);
+      effects.spawnHitSparks(self.position, 0xffd700);
+      addCrowdPop(10);
+      flashMoveName("🔥 HOT CROWD TAUNT!!");
+    } else {
+      flashMoveName("TAUNT!");
+    }
   }
 
   // Strike (F / U)
@@ -884,7 +985,7 @@ function handleInput(
       audio.slam();
       audio.crowd();
       addCrowdPop(22);
-      tracker.recordStrike(side, dmg, true);
+      tracker.recordCornerSplash(side, dmg);
       if (trackCombo) addCombo();
       flashMoveName("CORNER SPLASH!!");
     } else if (isClothesline) {
@@ -925,18 +1026,32 @@ function handleInput(
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else {
       self.startStrike();
-      const dmg = (8 + Math.random() * 4) * self.damageMult;
+      const isTriple = incrementStrikeChain(side);
+      // 3連続ストライクはダメージ 1.6 倍 + 特別演出
+      const chainMult = isTriple ? 1.6 : 1.0;
+      const dmg = (8 + Math.random() * 4) * self.damageMult * chainMult;
       opponent.takeDamage(dmg);
-      const knockdown = opponent.hp < 25;
+      const knockdown = opponent.hp < (isTriple ? 40 : 25);
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
       else opponent.openCounterWindow();
-      effects.spawnHitSparks(opponent.position, 0xff6600);
-      effects.shake(0.08);
-      audio.punch();
-      addCrowdPop(knockdown ? 10 : 3);
+      if (isTriple) {
+        effects.spawnHitSparks(opponent.position, 0xff2200);
+        effects.spawnHitSparks(opponent.position, 0xffaa00);
+        effects.spawnHitSparks(opponent.position, 0xffffff);
+        effects.shake(0.22);
+        audio.slam();
+        addCrowdPop(knockdown ? 20 : 12);
+        strikeChain[side] = 0;
+        flashMoveName("TRIPLE STRIKE!!");
+      } else {
+        effects.spawnHitSparks(opponent.position, 0xff6600);
+        effects.shake(0.08);
+        audio.punch();
+        addCrowdPop(knockdown ? 10 : 3);
+        if (!knockdown) flashMoveName("STRIKE!");
+      }
       tracker.recordStrike(side, dmg, knockdown);
       if (trackCombo) addCombo();
-      if (!knockdown) flashMoveName("STRIKE!");
     }
   }
 
@@ -1003,17 +1118,35 @@ function handleInput(
 
   // Finisher (Signature with character-specific name + burst)
   if (s.signaturePressed && self.momentum >= 100 && self.canGrapple(opponent)) {
-    self.startSignature(opponent);
-    const dmg = 35 * self.damageMult;
-    opponent.takeDamage(dmg);
-    effects.spawnFinisherBurst(opponent.position, self.finisherColor);
-    effects.shake(0.5);
-    audio.slam();
-    audio.crowd();
-    addCrowdPop(30);
-    tracker.recordSignature(side, dmg);
-    if (trackCombo) addCombo();
-    flashFinisher(self.name, self.finisherName, self.finisherColor);
+    // フィニッシャー・リバーサル: 相手モメンタム >= 30% で確率的に反転
+    const reversalProb = (opponent.momentum / 100) * 0.28;
+    if (!opponent.isDown() && !opponent.isGassed && Math.random() < reversalProb) {
+      // リバーサル成功 — フィニッシャー無効化 + モメンタム移転
+      self.momentum = 0;
+      self.state = "stunned";
+      self.stateTimer = 1.0;
+      self.actionCooldown = 1.0;
+      opponent.momentum = Math.min(100, opponent.momentum + 30);
+      effects.spawnHitSparks(self.position, 0x00ffff);
+      effects.spawnHitSparks(self.position, 0xffffff);
+      effects.shake(0.22);
+      audio.punch();
+      addCrowdPop(25);
+      tracker.recordReversal(oppSide);
+      flashMoveName("FINISHER REVERSED!!");
+    } else {
+      self.startSignature(opponent);
+      const dmg = 35 * self.damageMult;
+      opponent.takeDamage(dmg);
+      effects.spawnFinisherBurst(opponent.position, self.finisherColor);
+      effects.shake(0.5);
+      audio.slam();
+      audio.crowd();
+      addCrowdPop(30);
+      tracker.recordSignature(side, dmg);
+      if (trackCombo) addCombo();
+      flashFinisher(self.name, self.finisherName, self.finisherColor);
+    }
   }
 
   // Pin
@@ -1064,12 +1197,14 @@ function checkMatchEnd(): void {
   if (ringout.p1.count >= RINGOUT_MAX) {
     if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
     effects.shake(0.35); audio.crowd();
+    tracker.recordRingout("p2");
     showResult(p2Label, "COUNT OUT  ");
     return;
   }
   if (ringout.p2.count >= RINGOUT_MAX) {
     if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
     effects.shake(0.35); audio.crowd();
+    tracker.recordRingout("p1");
     showResult("P1", "COUNT OUT  ");
     return;
   }
@@ -1094,6 +1229,7 @@ function doRopeBreak(victimSide: "p1" | "p2"): void {
   } else if (victim.state === "in_submission" && sub.active) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     holder.actionCooldown = 1.5;
     victim.breakSubmission(); // → startKnockdown() resets ropeBreakUsed
@@ -1189,7 +1325,9 @@ function startMatch(
   resetKickout();
   phase = "countdown";
   clock.start();
-  showMatchStart(() => { phase = "match"; audio.crowd(); });
+  showMatchIntro(() => {
+    showMatchStart(() => { phase = "match"; audio.crowd(); });
+  });
 }
 
 // ─── キャラクター選択フロー ───────────────────────────────────────────────────
