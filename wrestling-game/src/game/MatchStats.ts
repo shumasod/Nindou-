@@ -1,12 +1,14 @@
 export interface FighterStats {
-  strikesLanded:  number;
-  slamsLanded:    number;
-  signaturesMade: number;
-  reversals:      number;
-  totalDamage:    number;
+  strikesLanded:    number;
+  slamsLanded:      number;
+  signaturesMade:   number;
+  reversals:        number;
+  totalDamage:      number;
   knockdownsCaused: number;
-  pinAttempts:    number;
-  maxCombo:       number;
+  pinAttempts:      number;
+  maxCombo:         number;
+  cornerSplashes:   number;
+  ringoutsScored:   number;
 }
 
 export interface MatchStats {
@@ -24,6 +26,8 @@ function emptyStats(): FighterStats {
     knockdownsCaused: 0,
     pinAttempts:      0,
     maxCombo:         0,
+    cornerSplashes:   0,
+    ringoutsScored:   0,
   };
 }
 
@@ -65,5 +69,16 @@ export class MatchTracker {
     if (count > this.stats[side].maxCombo) {
       this.stats[side].maxCombo = count;
     }
+  }
+
+  recordCornerSplash(side: "p1" | "p2", dmg: number): void {
+    const s = this.stats[side];
+    s.cornerSplashes++;
+    s.totalDamage += dmg;
+    s.knockdownsCaused++;
+  }
+
+  recordRingout(scorerSide: "p1" | "p2"): void {
+    this.stats[scorerSide].ringoutsScored++;
   }
 }
