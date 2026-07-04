@@ -98,7 +98,11 @@ export function enemyAction(
   enemyStatus: StatusEffect[],
   turn: number
 ): { type: string; label: string } {
-  // スタン中は行動不能
+  // 奇襲スタン中は行動不能 (奇襲由来はambush_stunとして区別)
+  if (hasStatus(enemyStatus, "ambush_stun")) {
+    return { type: "ambush_stun", label: "【奇襲効果】行動不能！" };
+  }
+  // スキルスタン中は行動不能
   if (hasStatus(enemyStatus, "stun")) {
     return { type: "stun", label: "行動不能！" };
   }

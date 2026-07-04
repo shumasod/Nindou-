@@ -39,7 +39,7 @@ export function handleStartBattle(
       turn: 1,
       log: initialLog,
       playerStatus: [],
-      enemyStatus: isAmbush ? [{ id: "stun", name: "スタン", turns: 1 }] : [],
+      enemyStatus: isAmbush ? [{ id: "ambush_stun", name: "奇襲スタン", turns: 1 }] : [],
       playerDodge: 0,
       playerDodgeChance: 0,
       phase: "player",
@@ -244,6 +244,10 @@ export function handleEnemyTurn(state: GameState): GameState {
   }
 
   switch (action.type) {
+    case "ambush_stun":
+      s = addLog(s, `【奇襲効果】${enemy.name}は行動不能！`);
+      break;
+
     case "stun":
       s = addLog(s, `${enemy.name}は行動不能だ！`);
       break;
