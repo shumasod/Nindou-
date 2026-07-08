@@ -107,8 +107,11 @@ export function enemyDefeat(state: GameState): GameState {
     }
   }
 
+  const droppedItems: string[] = [];
   for (const drop of enemy.drops) {
     if (Math.random() < drop.rate) {
+      const itemName = ITEMS[drop.id]?.name ?? drop.id;
+      droppedItems.push(itemName);
       const idx = newPlayer.items.findIndex((it) => it.id === drop.id);
       if (idx >= 0) {
         newPlayer.items = newPlayer.items.map((it, i) =>
@@ -133,6 +136,9 @@ export function enemyDefeat(state: GameState): GameState {
     ui: {
       ...state.ui,
       lastReward: questComplete ? reward : state.ui.lastReward,
+      lastDrops: questComplete
+        ? [...(state.ui.lastDrops ?? []), ...droppedItems]
+        : state.ui.lastDrops,
       screen: questComplete ? "victory" : state.ui.screen,
     },
   };

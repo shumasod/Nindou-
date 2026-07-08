@@ -53,7 +53,7 @@ export default function VictoryScreen({ state, dispatch }: Props) {
         {/* 報酬表示 */}
         {reward && (
           <div style={{ ...S.panel, marginBottom: "24px" }}>
-            <p style={{ ...S.label, marginBottom: "12px" }}>獲得報酬</p>
+            <p style={{ ...S.label, marginBottom: "12px" }}>クエスト報酬</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.dim, fontSize: "14px" }}>経験値</span>
@@ -65,16 +65,30 @@ export default function VictoryScreen({ state, dispatch }: Props) {
               </div>
               {reward.items.length > 0 && (
                 <div>
-                  <span style={{ color: C.dim, fontSize: "13px" }}>アイテム</span>
+                  <span style={{ color: C.dim, fontSize: "13px" }}>クエストアイテム</span>
                   <div style={{ marginTop: "4px" }}>
                     {reward.items.map((name, i) => (
                       <p key={i} style={{ color: C.success, fontSize: "13px", margin: "2px 0" }}>
-                        + {name}
+                        ★ {name}
                       </p>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ドロップアイテム表示 */}
+        {ui.lastDrops && ui.lastDrops.length > 0 && (
+          <div style={{ ...S.panel, marginBottom: "24px", border: `1px solid ${C.accent2}40` }}>
+            <p style={{ ...S.label, marginBottom: "10px" }}>ドロップ品</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {ui.lastDrops.map((name, i) => (
+                <p key={i} style={{ color: C.accent2, fontSize: "13px", margin: 0 }}>
+                  💎 {name}
+                </p>
+              ))}
             </div>
           </div>
         )}

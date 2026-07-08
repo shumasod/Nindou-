@@ -150,5 +150,6 @@ export interface GameState {
     message: string;
     levelUpPending: boolean;
     lastReward: { exp: number; gold: number; items: string[] } | null;
+    lastDrops: string[];
   };
 }

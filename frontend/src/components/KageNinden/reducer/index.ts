@@ -63,6 +63,7 @@ export const INITIAL_STATE: GameState = {
     message: "",
     levelUpPending: false,
     lastReward: null,
+    lastDrops: [],
   },
 };
 
