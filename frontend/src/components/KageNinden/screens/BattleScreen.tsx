@@ -85,36 +85,57 @@ export default function BattleScreen({ state, dispatch }: Props) {
       </div>
 
       {/* ─── 敵情報 ─── */}
-      <div style={{ ...S.panel }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <span style={{ fontSize: "32px" }}>{enemy.icon}</span>
-            <div>
-              <p style={{ margin: 0, fontSize: "16px", color: C.accent1 }}>{enemy.name}</p>
-              {enemy.phase2 && (
-                <span style={{ color: C.accent2, fontSize: "11px", animation: "pulse 1s infinite" }}>
-                  【フェーズ2】
-                </span>
-              )}
+      {(() => {
+        const enemyHpRatio = enemy.hp / enemy.maxHp;
+        const enemyDanger = enemyHpRatio <= 0.25;
+        const enemyLowHp = enemyHpRatio <= 0.5 && !enemyDanger;
+        return (
+          <div style={{
+            ...S.panel,
+            border: `1px solid ${enemyDanger ? C.accent1 : C.border}`,
+            animation: enemyDanger ? "pulse 1s infinite" : "none",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <span style={{ fontSize: "32px" }}>{enemy.icon}</span>
+                <div>
+                  <p style={{ margin: 0, fontSize: "16px", color: enemyDanger ? C.accent1 : C.text }}>{enemy.name}</p>
+                  {enemy.phase2 && (
+                    <span style={{ color: C.accent2, fontSize: "11px", animation: "pulse 1s infinite" }}>
+                      【フェーズ2】
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ margin: 0, color: C.text, fontSize: "13px" }}>{enemy.hp} / {enemy.maxHp}</p>
+                {enemyDanger && (
+                  <span style={{ color: C.accent1, fontSize: "11px", animation: "blink 0.6s infinite" }}>
+                    ⚠ 瀕死！
+                  </span>
+                )}
+                {enemyLowHp && (
+                  <span style={{ color: C.accent2, fontSize: "11px" }}>
+                    △ 弱体化
+                  </span>
+                )}
+              </div>
             </div>
+            {/* 敵HPバー */}
+            <div style={barTrackStyle}>
+              <div style={hpBarStyle(enemy.hp, enemy.maxHp)} />
+            </div>
+            {/* 敵状態異常 */}
+            {enemyStatus.length > 0 && (
+              <div style={{ display: "flex", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                {enemyStatus.map((e, i) => (
+                  <StatusBadge key={i} effect={e} />
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{ textAlign: "right" }}>
-            <p style={{ margin: 0, color: C.text, fontSize: "13px" }}>{enemy.hp} / {enemy.maxHp}</p>
-          </div>
-        </div>
-        {/* 敵HPバー */}
-        <div style={barTrackStyle}>
-          <div style={hpBarStyle(enemy.hp, enemy.maxHp)} />
-        </div>
-        {/* 敵状態異常 */}
-        {enemyStatus.length > 0 && (
-          <div style={{ display: "flex", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
-            {enemyStatus.map((e, i) => (
-              <StatusBadge key={i} effect={e} />
-            ))}
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ─── VS 演出 ─── */}
       <div style={{ textAlign: "center", padding: "4px 0" }}>
