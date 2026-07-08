@@ -46,6 +46,24 @@ export default function BattleScreen({ state, dispatch }: Props) {
     }
   }, [log[0]]);
 
+  // キーボードショートカット (1=攻撃, 2=術, 3=道具, 4=防御, 5=逃走, Esc=戻る)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (phase !== "player") return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      switch (e.key) {
+        case "1": dispatch({ type: "PLAYER_ATTACK" }); break;
+        case "2": setShowSkills(true); setShowItems(false); break;
+        case "3": setShowItems(true); setShowSkills(false); break;
+        case "4": dispatch({ type: "PLAYER_DEFEND" }); break;
+        case "5": dispatch({ type: "PLAYER_ESCAPE" }); break;
+        case "Escape": setShowSkills(false); setShowItems(false); break;
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase, dispatch]);
+
   const isAnimating = phase === "enemy";
   const isPlayerTurn = phase === "player";
   const hpRatio = player.hp / player.maxHp;
@@ -182,38 +200,48 @@ export default function BattleScreen({ state, dispatch }: Props) {
             onClose={() => setShowItems(false)}
           />
         ) : (
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            <ActionBtn
-              label="⚔ 攻撃"
-              color={C.accent1}
-              disabled={isAnimating}
-              onClick={() => dispatch({ type: "PLAYER_ATTACK" })}
-            />
-            <ActionBtn
-              label={`✨ 術${playerSkills.length > 0 ? `(${playerSkills.length})` : ""}`}
-              color={C.purple}
-              disabled={isAnimating || playerSkills.length === 0}
-              onClick={() => { setShowSkills(true); setShowItems(false); }}
-            />
-            <ActionBtn
-              label={`🎒 道具${playerItems.length > 0 ? `(${playerItems.length})` : ""}`}
-              color={C.success}
-              disabled={isAnimating || playerItems.length === 0}
-              onClick={() => { setShowItems(true); setShowSkills(false); }}
-            />
-            <ActionBtn
-              label="🛡 防御"
-              color={C.chakra}
-              disabled={isAnimating}
-              onClick={() => dispatch({ type: "PLAYER_DEFEND" })}
-            />
-            <ActionBtn
-              label="💨 逃走"
-              color={C.dim}
-              disabled={isAnimating}
-              onClick={() => dispatch({ type: "PLAYER_ESCAPE" })}
-            />
-          </div>
+          <>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              <ActionBtn
+                label="⚔ 攻撃"
+                color={C.accent1}
+                disabled={isAnimating}
+                hint="[1]"
+                onClick={() => dispatch({ type: "PLAYER_ATTACK" })}
+              />
+              <ActionBtn
+                label={`✨ 術${playerSkills.length > 0 ? `(${playerSkills.length})` : ""}`}
+                color={C.purple}
+                disabled={isAnimating || playerSkills.length === 0}
+                hint="[2]"
+                onClick={() => { setShowSkills(true); setShowItems(false); }}
+              />
+              <ActionBtn
+                label={`🎒 道具${playerItems.length > 0 ? `(${playerItems.length})` : ""}`}
+                color={C.success}
+                disabled={isAnimating || playerItems.length === 0}
+                hint="[3]"
+                onClick={() => { setShowItems(true); setShowSkills(false); }}
+              />
+              <ActionBtn
+                label="🛡 防御"
+                color={C.chakra}
+                disabled={isAnimating}
+                hint="[4]"
+                onClick={() => dispatch({ type: "PLAYER_DEFEND" })}
+              />
+              <ActionBtn
+                label="💨 逃走"
+                color={C.dim}
+                disabled={isAnimating}
+                hint="[5]"
+                onClick={() => dispatch({ type: "PLAYER_ESCAPE" })}
+              />
+            </div>
+            <p style={{ margin: "6px 0 0", color: C.dim, fontSize: "10px" }}>
+              キー: 1=攻撃 2=術 3=道具 4=防御 5=逃走 Esc=戻る
+            </p>
+          </>
         )}
       </div>
 
@@ -240,9 +268,9 @@ export default function BattleScreen({ state, dispatch }: Props) {
 
 // ─── アクションボタン ───
 function ActionBtn({
-  label, color, disabled, onClick,
+  label, color, disabled, onClick, hint,
 }: {
-  label: string; color: string; disabled: boolean; onClick: () => void;
+  label: string; color: string; disabled: boolean; onClick: () => void; hint?: string;
 }) {
   return (
     <button
@@ -253,6 +281,7 @@ function ActionBtn({
       onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = color; } }}
     >
       {label}
+      {hint && <span style={{ marginLeft: "4px", fontSize: "10px", opacity: 0.6 }}>{hint}</span>}
     </button>
   );
 }
