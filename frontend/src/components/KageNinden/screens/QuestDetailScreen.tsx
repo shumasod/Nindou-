@@ -5,6 +5,25 @@ import { rankColor } from "../utils";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
+const AI_LABELS: Record<string, { label: string; color: string; desc: string }> = {
+  aggressive: { label: "猛攻型", color: C.accent1, desc: "常に攻撃を仕掛けてくる。防御が有効。" },
+  balanced:   { label: "均衡型", color: C.accent2, desc: "HP低下で防御・逃走を試みる。柔軟な戦術を。" },
+  debuffer:   { label: "状態異常型", color: C.purple, desc: "序盤に毒などの状態異常を使用してくる。" },
+  tank:       { label: "防御型", color: C.chakra,  desc: "防御力が高く崩しにくい。術を活用せよ。" },
+  speed:      { label: "高速型", color: C.success,  desc: "素早く回避が得意。確実なヒットが必要。" },
+  boss:       { label: "ボス型", color: "#ff6600", desc: "HP半分でフォームチェンジ。複数の行動パターン。" },
+};
+
+function difficultyRating(playerAtk: number, playerHp: number, enemyDef: number, enemyHp: number): { level: string; color: string } {
+  const attackEfficiency = playerAtk / Math.max(1, enemyDef);
+  const sustainRatio = playerHp / Math.max(1, enemyHp);
+  const score = attackEfficiency * 0.6 + sustainRatio * 0.4;
+  if (score > 1.5) return { level: "易しい", color: C.success };
+  if (score > 0.9) return { level: "適正", color: C.accent2 };
+  if (score > 0.5) return { level: "難しい", color: C.accent1 };
+  return { level: "危険", color: C.danger };
+}
+
 interface Props {
   state: GameState;
   dispatch: (a: GameAction) => void;
@@ -19,6 +38,10 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
 
   const enemy = ENEMIES[quest.target];
   const progress = state.progress.questProgress[quest.id] ?? 0;
+  const aiInfo = enemy ? AI_LABELS[enemy.ai] ?? { label: enemy.ai, color: C.dim, desc: "" } : null;
+  const difficulty = enemy
+    ? difficultyRating(state.player.stats.attack, state.player.hp, enemy.defense, enemy.hp)
+    : null;
 
   return (
     <div
@@ -94,8 +117,31 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
                     ドロップ: {enemy.drops.map(d => `${ITEMS[d.id]?.name ?? d.id}(${Math.round(d.rate * 100)}%)`).join(", ")}
                   </p>
                 )}
+                {aiInfo && (
+                  <div style={{ marginTop: "8px", padding: "6px 8px", background: "#1a1a28", borderRadius: "4px" }}>
+                    <span style={{ color: aiInfo.color, fontSize: "11px", fontWeight: "bold" }}>
+                      [{aiInfo.label}]
+                    </span>
+                    <span style={{ color: C.dim, fontSize: "11px", marginLeft: "6px" }}>{aiInfo.desc}</span>
+                  </div>
+                )}
               </div>
             </div>
+            {difficulty && (
+              <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ color: C.dim, fontSize: "11px" }}>難易度:</span>
+                <span style={{
+                  color: difficulty.color,
+                  fontSize: "13px",
+                  fontWeight: "bold",
+                  border: `1px solid ${difficulty.color}`,
+                  padding: "1px 8px",
+                  borderRadius: "2px",
+                }}>
+                  {difficulty.level}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
