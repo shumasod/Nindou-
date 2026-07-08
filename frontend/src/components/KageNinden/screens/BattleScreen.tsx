@@ -79,9 +79,23 @@ export default function BattleScreen({ state, dispatch }: Props) {
         </div>
       )}
 
-      {/* ターン数 */}
-      <div style={{ textAlign: "right" }}>
-        <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn}</span>
+      {/* ターン数 + クエスト進捗 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {state.progress.activeQuest ? (
+          <span style={{ color: C.accent2, fontSize: "11px", letterSpacing: "0.05em" }}>
+            📋 {state.progress.activeQuest.title}：
+            {state.battle.killCount}/{state.progress.activeQuest.count}体
+          </span>
+        ) : (
+          <span />
+        )}
+        <span style={{
+          color: turn > 10 ? C.accent1 : C.dim,
+          fontSize: "11px",
+          fontWeight: turn > 10 ? "bold" : "normal",
+        }}>
+          Turn {turn}{turn > 10 ? " ⚠" : ""}
+        </span>
       </div>
 
       {/* ─── 敵情報 ─── */}
