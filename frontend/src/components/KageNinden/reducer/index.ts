@@ -64,6 +64,16 @@ export const INITIAL_STATE: GameState = {
     levelUpPending: false,
     lastReward: null,
   },
+  stats: {
+    totalBattles: 0,
+    totalVictories: 0,
+    totalDeaths: 0,
+    totalDamageDealt: 0,
+    totalGoldEarned: 0,
+    totalExpEarned: 0,
+    totalEscapes: 0,
+    highestDamage: 0,
+  },
 };
 
 // ===== アクション型 =====

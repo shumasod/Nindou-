@@ -135,6 +135,12 @@ export function enemyDefeat(state: GameState): GameState {
       lastReward: questComplete ? reward : state.ui.lastReward,
       screen: questComplete ? "victory" : state.ui.screen,
     },
+    stats: {
+      ...state.stats,
+      totalVictories: questComplete ? state.stats.totalVictories + 1 : state.stats.totalVictories,
+      totalGoldEarned: state.stats.totalGoldEarned + enemy.gold + (questComplete ? reward.gold : 0),
+      totalExpEarned: state.stats.totalExpEarned + enemy.exp + (questComplete ? reward.exp : 0),
+    },
   };
 
   nextState = checkLevelUp(nextState);

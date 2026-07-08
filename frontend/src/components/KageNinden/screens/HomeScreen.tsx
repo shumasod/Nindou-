@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
 import { CLANS, SKILLS, ITEMS } from "../data";
-import type { GameState } from "../types";
+import type { GameState, GameStats } from "../types";
 import type { GameAction } from "../reducer";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
-type SubView = "menu" | "items" | "train" | "skills_list";
+type SubView = "menu" | "items" | "train" | "skills_list" | "stats";
 
 export default function HomeScreen({ state, dispatch }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
@@ -164,6 +164,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
           {subView === "items" && <ItemsView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "train" && <TrainView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "skills_list" && <SkillsListView player={player} setSubView={setSubView} />}
+          {subView === "stats" && <StatsView stats={state.stats} setSubView={setSubView} />}
         </div>
       </div>
 
@@ -193,6 +194,7 @@ function MenuView({
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
     { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "戦績", icon: "📊", action: () => setSubView("stats"), color: C.dim },
   ];
 
   return (
@@ -377,6 +379,44 @@ function SkillsListView({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── 戦績ビュー ───
+function StatsView({ stats, setSubView }: { stats: GameStats; setSubView: (v: SubView) => void }) {
+  const winRate = stats.totalBattles > 0
+    ? Math.round((stats.totalVictories / stats.totalBattles) * 100)
+    : 0;
+
+  const rows: { label: string; value: string | number; color?: string }[] = [
+    { label: "総戦闘数",       value: stats.totalBattles },
+    { label: "勝利数",         value: stats.totalVictories, color: C.success },
+    { label: "敗北数",         value: stats.totalDeaths,    color: C.accent1 },
+    { label: "逃走数",         value: stats.totalEscapes,   color: C.dim },
+    { label: "勝率",           value: `${winRate}%`,        color: winRate >= 70 ? C.success : winRate >= 40 ? C.accent2 : C.accent1 },
+    { label: "総ダメージ量",   value: stats.totalDamageDealt },
+    { label: "最大ダメージ",   value: stats.highestDamage,  color: C.accent2 },
+    { label: "累計獲得EXP",    value: stats.totalExpEarned, color: C.purple },
+    { label: "累計獲得G",      value: `${stats.totalGoldEarned}G`, color: C.accent2 },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <h3 style={{ color: C.accent2, margin: 0, fontSize: "15px" }}>── 戦績 ──</h3>
+        <button style={{ ...S.btn(C.dim), padding: "4px 10px", fontSize: "12px" }} onClick={() => setSubView("menu")}>
+          ← 戻る
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {rows.map((row) => (
+          <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>{row.label}</span>
+            <span style={{ color: row.color ?? C.text, fontSize: "13px", fontWeight: "bold" }}>{row.value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

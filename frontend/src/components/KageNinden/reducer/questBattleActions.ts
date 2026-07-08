@@ -47,6 +47,7 @@ export function handleStartBattle(
       killCount: 0,
     },
     ui: { ...state.ui, screen: "battle" },
+    stats: { ...state.stats, totalBattles: state.stats.totalBattles + 1 },
   };
 }
 
@@ -63,6 +64,15 @@ export function handlePlayerAttack(state: GameState): GameState {
 
   let s = applyEnemyDamage(state, damage);
   s = addLog(s, `${state.player.name}の攻撃！ ${damage}ダメージ！${isCritical ? " 【CRITICAL!!】" : ""}`);
+  // ダメージ統計を更新
+  s = {
+    ...s,
+    stats: {
+      ...s.stats,
+      totalDamageDealt: s.stats.totalDamageDealt + damage,
+      highestDamage: Math.max(s.stats.highestDamage, damage),
+    },
+  };
 
   if (s.battle.enemy!.hp <= 0) {
     s = addLog(s, `${s.battle.enemy!.name}を倒した！ EXP+${s.battle.enemy!.exp} G+${s.battle.enemy!.gold}`);
@@ -219,7 +229,8 @@ export function handlePlayerEscape(state: GameState): GameState {
 
   const rate = calcEscapeRate(state.player.stats.speed, state.battle.enemy.speed);
   if (Math.random() < rate) {
-    const s = addLog(state, "逃走に成功した...");
+    let s = addLog(state, "逃走に成功した...");
+    s = { ...s, stats: { ...s.stats, totalEscapes: s.stats.totalEscapes + 1 } };
     return { ...s, battle: { ...s.battle, active: false }, ui: { ...s.ui, screen: "home" } };
   }
   const s = addLog(state, "逃走に失敗した！");
@@ -239,6 +250,7 @@ export function handleEnemyTurn(state: GameState): GameState {
     s = applyPlayerDamage(s, poisonDmg);
     s = addLog(s, `毒のダメージ！ ${poisonDmg}ダメージ。`);
     if (s.player.hp <= 0) {
+      s = { ...s, stats: { ...s.stats, totalDeaths: s.stats.totalDeaths + 1 } };
       return { ...s, battle: { ...s.battle, active: false }, ui: { ...s.ui, screen: "gameover" } };
     }
   }
@@ -312,6 +324,7 @@ export function handleEnemyTurn(state: GameState): GameState {
   }
 
   if (s.player.hp <= 0) {
+    s = { ...s, stats: { ...s.stats, totalDeaths: s.stats.totalDeaths + 1 } };
     return { ...s, battle: { ...s.battle, active: false }, ui: { ...s.ui, screen: "gameover" } };
   }
 

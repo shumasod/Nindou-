@@ -135,6 +135,17 @@ export interface BattleState {
   killCount: number;
 }
 
+export interface GameStats {
+  totalBattles: number;
+  totalVictories: number;
+  totalDeaths: number;
+  totalDamageDealt: number;
+  totalGoldEarned: number;
+  totalExpEarned: number;
+  totalEscapes: number;
+  highestDamage: number;
+}
+
 export interface GameState {
   player: Player;
   progress: {
@@ -151,4 +162,5 @@ export interface GameState {
     levelUpPending: boolean;
     lastReward: { exp: number; gold: number; items: string[] } | null;
   };
+  stats: GameStats;
 }
