@@ -348,27 +348,35 @@ function ItemPanel({
 
 // ─── 状態異常バッジ ───
 function StatusBadge({ effect }: { effect: StatusEffect }) {
-  const colorMap: Record<string, string> = {
-    poison: "#8b6914",
-    stun: "#3a6ea8",
-    confusion: C.purple,
-    defending: C.chakra,
-    defense_up: C.chakra,
-    speed_up: C.success,
-    shadow_clone: C.purple,
+  const config: Record<string, { color: string; icon: string; harmful: boolean }> = {
+    poison:       { color: "#8b6914", icon: "☠", harmful: true },
+    stun:         { color: "#3a6ea8", icon: "⚡", harmful: true },
+    ambush_stun:  { color: "#3a6ea8", icon: "⚡", harmful: true },
+    confusion:    { color: C.purple,  icon: "🌀", harmful: true },
+    defending:    { color: C.chakra,  icon: "🛡", harmful: false },
+    defense_up:   { color: C.chakra,  icon: "🔵", harmful: false },
+    speed_up:     { color: C.success, icon: "💨", harmful: false },
+    attack_up:    { color: C.accent1, icon: "🔺", harmful: false },
+    shadow_clone: { color: C.purple,  icon: "👤", harmful: false },
   };
-  const color = colorMap[effect.id] ?? C.dim;
+  const { color, icon, harmful } = config[effect.id] ?? { color: C.dim, icon: "●", harmful: false };
   return (
     <span
       style={{
         border: `1px solid ${color}`,
         color: color,
         fontSize: "10px",
-        padding: "1px 6px",
-        borderRadius: "2px",
+        padding: "2px 6px",
+        borderRadius: "10px",
+        background: `${color}18`,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "3px",
+        animation: harmful ? "blink 1.5s infinite" : "none",
       }}
     >
-      {effect.name} ({effect.turns}T)
+      <span style={{ fontSize: "11px" }}>{icon}</span>
+      {effect.name} {effect.turns}T
     </span>
   );
 }
