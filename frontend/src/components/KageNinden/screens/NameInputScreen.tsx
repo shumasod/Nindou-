@@ -11,6 +11,12 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+const PRESET_NAMES: Record<string, string[]> = {
+  force:    ["影鬼", "蒼鬼", "烈火", "轟雷", "鉄拳"],
+  illusion: ["幻夜", "霞影", "月詠", "紫炎", "夢幻"],
+  speed:    ["疾風", "閃光", "迅雷", "朱雀", "燕飛"],
+};
+
 // 許可文字: ひらがな・カタカナ・漢字・英数字・スペース・ハイフン・アンダースコア
 // 制御文字・HTML特殊文字・方向制御文字(RLO等)は拒否する
 const VALID_NAME_RE = /^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uF900-\uFAFF\w\s\-_]+$/;
@@ -46,7 +52,15 @@ export default function NameInputScreen({ clan, dispatch }: Props) {
       }}
     >
       <div style={{ width: "100%", maxWidth: "420px", animation: "slideUp 0.8s ease" }}>
-        <p style={S.label}>STEP 2 / 2</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+          <button
+            style={{ ...S.btn(C.dim), padding: "4px 10px", fontSize: "12px" }}
+            onClick={() => dispatch({ type: "GO_TO_SCREEN", screen: "clan_select" })}
+          >
+            ← 流派へ戻る
+          </button>
+          <p style={{ ...S.label, margin: 0 }}>STEP 2 / 2</p>
+        </div>
         <h2 style={{ ...S.title, fontSize: "22px", margin: "8px 0 24px" }}>｜ 名を刻め ｜</h2>
 
         {/* 流派確認 */}
@@ -79,12 +93,45 @@ export default function NameInputScreen({ clan, dispatch }: Props) {
               }
             }}
           />
-          {trimmed.length > 0 && !isValidChars && (
-            <p style={{ color: C.accent1, fontSize: "11px", marginTop: "4px" }}>
-              使用できない文字が含まれています（漢字・かな・英数字のみ）
-            </p>
-          )}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+            {trimmed.length > 0 && !isValidChars ? (
+              <p style={{ color: C.accent1, fontSize: "11px", margin: 0 }}>
+                使用できない文字が含まれています（漢字・かな・英数字のみ）
+              </p>
+            ) : <span />}
+            <span style={{ color: trimmed.length > 10 ? C.accent1 : C.dim, fontSize: "11px" }}>
+              {trimmed.length} / 12
+            </span>
+          </div>
         </div>
+
+        {/* 名前候補 */}
+        {(() => {
+          const presets = PRESET_NAMES[clan] ?? [];
+          return presets.length > 0 ? (
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ ...S.label, marginBottom: "6px" }}>名前の候補</p>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {presets.map((p) => (
+                  <button
+                    key={p}
+                    style={{
+                      ...S.btn(clanData.color),
+                      padding: "4px 10px",
+                      fontSize: "12px",
+                      letterSpacing: "0.05em",
+                    }}
+                    onClick={() => setName(p)}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = clanData.color; e.currentTarget.style.color = C.bg; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = clanData.color; }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null;
+        })()}
 
         {/* フレーバーテキスト */}
         {canStart && (
