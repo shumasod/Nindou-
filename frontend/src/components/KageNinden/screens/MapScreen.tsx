@@ -1,5 +1,4 @@
 "use client";
-import type { CSSProperties } from "react";
 import { C, S } from "../styles";
 import { AREAS, QUESTS } from "../data";
 import { rankColor } from "../utils";
@@ -36,6 +35,26 @@ export default function MapScreen({ state, dispatch }: Props) {
           ｜ フィールドマップ ｜
         </h2>
       </div>
+      {/* 進捗サマリー */}
+      {(() => {
+        const total = QUESTS.length;
+        const done = progress.completedQuests.length;
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        return (
+          <div style={{ ...S.panelSm, marginBottom: "16px", display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ ...S.label, marginBottom: "4px" }}>任務進捗</p>
+              <div style={{ background: C.border, borderRadius: "4px", height: "6px", overflow: "hidden" }}>
+                <div style={{ width: `${pct}%`, height: "100%", background: C.success, transition: "width 0.4s ease" }} />
+              </div>
+            </div>
+            <span style={{ color: C.success, fontSize: "13px", whiteSpace: "nowrap" }}>
+              {done} / {total} 完了
+            </span>
+          </div>
+        );
+      })()}
+
       <p style={{ color: C.dim, fontSize: "12px", marginBottom: "20px" }}>
         任務を選んで出陣せよ。Lv不足のエリアは進入不可。
       </p>
@@ -52,7 +71,7 @@ export default function MapScreen({ state, dispatch }: Props) {
               style={{
                 ...S.panel,
                 opacity: locked ? 0.4 : 1,
-                border: `1px solid ${locked ? C.border : C.border}`,
+                border: `1px solid ${areaQuests.length > 0 && areaQuests.every(q => progress.completedQuests.includes(q.id)) ? C.success : C.border}`,
               }}
             >
               {/* エリアヘッダー */}
@@ -67,8 +86,10 @@ export default function MapScreen({ state, dispatch }: Props) {
                 <div style={{ textAlign: "right" }}>
                   {locked ? (
                     <span style={{ color: C.danger, fontSize: "11px" }}>🔒 Lv{area.minLevel}〜</span>
+                  ) : areaQuests.length > 0 && areaQuests.every(q => progress.completedQuests.includes(q.id)) ? (
+                    <span style={{ color: C.success, fontSize: "11px" }}>✓ 制圧済み</span>
                   ) : (
-                    <span style={{ color: C.success, fontSize: "11px" }}>解放済 Lv{area.minLevel}〜</span>
+                    <span style={{ color: C.accent2, fontSize: "11px" }}>Lv{area.minLevel}〜</span>
                   )}
                 </div>
               </div>
@@ -109,6 +130,9 @@ export default function MapScreen({ state, dispatch }: Props) {
                             </span>
                             <span style={{ fontSize: "13px", color: done ? C.dim : C.text }}>{q.title}</span>
                             {done && <span style={{ color: C.success, fontSize: "11px" }}>✓ 完了</span>}
+                            {progress.activeQuest?.id === q.id && !done && (
+                              <span style={{ color: C.accent1, fontSize: "11px", animation: "blink 1.2s step-end infinite" }}>► 進行中</span>
+                            )}
                           </div>
                           <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>{q.desc}</p>
                           <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
