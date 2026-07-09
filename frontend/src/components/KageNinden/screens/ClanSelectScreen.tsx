@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { C, S } from "../styles";
-import { CLANS } from "../data";
+import { CLANS, SKILLS } from "../data";
 import type { ClanId } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -95,6 +95,41 @@ export default function ClanSelectScreen({ dispatch }: Props) {
             );
           })}
         </div>
+
+        {/* 選択中流派の詳細プレビュー */}
+        {selected && (() => {
+          const clan = CLANS[selected];
+          const skill = SKILLS[clan.starterSkill];
+          const playstyles: Record<string, string> = {
+            force:    "序盤から高いダメージを出せる攻撃型。防御で粘り、術で追い打ちを。",
+            illusion: "チャクラ効率が高く術を多用できる。幻惑で敵を封じる補助型。",
+            speed:    "素早さで先手を取り、高確率で奇襲が成功する。回避を活かして戦う。",
+          };
+          return (
+            <div style={{
+              ...S.panel,
+              marginBottom: "24px",
+              border: `1px solid ${clan.color}60`,
+              background: `${clan.color}0a`,
+              animation: "fadeIn 0.3s ease",
+            }}>
+              <p style={{ ...S.label, marginBottom: "10px" }}>
+                {clan.icon} {clan.name} — 詳細
+              </p>
+              <p style={{ color: C.text, fontSize: "13px", lineHeight: 1.7, marginBottom: "10px" }}>
+                {playstyles[selected]}
+              </p>
+              {skill && (
+                <div style={{ padding: "8px", background: "#1a1a28", borderRadius: "4px" }}>
+                  <p style={{ color: clan.color, fontSize: "12px", margin: "0 0 4px", fontWeight: "bold" }}>
+                    初期スキル: {skill.name} (コスト {skill.cost}チャクラ)
+                  </p>
+                  <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>{skill.desc}</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 確定ボタン */}
         <div style={{ display: "flex", justifyContent: "center" }}>
