@@ -11,7 +11,7 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
-type SubView = "menu" | "items" | "train" | "skills_list";
+type SubView = "menu" | "items" | "train" | "skills_list" | "inn";
 
 export default function HomeScreen({ state, dispatch }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
@@ -164,6 +164,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
           {subView === "items" && <ItemsView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "train" && <TrainView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "skills_list" && <SkillsListView player={player} setSubView={setSubView} />}
+          {subView === "inn" && <InnView player={player} dispatch={dispatch} setSubView={setSubView} />}
         </div>
       </div>
 
@@ -193,6 +194,7 @@ function MenuView({
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
     { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "宿屋で休む", icon: "🏮", action: () => setSubView("inn"), color: C.purple },
   ];
 
   return (
@@ -338,6 +340,71 @@ function TrainView({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── 宿屋ビュー ───
+function InnView({
+  player,
+  dispatch,
+  setSubView,
+}: {
+  player: GameState["player"];
+  dispatch: (a: GameAction) => void;
+  setSubView: (v: SubView) => void;
+}) {
+  const hpMissing = player.maxHp - player.hp;
+  const chakraMissing = player.maxChakra - player.chakra;
+  const cost = Math.max(10, Math.floor(hpMissing * 0.5 + chakraMissing * 0.3));
+  const alreadyFull = hpMissing === 0 && chakraMissing === 0;
+  const canAfford = player.gold >= cost;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+        <button style={{ ...S.btn(C.dim), padding: "4px 10px", fontSize: "12px" }} onClick={() => setSubView("menu")}>
+          ← 戻る
+        </button>
+        <h3 style={{ color: C.purple, margin: 0, fontSize: "15px" }}>── 🏮 宿屋 ──</h3>
+      </div>
+      <p style={{ color: C.dim, fontSize: "13px", marginBottom: "16px" }}>
+        ゆっくり休んでいきな。HP・チャクラを全回復する。
+      </p>
+      <div style={{ ...S.panelSm, marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+          <span style={{ color: C.dim, fontSize: "12px" }}>HP</span>
+          <span style={{ color: C.text, fontSize: "12px" }}>{player.hp} → {player.maxHp}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+          <span style={{ color: C.dim, fontSize: "12px" }}>チャクラ</span>
+          <span style={{ color: C.text, fontSize: "12px" }}>{player.chakra} → {player.maxChakra}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.border}`, paddingTop: "6px", marginTop: "4px" }}>
+          <span style={{ color: C.dim, fontSize: "12px" }}>宿泊費</span>
+          <span style={{ color: canAfford ? C.accent2 : C.danger, fontSize: "13px", fontWeight: "bold" }}>
+            {alreadyFull ? "─ G" : `${cost} G`}
+          </span>
+        </div>
+      </div>
+      {alreadyFull ? (
+        <p style={{ color: C.success, fontSize: "13px", textAlign: "center" }}>
+          ✓ 既に万全の状態だ。
+        </p>
+      ) : !canAfford ? (
+        <p style={{ color: C.danger, fontSize: "13px", textAlign: "center" }}>
+          所持金が足りない（{player.gold} G / {cost} G 必要）
+        </p>
+      ) : (
+        <button
+          style={{ ...S.btn(C.purple), padding: "10px 24px", width: "100%", fontSize: "14px" }}
+          onClick={() => { dispatch({ type: "REST_AT_INN" }); setSubView("menu"); }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.purple; e.currentTarget.style.color = C.bg; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.purple; }}
+        >
+          🏮 休む（{cost} G）
+        </button>
+      )}
     </div>
   );
 }
