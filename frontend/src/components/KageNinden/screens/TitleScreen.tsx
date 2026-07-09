@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { C, S } from "../styles";
 import type { GameAction } from "../reducer";
@@ -7,7 +8,33 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+const TIPS = [
+  "奇襲が成功すると敵が1ターン行動不能になる",
+  "防御コマンドを使うとダメージを半減できる",
+  "チャクラはターンごとに少量回復する",
+  "技能を使うとチャクラを消費するが高威力",
+  "クエスト完了でボーナス報酬を獲得できる",
+  "速さが高いほど先手を取りやすい",
+];
+
 export default function TitleScreen({ dispatch }: Props) {
+  const [hasSave, setHasSave] = useState(false);
+  const [showTips, setShowTips] = useState(false);
+  const [tipIndex, setTipIndex] = useState(0);
+
+  useEffect(() => {
+    try {
+      setHasSave(!!localStorage.getItem("kage_ninden_save"));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTipIndex((i) => (i + 1) % TIPS.length);
+    }, 3500);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div
       style={{
@@ -27,7 +54,7 @@ export default function TitleScreen({ dispatch }: Props) {
       <div style={bgDeco} />
 
       {/* タイトルブロック */}
-      <div style={{ textAlign: "center", animation: "fadeIn 1.2s ease", marginBottom: "48px" }}>
+      <div style={{ textAlign: "center", animation: "fadeIn 1.2s ease", marginBottom: "40px" }}>
         <p style={{ color: C.dim, fontSize: "11px", letterSpacing: "0.4em", marginBottom: "12px" }}>
           ── NINJA RPG ──
         </p>
@@ -55,23 +82,56 @@ export default function TitleScreen({ dispatch }: Props) {
           <p>闇に生き、影に死す。</p>
           <p>これが真の忍の道。</p>
         </div>
+
+        {/* セーブデータインジケーター */}
+        <div style={{ marginTop: "12px", fontSize: "11px", color: hasSave ? C.success : C.dim }}>
+          {hasSave ? "💾 セーブデータ: あり" : "💾 セーブデータ: なし"}
+        </div>
       </div>
 
       {/* メニュー */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "220px", animation: "slideUp 1s ease 0.4s both" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "240px", animation: "slideUp 1s ease 0.4s both" }}>
         <button
-          style={menuBtnStyle}
-          onMouseEnter={(e) => hoverOn(e)}
-          onMouseLeave={(e) => hoverOff(e)}
+          style={menuBtnStyle(C.accent2)}
+          onMouseEnter={(e) => hoverOn(e, C.accent2)}
+          onMouseLeave={(e) => hoverOff(e, C.accent2)}
           onClick={() => dispatch({ type: "GO_TO_SCREEN", screen: "clan_select" })}
         >
-          ▶　冒険を始める
+          ▶　新しい冒険
+        </button>
+        <button
+          style={{ ...menuBtnStyle(C.dim), fontSize: "13px", padding: "8px 24px" }}
+          onMouseEnter={(e) => hoverOn(e, C.dim)}
+          onMouseLeave={(e) => hoverOff(e, C.dim)}
+          onClick={() => setShowTips((v) => !v)}
+        >
+          ？　操作説明
         </button>
       </div>
 
+      {/* Tips パネル */}
+      {showTips && (
+        <div
+          style={{
+            marginTop: "24px",
+            width: "280px",
+            ...S.panel,
+            animation: "fadeIn 0.3s ease",
+          }}
+        >
+          <p style={{ ...S.label, marginBottom: "8px" }}>操作ヒント</p>
+          <p style={{ color: C.text, fontSize: "13px", lineHeight: 1.7, minHeight: "42px", transition: "all 0.3s" }}>
+            💡 {TIPS[tipIndex]}
+          </p>
+          <p style={{ color: C.dim, fontSize: "11px", marginTop: "8px" }}>
+            {tipIndex + 1} / {TIPS.length} — 自動で切り替わります
+          </p>
+        </div>
+      )}
+
       {/* 下部装飾 */}
       <p style={{ position: "absolute", bottom: "20px", color: C.dim, fontSize: "11px", letterSpacing: "0.1em" }}>
-        ｜ 影忍伝 ─ Kage Ninden ｜
+        ｜ 影忍伝 ─ Kage Ninden ｜ v1.0
       </p>
     </div>
   );
@@ -87,21 +147,23 @@ const bgDeco: CSSProperties = {
   pointerEvents: "none",
 };
 
-const menuBtnStyle: CSSProperties = {
-  ...S.btn(C.accent2),
-  padding: "12px 24px",
-  fontSize: "15px",
-  letterSpacing: "0.15em",
-  width: "100%",
-};
+function menuBtnStyle(color: string): CSSProperties {
+  return {
+    ...S.btn(color),
+    padding: "12px 24px",
+    fontSize: "15px",
+    letterSpacing: "0.15em",
+    width: "100%",
+  };
+}
 
-function hoverOn(e: React.MouseEvent<HTMLButtonElement>) {
+function hoverOn(e: React.MouseEvent<HTMLButtonElement>, color: string) {
   const el = e.currentTarget;
-  el.style.background = C.accent2;
+  el.style.background = color;
   el.style.color = C.bg;
 }
-function hoverOff(e: React.MouseEvent<HTMLButtonElement>) {
+function hoverOff(e: React.MouseEvent<HTMLButtonElement>, color: string) {
   const el = e.currentTarget;
   el.style.background = "transparent";
-  el.style.color = C.accent2;
+  el.style.color = color;
 }
