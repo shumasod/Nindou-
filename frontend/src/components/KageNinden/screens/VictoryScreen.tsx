@@ -1,6 +1,7 @@
 "use client";
 import { C, S } from "../styles";
-import { ITEMS } from "../data";
+import { ITEMS, QUESTS } from "../data";
+import { rankColor } from "../utils";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -9,9 +10,29 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+function performanceGrade(hpRatio: number): { grade: string; color: string; msg: string } {
+  if (hpRatio >= 0.8) return { grade: "S", color: C.accent2,  msg: "完璧な任務遂行だ！" };
+  if (hpRatio >= 0.5) return { grade: "A", color: C.success,  msg: "見事な戦いぶりだ。" };
+  if (hpRatio >= 0.25) return { grade: "B", color: C.chakra,  msg: "良くやった。まだ伸びしろがある。" };
+  if (hpRatio > 0)    return { grade: "C", color: C.text,     msg: "生き延びたことで十分だ。" };
+  return                      { grade: "D", color: C.dim,      msg: "次は慎重に戦え。" };
+}
+
 export default function VictoryScreen({ state, dispatch }: Props) {
-  const { ui, player } = state;
+  const { ui, player, progress } = state;
   const reward = ui.lastReward;
+
+  // Find the last completed quest
+  const lastQuestId = progress.completedQuests[progress.completedQuests.length - 1];
+  const completedQuest = lastQuestId ? QUESTS.find((q) => q.id === lastQuestId) : null;
+
+  // Next available quest recommendation
+  const nextQuest = QUESTS.find(
+    (q) => !progress.completedQuests.includes(q.id) && player.level >= q.minLevel
+  );
+
+  const hpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 0;
+  const perf = performanceGrade(hpRatio);
 
   return (
     <div
@@ -29,24 +50,55 @@ export default function VictoryScreen({ state, dispatch }: Props) {
     >
       <div style={{ maxWidth: "480px", width: "100%", animation: "slideUp 0.8s ease" }}>
         {/* 勝利ヘッダー */}
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+        <div style={{ textAlign: "center", marginBottom: "24px" }}>
           <p style={{ color: C.accent2, fontSize: "40px", margin: "0 0 8px", letterSpacing: "0.2em" }}>
             ── 任務完了 ──
           </p>
           <p style={{ color: C.success, fontSize: "16px", letterSpacing: "0.15em" }}>
             MISSION COMPLETE
           </p>
-          <div
-            style={{
-              marginTop: "12px",
-              padding: "8px",
-              border: `1px solid ${C.success}`,
-              borderRadius: "4px",
-              color: C.success,
-              fontSize: "14px",
-            }}
-          >
-            見事な腕前だ、{player.name}。
+
+          {/* Completed quest rank badge */}
+          {completedQuest && (
+            <div style={{ marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+              <span
+                style={{
+                  color: rankColor(completedQuest.rank),
+                  border: `1px solid ${rankColor(completedQuest.rank)}`,
+                  padding: "2px 10px",
+                  fontSize: "14px",
+                  borderRadius: "2px",
+                }}
+              >
+                {completedQuest.rank}ランク
+              </span>
+              <span style={{ color: C.text, fontSize: "15px", fontWeight: "bold" }}>
+                {completedQuest.title}
+              </span>
+            </div>
+          )}
+
+          {/* Performance grade */}
+          <div style={{ marginTop: "14px", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+            <span
+              style={{
+                color: perf.color,
+                border: `2px solid ${perf.color}`,
+                padding: "4px 14px",
+                fontSize: "22px",
+                fontWeight: "bold",
+                borderRadius: "4px",
+                animation: perf.grade === "S" ? "pulse 1.5s infinite" : "none",
+              }}
+            >
+              {perf.grade}
+            </span>
+            <div style={{ textAlign: "left" }}>
+              <p style={{ color: perf.color, fontSize: "13px", margin: 0 }}>{perf.msg}</p>
+              <p style={{ color: C.dim, fontSize: "11px", margin: "2px 0 0" }}>
+                残りHP: {player.hp} / {player.maxHp} ({Math.round(hpRatio * 100)}%)
+              </p>
+            </div>
           </div>
         </div>
 
@@ -118,6 +170,40 @@ export default function VictoryScreen({ state, dispatch }: Props) {
             <span style={{ color: C.accent2, fontSize: "12px" }}>{player.gold} G</span>
           </div>
         </div>
+
+        {/* 次の任務推薦 */}
+        {nextQuest && (
+          <div
+            style={{
+              ...S.panelSm,
+              marginBottom: "20px",
+              border: `1px solid ${C.accent2}44`,
+              background: `${C.accent2}08`,
+            }}
+          >
+            <p style={{ ...S.label, marginBottom: "6px" }}>次の推薦任務</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span
+                style={{
+                  color: rankColor(nextQuest.rank),
+                  border: `1px solid ${rankColor(nextQuest.rank)}`,
+                  padding: "1px 6px",
+                  fontSize: "11px",
+                  borderRadius: "2px",
+                }}
+              >
+                {nextQuest.rank}
+              </span>
+              <span style={{ color: C.text, fontSize: "13px" }}>{nextQuest.title}</span>
+              <span style={{ color: C.dim, fontSize: "11px", marginLeft: "auto" }}>
+                Lv.{nextQuest.minLevel}+
+              </span>
+            </div>
+            <p style={{ color: C.dim, fontSize: "11px", margin: "4px 0 0", lineHeight: 1.5 }}>
+              {nextQuest.desc.slice(0, 48)}…
+            </p>
+          </div>
+        )}
 
         {/* ボタン */}
         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
