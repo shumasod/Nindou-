@@ -90,12 +90,34 @@ export default function BattleScreen({ state, dispatch }: Props) {
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <span style={{ fontSize: "32px" }}>{enemy.icon}</span>
             <div>
-              <p style={{ margin: 0, fontSize: "16px", color: C.accent1 }}>{enemy.name}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                <p style={{ margin: 0, fontSize: "16px", color: C.accent1 }}>{enemy.name}</p>
+                {(() => {
+                  const ai = aiLabel(enemy.ai);
+                  return (
+                    <span
+                      style={{
+                        color: ai.color,
+                        border: `1px solid ${ai.color}88`,
+                        padding: "0 5px",
+                        fontSize: "10px",
+                        borderRadius: "2px",
+                        background: `${ai.color}18`,
+                      }}
+                    >
+                      {ai.label}
+                    </span>
+                  );
+                })()}
+              </div>
               {enemy.phase2 && (
                 <span style={{ color: C.accent2, fontSize: "11px", animation: "pulse 1s infinite" }}>
                   【フェーズ2】
                 </span>
               )}
+              <p style={{ margin: "1px 0 0", color: C.dim, fontSize: "10px" }}>
+                {aiLabel(enemy.ai).tip}
+              </p>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -371,6 +393,20 @@ function StatusBadge({ effect }: { effect: StatusEffect }) {
       {effect.name} ({effect.turns}T)
     </span>
   );
+}
+
+// ─── 敵AIスタイルラベル ───
+const AI_LABELS: Record<string, { label: string; color: string; tip: string }> = {
+  aggressive: { label: "猛攻型",   color: C.accent1,  tip: "防御より回避を優先せよ" },
+  balanced:   { label: "均衡型",   color: C.text,     tip: "弱点を探して攻める" },
+  debuffer:   { label: "弱体化型", color: "#9b72d4",  tip: "毒・麻痺に注意。道具を用意しろ" },
+  tank:       { label: "防御型",   color: C.chakra,   tip: "強力な術で一気に削れ" },
+  speed:      { label: "高速型",   color: C.success,  tip: "先手を奪われるな。素早さが鍵" },
+  boss:       { label: "魔忍王",   color: C.accent2,  tip: "フェーズ2を警戒せよ" },
+};
+
+function aiLabel(ai: string): { label: string; color: string; tip: string } {
+  return AI_LABELS[ai] ?? { label: ai, color: C.dim, tip: "" };
 }
 
 // ─── ログの色分け ───
