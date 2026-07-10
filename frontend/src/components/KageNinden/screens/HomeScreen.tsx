@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
-import { CLANS, SKILLS, ITEMS } from "../data";
+import { CLANS, SKILLS, ITEMS, WEAPONS, ARMORS } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -128,6 +128,40 @@ export default function HomeScreen({ state, dispatch }: Props) {
               <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                 <span style={{ color: C.dim, fontSize: "12px" }}>{icon} {label}</span>
                 <span style={{ color: C.text, fontSize: "12px" }}>{val}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 装備 */}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "10px", marginTop: "6px" }}>
+            {[
+              {
+                icon: "⚔",
+                label: "武器",
+                data: WEAPONS[player.equip.weapon],
+                bonusText: (d: typeof WEAPONS[string]) =>
+                  [d.attack !== 0 && `ATK${d.attack > 0 ? "+" : ""}${d.attack}`, d.speed !== 0 && `SPD${d.speed > 0 ? "+" : ""}${d.speed}`]
+                    .filter(Boolean).join(" ") || "±0",
+              },
+              {
+                icon: "🛡",
+                label: "防具",
+                data: ARMORS[player.equip.armor],
+                bonusText: (d: typeof ARMORS[string]) =>
+                  [d.defense !== 0 && `DEF${d.defense > 0 ? "+" : ""}${d.defense}`, d.stealth !== 0 && `STL${d.stealth > 0 ? "+" : ""}${d.stealth}`]
+                    .filter(Boolean).join(" ") || "±0",
+              },
+            ].map(({ icon, label, data, bonusText }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <span style={{ color: C.dim, fontSize: "11px" }}>{icon} {label}</span>
+                {data ? (
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ color: C.text, fontSize: "11px" }}>{data.name}</span>
+                    <span style={{ color: C.dim, fontSize: "10px", marginLeft: "4px" }}>({bonusText(data as never)})</span>
+                  </div>
+                ) : (
+                  <span style={{ color: C.dim, fontSize: "11px" }}>なし</span>
+                )}
               </div>
             ))}
           </div>
