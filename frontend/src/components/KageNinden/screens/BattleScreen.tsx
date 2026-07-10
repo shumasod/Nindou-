@@ -267,33 +267,85 @@ function SkillPanel({
   dispatch: (a: GameAction) => void;
   onClose: () => void;
 }) {
+  const usableCount = skills.filter((sid) => {
+    const sk = SKILLS[sid];
+    return sk && player.chakra >= sk.cost;
+  }).length;
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
         <span style={{ color: C.accent2, fontSize: "13px" }}>── 術を選べ ──</span>
         <button style={{ ...S.btn(C.dim), padding: "2px 8px", fontSize: "12px" }} onClick={onClose}>✕</button>
       </div>
+
+      {/* 現在チャクラ表示 */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+        <span style={{ color: C.dim, fontSize: "10px" }}>現在チャクラ:</span>
+        <span style={{ color: C.chakra, fontSize: "12px", fontWeight: "bold" }}>
+          {player.chakra} / {player.maxChakra}
+        </span>
+        {usableCount === 0 && (
+          <span
+            style={{
+              color: C.accent1,
+              fontSize: "10px",
+              border: `1px solid ${C.accent1}88`,
+              padding: "0 4px",
+              borderRadius: "2px",
+              animation: "pulse 1.5s infinite",
+            }}
+          >
+            チャクラ不足
+          </span>
+        )}
+      </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {skills.map((sid) => {
           const sk = SKILLS[sid];
           if (!sk) return null;
           const canUse = player.chakra >= sk.cost && !isAnimating;
+          const shortage = sk.cost - player.chakra;
+          const costRatio = Math.min(1, player.chakra / sk.cost);
           return (
             <button
               key={sid}
               style={
                 canUse
                   ? { ...S.btn(C.purple), textAlign: "left", padding: "6px 10px", width: "100%" }
-                  : { ...S.btnDisabled, textAlign: "left", padding: "6px 10px", width: "100%" }
+                  : { ...S.btnDisabled, textAlign: "left", padding: "6px 10px", width: "100%", opacity: 0.6 }
               }
               disabled={!canUse}
               onClick={() => { dispatch({ type: "PLAYER_SKILL", skillId: sid }); onClose(); }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>{sk.name}</span>
-                <span style={{ color: canUse ? C.chakra : C.dim, fontSize: "12px" }}>⚡{sk.cost}</span>
+                <span style={{ color: canUse ? C.chakra : C.accent1, fontSize: "12px" }}>
+                  ⚡{sk.cost}{!canUse && ` (${shortage}不足)`}
+                </span>
               </div>
-              <p style={{ margin: "2px 0 0", fontSize: "11px", color: C.dim }}>{sk.desc}</p>
+              {/* チャクラコストバー */}
+              <div
+                style={{
+                  height: "2px",
+                  background: `${C.dim}44`,
+                  borderRadius: "1px",
+                  margin: "4px 0 2px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${costRatio * 100}%`,
+                    height: "100%",
+                    background: canUse ? C.chakra : C.accent1,
+                    borderRadius: "1px",
+                    transition: "width 0.3s",
+                  }}
+                />
+              </div>
+              <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>{sk.desc}</p>
             </button>
           );
         })}
