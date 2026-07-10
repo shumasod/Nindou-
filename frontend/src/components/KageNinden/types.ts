@@ -135,6 +135,13 @@ export interface BattleState {
   killCount: number;
 }
 
+export interface Achievement {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+}
+
 export interface GameState {
   player: Player;
   progress: {
@@ -143,6 +150,7 @@ export interface GameState {
     activeQuest: Quest | null;
     unlockedAreas: string[];
     questProgress: Record<string, number>;
+    unlockedAchievements: string[];
   };
   battle: BattleState;
   ui: {

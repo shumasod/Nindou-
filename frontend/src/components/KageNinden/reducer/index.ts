@@ -3,6 +3,7 @@ import type { GameState, Player, ClanId } from "../types";
 // Re-export types so existing "from './reducer'" imports keep working
 export type { GameState } from "../types";
 import { handleSelectClan, handleSetName, handleAllocateStat } from "./playerActions";
+import { checkAchievements } from "./helpers";
 import {
   handleStartQuest,
   handleStartBattle,
@@ -44,6 +45,7 @@ export const INITIAL_STATE: GameState = {
     activeQuest: null,
     unlockedAreas: ["forest"],
     questProgress: {},
+    unlockedAchievements: [],
   },
   battle: {
     active: false,
@@ -92,7 +94,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, ui: { ...state.ui, screen: action.screen, levelUpPending: false } };
 
     case "SELECT_CLAN":
-      return handleSelectClan(state, action.clan);
+      return checkAchievements(handleSelectClan(state, action.clan));
 
     case "SET_NAME":
       return handleSetName(state, action.name);
@@ -103,11 +105,29 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "START_BATTLE":
       return handleStartBattle(state, action.enemyId, action.questId);
 
-    case "PLAYER_ATTACK":
-      return handlePlayerAttack(state);
+    case "PLAYER_ATTACK": {
+      const s = handlePlayerAttack(state);
+      return s.ui.screen === "victory" || s.battle.phase === "enemy"
+        ? checkAchievements(s, {
+            defeatedEnemy: s.ui.screen === "victory" || s.battle.killCount > state.battle.killCount,
+            questCompleted: s.ui.screen === "victory",
+            hpAtVictory: s.player.hp,
+            maxHpAtVictory: s.player.maxHp,
+            startHp: state.player.hp,
+          })
+        : s;
+    }
 
-    case "PLAYER_SKILL":
-      return handlePlayerSkill(state, action.skillId);
+    case "PLAYER_SKILL": {
+      const s = handlePlayerSkill(state, action.skillId);
+      return checkAchievements(s, {
+        defeatedEnemy: s.ui.screen === "victory" || s.battle.killCount > state.battle.killCount,
+        questCompleted: s.ui.screen === "victory",
+        hpAtVictory: s.player.hp,
+        maxHpAtVictory: s.player.maxHp,
+        startHp: state.player.hp,
+      });
+    }
 
     case "PLAYER_ITEM":
       return handlePlayerItem(state, action.itemId);

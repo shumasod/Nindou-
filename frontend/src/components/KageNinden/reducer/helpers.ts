@@ -1,5 +1,5 @@
 import type { GameState, Player, StatusEffect } from "../types";
-import { CLANS, ITEMS, QUESTS, ENEMIES, SKILLS, SKILL_UNLOCK } from "../data";
+import { CLANS, ITEMS, QUESTS, ENEMIES, SKILLS, SKILL_UNLOCK, ACHIEVEMENTS } from "../data";
 import {
   calcDamageWithSpeed,
   calcExpToNext,
@@ -174,4 +174,40 @@ export function finalizeEnemyTurn(state: GameState): GameState {
         : 0,
     },
   };
+}
+
+// ===== 実績チェック =====
+export function checkAchievements(state: GameState, context: {
+  defeatedEnemy?: boolean;
+  questCompleted?: boolean;
+  hpAtVictory?: number;
+  maxHpAtVictory?: number;
+  startHp?: number;
+} = {}): GameState {
+  const unlocked = new Set(state.progress.unlockedAchievements);
+  const p = state.player;
+
+  const unlock = (id: string) => unlocked.add(id);
+
+  if (context.defeatedEnemy && !unlocked.has("first_blood")) unlock("first_blood");
+  if (p.level >= 5  && !unlocked.has("level5"))       unlock("level5");
+  if (p.level >= 10 && !unlocked.has("level10"))      unlock("level10");
+  if (p.gold >= 1000 && !unlocked.has("rich"))        unlock("rich");
+  if (context.questCompleted && !unlocked.has("first_quest")) unlock("first_quest");
+  if (state.progress.completedQuests.length >= QUESTS.length && !unlocked.has("all_quests")) unlock("all_quests");
+  if (p.clan === "force"    && !unlocked.has("clan_force"))    unlock("clan_force");
+  if (p.clan === "illusion" && !unlocked.has("clan_illusion")) unlock("clan_illusion");
+  if (p.clan === "speed"    && !unlocked.has("clan_speed"))    unlock("clan_speed");
+  if (context.defeatedEnemy && context.hpAtVictory != null && context.maxHpAtVictory != null) {
+    if (context.hpAtVictory / context.maxHpAtVictory <= 0.1 && !unlocked.has("near_death")) {
+      unlock("near_death");
+    }
+    if (context.startHp != null && context.startHp === context.hpAtVictory && !unlocked.has("no_damage")) {
+      unlock("no_damage");
+    }
+  }
+
+  const newList = [...unlocked];
+  if (newList.length === state.progress.unlockedAchievements.length) return state;
+  return { ...state, progress: { ...state.progress, unlockedAchievements: newList } };
 }

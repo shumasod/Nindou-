@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
-import { CLANS, SKILLS, ITEMS } from "../data";
+import { CLANS, SKILLS, ITEMS, ACHIEVEMENTS } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -11,7 +11,7 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
-type SubView = "menu" | "items" | "train" | "skills_list";
+type SubView = "menu" | "items" | "train" | "skills_list" | "achievements";
 
 export default function HomeScreen({ state, dispatch }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
@@ -164,6 +164,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
           {subView === "items" && <ItemsView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "train" && <TrainView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "skills_list" && <SkillsListView player={player} setSubView={setSubView} />}
+          {subView === "achievements" && <AchievementsView state={state} setSubView={setSubView} />}
         </div>
       </div>
 
@@ -193,6 +194,7 @@ function MenuView({
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
     { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "実績", icon: "🏆", action: () => setSubView("achievements") },
   ];
 
   return (
@@ -377,6 +379,59 @@ function SkillsListView({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── 実績ビュー ───
+function AchievementsView({
+  state,
+  setSubView,
+}: {
+  state: GameState;
+  setSubView: (v: SubView) => void;
+}) {
+  const unlocked = new Set(state.progress.unlockedAchievements);
+  const total = ACHIEVEMENTS.length;
+  const done = unlocked.size;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+        <button style={{ ...S.btn(C.dim), padding: "4px 10px", fontSize: "12px" }} onClick={() => setSubView("menu")}>
+          ← 戻る
+        </button>
+        <h3 style={{ color: C.accent2, margin: 0, fontSize: "15px" }}>── 🏆 実績 ──</h3>
+        <span style={{ color: C.dim, fontSize: "12px", marginLeft: "auto" }}>{done} / {total}</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        {ACHIEVEMENTS.map((ach) => {
+          const isUnlocked = unlocked.has(ach.id);
+          return (
+            <div
+              key={ach.id}
+              style={{
+                ...S.panelSm,
+                display: "flex",
+                gap: "10px",
+                alignItems: "center",
+                opacity: isUnlocked ? 1 : 0.45,
+                border: isUnlocked ? `1px solid ${C.accent2}40` : `1px solid ${C.border}`,
+              }}
+            >
+              <span style={{ fontSize: "20px" }}>{isUnlocked ? ach.icon : "🔒"}</span>
+              <div>
+                <p style={{ margin: 0, fontSize: "13px", color: isUnlocked ? C.accent2 : C.dim }}>
+                  {isUnlocked ? ach.name : "???"}
+                </p>
+                <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>
+                  {isUnlocked ? ach.desc : "未達成"}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

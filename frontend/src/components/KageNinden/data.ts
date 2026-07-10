@@ -1,4 +1,4 @@
-import type { ClanData, Skill, Enemy, Quest, Item } from "./types";
+import type { ClanData, Skill, Enemy, Quest, Item, Achievement } from "./types";
 
 // ===== 流派データ =====
 export const CLANS: Record<string, ClanData> = {
@@ -324,3 +324,18 @@ export const AREAS: Record<string, { name: string; desc: string; minLevel: numbe
     icon: "🏚️",
   },
 };
+
+// ===== 実績データ =====
+export const ACHIEVEMENTS: Achievement[] = [
+  { id: "first_blood",    name: "初陣",       desc: "初めて敵を倒した",                   icon: "⚔️" },
+  { id: "level5",         name: "新米忍者",   desc: "Lv.5に到達した",                     icon: "🥷" },
+  { id: "level10",        name: "中堅忍者",   desc: "Lv.10に到達した",                    icon: "🗡️" },
+  { id: "rich",           name: "大富豪",     desc: "1000Gを所持した",                    icon: "💰" },
+  { id: "first_quest",    name: "任務完遂",   desc: "初めてクエストを完了した",           icon: "📜" },
+  { id: "all_quests",     name: "百戦完了",   desc: "全てのクエストを完了した",           icon: "🏆" },
+  { id: "near_death",     name: "九死一生",   desc: "HP10%以下で戦闘に勝利した",          icon: "💀" },
+  { id: "no_damage",      name: "無傷の勝利", desc: "ダメージを受けずに戦闘に勝利した",   icon: "🛡️" },
+  { id: "clan_force",     name: "剛の道",     desc: "剛忍流でゲームを開始した",           icon: "🔴" },
+  { id: "clan_illusion",  name: "幻の道",     desc: "幻忍流でゲームを開始した",           icon: "🟣" },
+  { id: "clan_speed",     name: "迅の道",     desc: "迅忍流でゲームを開始した",           icon: "🟢" },
+];
