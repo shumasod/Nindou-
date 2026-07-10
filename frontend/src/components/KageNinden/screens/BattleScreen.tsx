@@ -16,6 +16,7 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const { enemy, log, playerStatus, enemyStatus, phase, turn } = battle;
   const [showSkills, setShowSkills] = useState(false);
   const [showItems, setShowItems] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [critFlash, setCritFlash] = useState(false);
   const [ambushBanner, setAmbushBanner] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -213,6 +214,56 @@ export default function BattleScreen({ state, dispatch }: Props) {
               disabled={isAnimating}
               onClick={() => dispatch({ type: "PLAYER_ESCAPE" })}
             />
+          </div>
+        )}
+      </div>
+
+      {/* ─── 戦況分析（折り畳み） ─── */}
+      <div style={{ ...S.panelSm }}>
+        <button
+          style={{
+            background: "none",
+            border: "none",
+            color: C.dim,
+            fontSize: "11px",
+            cursor: "pointer",
+            padding: 0,
+            width: "100%",
+            textAlign: "left",
+          }}
+          onClick={() => setShowAnalysis((v) => !v)}
+        >
+          {showAnalysis ? "▼" : "▶"} 戦況分析
+        </button>
+        {showAnalysis && (
+          <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            {[
+              {
+                label: "推定ダメージ",
+                value: Math.max(1, player.stats.attack - enemy.defense),
+                suffix: "前後",
+                color: C.accent1,
+              },
+              {
+                label: "被ダメ予測",
+                value: Math.max(1, enemy.attack - player.stats.defense),
+                suffix: "前後",
+                color: C.accent2,
+              },
+              {
+                label: "速度差",
+                value: player.stats.speed - enemy.speed,
+                suffix: player.stats.speed >= enemy.speed ? "（先手有利）" : "（後手注意）",
+                color: player.stats.speed >= enemy.speed ? C.success : C.accent1,
+              },
+            ].map(({ label, value, suffix, color }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                <span style={{ color: C.dim }}>{label}</span>
+                <span style={{ color }}>
+                  {value > 0 ? "+" : ""}{value} {suffix}
+                </span>
+              </div>
+            ))}
           </div>
         )}
       </div>
