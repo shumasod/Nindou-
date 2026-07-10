@@ -1,5 +1,4 @@
 "use client";
-import type { CSSProperties } from "react";
 import { C, S } from "../styles";
 import { AREAS, QUESTS } from "../data";
 import { rankColor } from "../utils";
@@ -11,8 +10,19 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+function ninjaRank(completedCount: number): { title: string; color: string } {
+  if (completedCount >= 5) return { title: "影",   color: C.accent2 };
+  if (completedCount >= 3) return { title: "上忍", color: C.purple };
+  if (completedCount >= 1) return { title: "中忍", color: C.success };
+  return                          { title: "下忍", color: C.dim };
+}
+
 export default function MapScreen({ state, dispatch }: Props) {
   const { player, progress } = state;
+  const totalQuests = QUESTS.length;
+  const completedCount = progress.completedQuests.length;
+  const completePct = totalQuests > 0 ? Math.round((completedCount / totalQuests) * 100) : 0;
+  const rank = ninjaRank(completedCount);
 
   return (
     <div
@@ -25,7 +35,7 @@ export default function MapScreen({ state, dispatch }: Props) {
       }}
     >
       {/* ヘッダー */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px", borderBottom: `1px solid ${C.border}`, paddingBottom: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", borderBottom: `1px solid ${C.border}`, paddingBottom: "12px" }}>
         <button
           style={{ ...S.btn(C.dim), padding: "6px 12px", fontSize: "12px" }}
           onClick={() => dispatch({ type: "GO_TO_SCREEN", screen: "home" })}
@@ -36,7 +46,44 @@ export default function MapScreen({ state, dispatch }: Props) {
           ｜ フィールドマップ ｜
         </h2>
       </div>
-      <p style={{ color: C.dim, fontSize: "12px", marginBottom: "20px" }}>
+
+      {/* 全体進捗サマリー */}
+      <div style={{ ...S.panelSm, marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <span
+              style={{
+                color: rank.color,
+                border: `1px solid ${rank.color}`,
+                padding: "1px 8px",
+                fontSize: "12px",
+                borderRadius: "2px",
+              }}
+            >
+              {rank.title}
+            </span>
+            <span style={{ color: C.dim, fontSize: "12px" }}>
+              任務達成: <span style={{ color: C.text }}>{completedCount} / {totalQuests}</span>
+            </span>
+          </div>
+          <span style={{ color: completePct === 100 ? C.accent2 : C.dim, fontSize: "12px" }}>
+            {completePct}%
+          </span>
+        </div>
+        <div style={{ height: "4px", background: `${C.dim}44`, borderRadius: "2px", overflow: "hidden" }}>
+          <div
+            style={{
+              width: `${completePct}%`,
+              height: "100%",
+              background: completePct === 100 ? C.accent2 : C.success,
+              borderRadius: "2px",
+              transition: "width 0.5s",
+            }}
+          />
+        </div>
+      </div>
+
+      <p style={{ color: C.dim, fontSize: "12px", marginBottom: "16px" }}>
         任務を選んで出陣せよ。Lv不足のエリアは進入不可。
       </p>
 
@@ -79,7 +126,8 @@ export default function MapScreen({ state, dispatch }: Props) {
                   {areaQuests.map((q) => {
                     const done = progress.completedQuests.includes(q.id);
                     const levelOk = player.level >= q.minLevel;
-                    const canStart = !done && levelOk;
+                    const isActive = progress.activeQuest?.id === q.id;
+                    const canStart = !done && levelOk && !isActive;
 
                     return (
                       <div
@@ -109,6 +157,7 @@ export default function MapScreen({ state, dispatch }: Props) {
                             </span>
                             <span style={{ fontSize: "13px", color: done ? C.dim : C.text }}>{q.title}</span>
                             {done && <span style={{ color: C.success, fontSize: "11px" }}>✓ 完了</span>}
+                            {isActive && <span style={{ color: C.accent2, fontSize: "11px", animation: "blink 1s infinite" }}>► 進行中</span>}
                           </div>
                           <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>{q.desc}</p>
                           <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
