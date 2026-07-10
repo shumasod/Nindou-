@@ -375,13 +375,42 @@ function StatusBadge({ effect }: { effect: StatusEffect }) {
 
 // ─── ログの色分け ───
 function logColor(line: string, index: number): string {
-  if (index > 0) return C.dim;
-  if (line.includes("CRITICAL")) return C.accent1;
-  if (line.includes("倒した")) return C.success;
-  if (line.includes("奇襲")) return C.accent2;
-  if (line.includes("フェーズ")) return C.accent1;
-  if (line.includes("ダメージ") && line.includes(line.split("の")[0])) return C.text;
-  return C.text;
+  // Critical events always stand out regardless of position
+  if (line.includes("CRITICAL") || line.includes("クリティカル")) return C.accent2;
+  if (line.includes("フェーズ2") || line.includes("変身") || line.includes("覚醒")) return C.accent1;
+
+  // Older log lines are dimmed
+  if (index > 2) return C.dim;
+
+  // Semantic coloring by event type
+  if (line.includes("倒した") || line.includes("撃破") || line.includes("クリア")) return C.success;
+  if (line.includes("現れた") || line.includes("奇襲") || line.includes("戦闘開始")) return C.accent2;
+
+  // Player took damage → red
+  if (line.includes("受けた") || (line.includes("ダメージ") && line.includes("プレイヤー"))) return C.accent1;
+  // Enemy took damage → green
+  if (line.includes("与えた") || (line.includes("ダメージ") && !line.includes("受けた"))) return C.success;
+
+  // Healing / recovery → green
+  if (line.includes("回復") || line.includes("治癒")) return C.success;
+
+  // Chakra / skills → blue/purple
+  if (line.includes("チャクラ") && !line.includes("回復")) return C.chakra;
+  if (line.includes("の術") || line.includes("発動") || line.includes("使用")) return "#9b72d4";
+
+  // Status effects → gold
+  if (line.includes("スタン") || line.includes("行動不能") || line.includes("毒") || line.includes("状態異常")) return C.accent2;
+
+  // Dodge / miss → dim gold
+  if (line.includes("回避") || line.includes("かわした") || line.includes("ミス") || line.includes("外れ")) return C.accent2;
+
+  // Escape / retreat
+  if (line.includes("逃走") || line.includes("離脱")) return C.dim;
+
+  // Turn / system messages
+  if (line.includes("ターン") || line.includes("フェーズ")) return C.dim;
+
+  return index === 0 ? C.text : C.dim;
 }
 
 // ─── スタイル ───
