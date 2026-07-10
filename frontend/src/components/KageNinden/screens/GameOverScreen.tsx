@@ -1,5 +1,6 @@
 "use client";
-import { C, S } from "../styles";
+import { C, S, hpBarStyle, barTrackStyle } from "../styles";
+import { CLANS } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -8,8 +9,17 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+function retryTip(level: number, completedCount: number): string {
+  if (level <= 2) return "まず鍛錬でステータスを上げ、装備を整えよ。";
+  if (completedCount === 0) return "最初の任務から着実に経験を積め。焦りは禁物だ。";
+  if (level <= 5) return "流派スキルを活用し、チャクラ管理を意識しろ。";
+  return "敵のAIパターンを読み、防御と回復を惜しむな。";
+}
+
 export default function GameOverScreen({ state, dispatch }: Props) {
-  const { player, battle } = state;
+  const { player, battle, progress } = state;
+  const completedCount = progress.completedQuests.length;
+  const clanData = player.clan ? CLANS[player.clan] : null;
 
   return (
     <div
@@ -42,36 +52,64 @@ export default function GameOverScreen({ state, dispatch }: Props) {
 
         {/* 最後の戦闘情報 */}
         {battle.enemy && (
-          <div style={{ ...S.panel, marginBottom: "24px" }}>
+          <div style={{ ...S.panel, marginBottom: "16px" }}>
             <p style={{ ...S.label, marginBottom: "8px" }}>最後の戦い</p>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
               <span style={{ fontSize: "28px" }}>{battle.enemy.icon}</span>
-              <div style={{ textAlign: "left" }}>
+              <div style={{ textAlign: "left", flex: 1 }}>
                 <p style={{ margin: 0, color: C.accent1, fontSize: "15px" }}>{battle.enemy.name}</p>
                 <p style={{ margin: "2px 0 0", color: C.dim, fontSize: "12px" }}>
                   Turn {battle.turn} で討死
                 </p>
               </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ margin: 0, color: C.dim, fontSize: "11px" }}>残りHP</p>
+                <p style={{ margin: 0, color: C.accent1, fontSize: "13px" }}>
+                  {battle.enemy.hp} / {battle.enemy.maxHp}
+                </p>
+              </div>
+            </div>
+            {/* 敵残HP バー */}
+            <div style={barTrackStyle}>
+              <div style={hpBarStyle(battle.enemy.hp, battle.enemy.maxHp)} />
             </div>
           </div>
         )}
 
         {/* 最終ステータス */}
-        <div style={{ ...S.panel, marginBottom: "32px" }}>
+        <div style={{ ...S.panel, marginBottom: "16px" }}>
           <p style={{ ...S.label, marginBottom: "8px" }}>最終記録</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {[
-              ["名前", player.name],
-              ["レベル", `Lv.${player.level}`],
-              ["経験値", `${player.exp} EXP`],
-              ["所持金", `${player.gold} G`],
-            ].map(([label, val]) => (
+            {([
+              ["名前", player.name, C.text],
+              ["流派", clanData ? `${clanData.icon} ${clanData.name}` : "未選択", clanData?.color ?? C.dim],
+              ["レベル", `Lv.${player.level}`, C.accent2],
+              ["経験値", `${player.exp} EXP`, C.text],
+              ["所持金", `${player.gold} G`, C.accent2],
+              ["完了任務", `${completedCount} 件`, completedCount > 0 ? C.success : C.dim],
+            ] as const).map(([label, val, color]) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.dim, fontSize: "13px" }}>{label}</span>
-                <span style={{ color: C.text, fontSize: "13px" }}>{val}</span>
+                <span style={{ color, fontSize: "13px" }}>{val}</span>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* 次回へのアドバイス */}
+        <div
+          style={{
+            ...S.panelSm,
+            marginBottom: "16px",
+            border: `1px solid ${C.accent2}44`,
+            background: `${C.accent2}08`,
+            textAlign: "left",
+          }}
+        >
+          <p style={{ ...S.label, marginBottom: "4px" }}>忍の言葉</p>
+          <p style={{ color: C.text, fontSize: "12px", margin: 0, lineHeight: 1.6 }}>
+            {retryTip(player.level, completedCount)}
+          </p>
         </div>
 
         {/* ラストログ */}
