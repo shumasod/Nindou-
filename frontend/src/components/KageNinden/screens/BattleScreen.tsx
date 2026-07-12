@@ -12,8 +12,11 @@ interface Props {
 }
 
 export default function BattleScreen({ state, dispatch }: Props) {
-  const { player, battle } = state;
+  const { player, battle, progress } = state;
   const { enemy, log, playerStatus, enemyStatus, phase, turn } = battle;
+  const activeQuest = progress.activeQuest;
+  const questKilled = battle.killCount;
+  const questTarget = activeQuest?.count ?? 1;
   const [showSkills, setShowSkills] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [critFlash, setCritFlash] = useState(false);
@@ -79,8 +82,33 @@ export default function BattleScreen({ state, dispatch }: Props) {
         </div>
       )}
 
-      {/* ターン数 */}
-      <div style={{ textAlign: "right" }}>
+      {/* ターン数 + 討伐進捗 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {activeQuest ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ color: C.dim, fontSize: "10px" }}>討伐:</span>
+            <div style={{ display: "flex", gap: "3px" }}>
+              {Array.from({ length: questTarget }, (_, i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "50%",
+                    background: i < questKilled ? C.success : `${C.dim}44`,
+                    border: `1px solid ${i < questKilled ? C.success : C.dim}`,
+                    display: "inline-block",
+                  }}
+                />
+              ))}
+            </div>
+            <span style={{ color: questKilled >= questTarget ? C.success : C.dim, fontSize: "10px" }}>
+              {questKilled}/{questTarget}
+            </span>
+          </div>
+        ) : (
+          <span />
+        )}
         <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn}</span>
       </div>
 
