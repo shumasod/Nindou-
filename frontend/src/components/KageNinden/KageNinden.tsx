@@ -11,6 +11,7 @@ import QuestDetailScreen from "./screens/QuestDetailScreen";
 import BattleScreen      from "./screens/BattleScreen";
 import VictoryScreen     from "./screens/VictoryScreen";
 import GameOverScreen    from "./screens/GameOverScreen";
+import ShopScreen        from "./screens/ShopScreen";
 
 export default function KageNinden() {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
@@ -34,6 +35,7 @@ export default function KageNinden() {
       {screen === "map"          && <MapScreen state={state} dispatch={dispatch} />}
       {screen === "quest_detail" && <QuestDetailScreen state={state} dispatch={dispatch} />}
       {screen === "battle"       && <BattleScreen state={state} dispatch={dispatch} />}
+      {screen === "shop"         && <ShopScreen state={state} dispatch={dispatch} />}
       {screen === "victory"      && <VictoryScreen state={state} dispatch={dispatch} />}
       {screen === "gameover"     && <GameOverScreen state={state} dispatch={dispatch} />}
     </>

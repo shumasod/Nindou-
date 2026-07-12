@@ -190,9 +190,10 @@ function MenuView({
 }) {
   const btns: { label: string; icon: string; action: () => void; color?: string }[] = [
     { label: "フィールドへ", icon: "🗺", action: () => dispatch({ type: "GO_TO_SCREEN", screen: "map" }), color: C.success },
-    { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
-    { label: "道具", icon: "🎒", action: () => setSubView("items") },
-    { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "商店",         icon: "🛒", action: () => dispatch({ type: "GO_TO_SCREEN", screen: "shop" }), color: C.accent2 },
+    { label: "技能",         icon: "✨", action: () => setSubView("skills_list") },
+    { label: "道具",         icon: "🎒", action: () => setSubView("items") },
+    { label: "鍛錬",         icon: "💪", action: () => setSubView("train") },
   ];
 
   return (

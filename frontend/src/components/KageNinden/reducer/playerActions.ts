@@ -53,3 +53,32 @@ export function handleAllocateStat(
     },
   };
 }
+
+// BUY_ITEM
+export function handleBuyItem(state: GameState, itemId: string, price: number): GameState {
+  if (state.player.gold < price) return state;
+  const newGold = state.player.gold - price;
+  const idx = state.player.items.findIndex((it) => it.id === itemId);
+  const newItems = idx >= 0
+    ? state.player.items.map((it, i) => i === idx ? { ...it, count: it.count + 1 } : it)
+    : [...state.player.items, { id: itemId, count: 1 }];
+  return { ...state, player: { ...state.player, gold: newGold, items: newItems } };
+}
+
+// BUY_EQUIP
+export function handleBuyEquip(
+  state: GameState,
+  equipType: "weapon" | "armor",
+  equipId: string,
+  price: number
+): GameState {
+  if (state.player.gold < price) return state;
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      gold: state.player.gold - price,
+      equip: { ...state.player.equip, [equipType]: equipId },
+    },
+  };
+}

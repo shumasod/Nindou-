@@ -222,6 +222,31 @@ export const ARMORS: Record<string, { name: string; defense: number; stealth: nu
   shadow_cloth:  { name: "影布",       defense: 1,  stealth: 5,  desc: "隠密性の高い装束" },
 };
 
+// ===== 商店カタログ =====
+export type ShopCategory = "item" | "weapon" | "armor";
+
+export interface ShopEntry {
+  id: string;
+  category: ShopCategory;
+  price: number;
+  minLevel?: number;
+}
+
+export const SHOP_CATALOG: ShopEntry[] = [
+  // アイテム
+  { id: "heal_scroll",       category: "item",   price: 30 },
+  { id: "chakra_pill",       category: "item",   price: 20 },
+  { id: "antidote",          category: "item",   price: 25 },
+  { id: "smoke_bomb",        category: "item",   price: 50 },
+  { id: "heal_scroll_large", category: "item",   price: 60,  minLevel: 5 },
+  // 武器
+  { id: "katana_basic",      category: "weapon", price: 100, minLevel: 3 },
+  { id: "shuriken_set",      category: "weapon", price: 80,  minLevel: 3 },
+  // 防具
+  { id: "light_armor",       category: "armor",  price: 90,  minLevel: 3 },
+  { id: "shadow_cloth",      category: "armor",  price: 120, minLevel: 5 },
+];
+
 // ===== クエストデータ =====
 export const QUESTS: Quest[] = [
   {

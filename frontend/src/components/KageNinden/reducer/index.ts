@@ -2,7 +2,7 @@ import type { GameState, Player, ClanId } from "../types";
 
 // Re-export types so existing "from './reducer'" imports keep working
 export type { GameState } from "../types";
-import { handleSelectClan, handleSetName, handleAllocateStat } from "./playerActions";
+import { handleSelectClan, handleSetName, handleAllocateStat, handleBuyItem, handleBuyEquip } from "./playerActions";
 import {
   handleStartQuest,
   handleStartBattle,
@@ -80,6 +80,8 @@ export type GameAction =
   | { type: "PLAYER_ESCAPE" }
   | { type: "ENEMY_TURN" }
   | { type: "ALLOCATE_STAT"; stat: keyof Player["stats"] }
+  | { type: "BUY_ITEM"; itemId: string; price: number }
+  | { type: "BUY_EQUIP"; equipType: "weapon" | "armor"; equipId: string; price: number }
   | { type: "RESET_GAME" };
 
 // ===== メインReducer =====
@@ -123,6 +125,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "ALLOCATE_STAT":
       return handleAllocateStat(state, action.stat);
+
+    case "BUY_ITEM":
+      return handleBuyItem(state, action.itemId, action.price);
+
+    case "BUY_EQUIP":
+      return handleBuyEquip(state, action.equipType, action.equipId, action.price);
 
     default:
       return state;
