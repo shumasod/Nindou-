@@ -1,13 +1,28 @@
 "use client";
+import { useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { C, S } from "../styles";
 import type { GameAction } from "../reducer";
+
+const SAVE_KEY = "kage_ninden_save";
 
 interface Props {
   dispatch: (a: GameAction) => void;
 }
 
 export default function TitleScreen({ dispatch }: Props) {
+  const [hasSave, setHasSave] = useState(false);
+
+  useEffect(() => {
+    setHasSave(!!localStorage.getItem(SAVE_KEY));
+  }, []);
+
+  function deleteSave() {
+    localStorage.removeItem(SAVE_KEY);
+    setHasSave(false);
+    dispatch({ type: "RESET_GAME" });
+  }
+
   return (
     <div
       style={{
@@ -67,7 +82,23 @@ export default function TitleScreen({ dispatch }: Props) {
         >
           ▶　冒険を始める
         </button>
+
+        {hasSave && (
+          <button
+            style={{ ...S.btn(C.dim), padding: "8px 24px", fontSize: "12px", width: "100%" }}
+            onClick={deleteSave}
+          >
+            🗑 データ削除
+          </button>
+        )}
       </div>
+
+      {/* セーブデータインジケーター */}
+      {hasSave && (
+        <p style={{ marginTop: "16px", color: C.dim, fontSize: "11px", animation: "fadeIn 0.5s ease" }}>
+          💾 セーブデータあり
+        </p>
+      )}
 
       {/* 下部装飾 */}
       <p style={{ position: "absolute", bottom: "20px", color: C.dim, fontSize: "11px", letterSpacing: "0.1em" }}>
