@@ -80,6 +80,7 @@ export type GameAction =
   | { type: "PLAYER_ESCAPE" }
   | { type: "ENEMY_TURN" }
   | { type: "ALLOCATE_STAT"; stat: keyof Player["stats"] }
+  | { type: "REST_AT_HOME" }
   | { type: "RESET_GAME" };
 
 // ===== メインReducer =====
@@ -123,6 +124,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "ALLOCATE_STAT":
       return handleAllocateStat(state, action.stat);
+
+    case "REST_AT_HOME": {
+      const healAmt = Math.floor(state.player.maxHp * 0.3);
+      const chakraAmt = Math.floor(state.player.maxChakra * 0.5);
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          hp: Math.min(state.player.maxHp, state.player.hp + healAmt),
+          chakra: Math.min(state.player.maxChakra, state.player.chakra + chakraAmt),
+        },
+      };
+    }
 
     default:
       return state;

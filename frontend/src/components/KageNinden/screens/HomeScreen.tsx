@@ -193,6 +193,7 @@ function MenuView({
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
     { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "休息する", icon: "🌙", action: () => dispatch({ type: "REST_AT_HOME" }), color: C.chakra },
   ];
 
   return (
