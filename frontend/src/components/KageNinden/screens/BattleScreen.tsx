@@ -56,6 +56,10 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const playerItems = player.items.filter((it) => ITEMS[it.id]);
   const playerSkills = player.skills.filter((sid) => SKILLS[sid]);
 
+  const defReduction = Math.floor(player.stats.defense * 0.5);
+  const enemyDmgMin = Math.max(1, enemy.attack - defReduction - 3);
+  const enemyDmgMax = Math.max(1, enemy.attack - defReduction + 3);
+
   return (
     <div
       style={{
@@ -100,6 +104,9 @@ export default function BattleScreen({ state, dispatch }: Props) {
           </div>
           <div style={{ textAlign: "right" }}>
             <p style={{ margin: 0, color: C.text, fontSize: "13px" }}>{enemy.hp} / {enemy.maxHp}</p>
+            <p style={{ margin: "2px 0 0", color: C.accent1, fontSize: "10px" }}>
+              攻撃予測: {enemyDmgMin}〜{enemyDmgMax}
+            </p>
           </div>
         </div>
         {/* 敵HPバー */}
