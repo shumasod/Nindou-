@@ -744,6 +744,16 @@ function showResult(winner: string, reason = ""): void {
 
 function showFinalResult(winner: string, reason = ""): void {
   phase = "result";
+
+  // 勝者は勝利ポーズ (DRAW のときはなし)
+  if (winner === "P1") {
+    player1.startVictoryPose();
+    effects.spawnFinisherBurst(player1.position, 0xffd700);
+  } else if (winner === "P2" || winner === "CPU") {
+    player2.startVictoryPose();
+    effects.spawnFinisherBurst(player2.position, 0xffd700);
+  }
+
   const el  = document.getElementById("result-screen");
   const txt = document.getElementById("result-text");
   const sub = document.getElementById("result-sub");
@@ -854,6 +864,12 @@ function animate(): void {
     checkMatchEnd();
   } else if (phase === "countdown") {
     updateCamera(dt);
+  } else if (phase === "result") {
+    // リザルト画面の背後で勝利ポーズをループ再生
+    player1.update(dt);
+    player2.update(dt);
+    updateCamera(dt);
+    effects.update(dt, camera);
   }
 
   input1.flush(); // グローバルキーストアの flush は1回でよい
