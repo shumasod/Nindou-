@@ -22,7 +22,8 @@ export type WrestlerState =
   | "taunting"       // 挑発モーション
   | "submitting"     // サブミッション中 (攻撃側)
   | "in_submission"  // サブミッション中 (被攻撃側)
-  | "corner_splash"; // コーナースプラッシュ
+  | "corner_splash"  // コーナースプラッシュ
+  | "victory";       // 勝利ポーズ (試合終了後ループ)
 
 export interface WrestlerConfig {
   name: string;
@@ -463,6 +464,16 @@ export class Wrestler {
     return this.state === "taunting";
   }
 
+  /** 勝利ポーズ — 試合終了後、リザルト画面の背後でループする */
+  startVictoryPose(): void {
+    this.state = "victory";
+    this.stateTimer = 0;       // タイマーなし = ループし続ける
+    this.actionCooldown = 999; // 操作不能に
+    this.grappleTarget = null;
+    this.root.rotation.x = 0;
+    this.root.rotation.z = 0;
+  }
+
   startGrapple(target: Wrestler): void {
     this.state = "grappling";
     this.grappleTarget = target;
@@ -770,6 +781,20 @@ export class Wrestler {
       this.upperArmL.rotation.z =  0.8;
       this.upperArmR.rotation.z = -0.8;
       this.head.rotation.x = 0.3; // 上を向く
+      return;
+    }
+
+    if (state === "victory") {
+      // 両腕を高く突き上げてジャンプを繰り返す勝利ポーズ
+      this.breathTimer += dt * 6;
+      const jump = Math.max(0, Math.sin(this.breathTimer)) * 0.35;
+      this.root.position.y = MAT_Y + jump;
+      this.upperArmL.rotation.x = -2.6;
+      this.upperArmR.rotation.x = -2.6;
+      this.upperArmL.rotation.z =  0.25 + Math.sin(this.breathTimer * 2) * 0.15;
+      this.upperArmR.rotation.z = -0.25 - Math.sin(this.breathTimer * 2) * 0.15;
+      this.head.rotation.x = 0.35;
+      this.torso.rotation.x = -0.08;
       return;
     }
 
