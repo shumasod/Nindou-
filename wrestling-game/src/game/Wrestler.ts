@@ -367,11 +367,16 @@ export class Wrestler {
            this.state === "in_submission";
   }
 
+  /** 被ダメージ時フック — main.ts がダメージ数値ポップアップ表示に使う */
+  static onDamage: ((victim: Wrestler, dmg: number) => void) | null = null;
+
   takeDamage(amount: number): void {
     const tauntMult = this.state === "taunting" ? 2.0 : 1.0;
-    this.hp = Math.max(0, this.hp - amount * this.defenceMult * tauntMult);
+    const dmg = amount * this.defenceMult * tauntMult;
+    this.hp = Math.max(0, this.hp - dmg);
     this.flashTimer = 0.15;
     this.momentum = Math.min(100, this.momentum + amount * 0.3);
+    Wrestler.onDamage?.(this, dmg);
   }
 
   move(dx: number, dz: number, sprint: boolean, dt: number): void {

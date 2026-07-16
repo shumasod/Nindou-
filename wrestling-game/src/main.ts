@@ -44,6 +44,11 @@ function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
 // ─── FX ───────────────────────────────────────────────────────────────────────
 const effects = new EffectsSystem(scene);
 
+// 全ダメージ発生源 (プレイヤー入力・CPU・チェーンボーナス) を 1 箇所でフック
+Wrestler.onDamage = (victim, dmg) => {
+  effects.spawnDamageNumber(victim.position, dmg);
+};
+
 // ─── Input (always create both; P2 used only in 2P mode) ─────────────────────
 const input1 = new InputManager(1);
 const input2 = new InputManager(2);
