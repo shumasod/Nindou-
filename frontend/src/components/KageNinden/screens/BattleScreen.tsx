@@ -55,6 +55,8 @@ export default function BattleScreen({ state, dispatch }: Props) {
 
   const playerItems = player.items.filter((it) => ITEMS[it.id]);
   const playerSkills = player.skills.filter((sid) => SKILLS[sid]);
+  const isPoisoned = playerStatus.some((e) => e.id === "poison");
+  const playerHpBarColor = isPoisoned ? C.purple : undefined;
 
   return (
     <div
@@ -141,9 +143,11 @@ export default function BattleScreen({ state, dispatch }: Props) {
         {/* HP */}
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-            <span style={{ ...S.label }}>HP</span>
+            <span style={{ ...S.label }}>HP{isPoisoned && <span style={{ color: C.purple, fontSize: "10px", marginLeft: "4px" }}>☠ 毒</span>}</span>
           </div>
-          <div style={barTrackStyle}><div style={hpBarStyle(player.hp, player.maxHp)} /></div>
+          <div style={barTrackStyle}>
+            <div style={{ ...hpBarStyle(player.hp, player.maxHp), ...(playerHpBarColor ? { background: playerHpBarColor } : {}) }} />
+          </div>
         </div>
         {/* チャクラ */}
         <div style={{ marginBottom: "6px" }}>
