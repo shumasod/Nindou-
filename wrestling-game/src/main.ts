@@ -365,6 +365,20 @@ function checkDangerFlash(): void {
   }
   p1WasDanger = player1.isDanger;
   p2WasDanger = player2.isDanger;
+
+  // 低HP 赤フチビネット — 1P: P1 のみ / 2P: どちらかが瀕死なら表示
+  const humanDanger = mode === "2p"
+    ? player1.isDanger || player2.isDanger
+    : player1.isDanger;
+  setDangerVignette(phase === "match" && humanDanger);
+}
+
+const dangerVignetteEl = document.getElementById("danger-vignette") as HTMLElement | null;
+
+function setDangerVignette(on: boolean): void {
+  if (!dangerVignetteEl) return;
+  const cur = dangerVignetteEl.style.display === "block";
+  if (cur !== on) dangerVignetteEl.style.display = on ? "block" : "none";
 }
 
 // ─── クラウドメーター ─────────────────────────────────────────────────────────
@@ -666,6 +680,7 @@ function updateWinPips(): void {
 
 function showRoundResult(winnerSide: "p1" | "p2" | "draw"): void {
   phase = "between_rounds";
+  setDangerVignette(false);
 
   const winnerName = winnerSide === "p1" ? "P1" : winnerSide === "p2" ? p2Label() : "DRAW";
 
@@ -749,6 +764,7 @@ function showResult(winner: string, reason = ""): void {
 
 function showFinalResult(winner: string, reason = ""): void {
   phase = "result";
+  setDangerVignette(false);
 
   // 勝者は勝利ポーズ (DRAW のときはなし)
   if (winner === "P1") {
