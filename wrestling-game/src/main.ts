@@ -8,6 +8,7 @@ import { EffectsSystem } from "./engine/effects.js";
 import { audio } from "./engine/audio.js";
 import { ROSTER, type CharacterDef } from "./game/characters.js";
 import { MatchTracker } from "./game/MatchStats.js";
+import { loadRecord, recordResult } from "./game/WinRecord.js";
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 const container = document.getElementById("canvas-container")!;
@@ -762,9 +763,33 @@ function showResult(winner: string, reason = ""): void {
   }
 }
 
+// ─── 戦績 (1P モードのみ) ─────────────────────────────────────────────────────
+function renderWinRecord(): void {
+  const el = document.getElementById("win-record");
+  if (!el) return;
+  const rec = loadRecord();
+  if (rec.wins === 0 && rec.losses === 0 && rec.draws === 0) {
+    el.textContent = "";
+    return;
+  }
+  const streakHtml = rec.streak >= 3
+    ? ` &nbsp;<span class="streak-hot">🔥 ${rec.streak} WIN STREAK</span>`
+    : "";
+  el.innerHTML =
+    `RECORD  ${rec.wins}W - ${rec.losses}L - ${rec.draws}D` +
+    `  |  BEST STREAK ${rec.bestStreak}${streakHtml}`;
+}
+
 function showFinalResult(winner: string, reason = ""): void {
   phase = "result";
   setDangerVignette(false);
+
+  // 1P モードの勝敗を localStorage に記録
+  if (mode === "1p") {
+    if (winner === "P1")           recordResult("win");
+    else if (winner === "DRAW")    recordResult("draw");
+    else                           recordResult("loss");
+  }
 
   // 勝者は勝利ポーズ (DRAW のときはなし)
   if (winner === "P1") {
@@ -1507,3 +1532,6 @@ document.getElementById("btn-bo3-2p")?.addEventListener("click", () => {
 document.getElementById("retry-btn")?.addEventListener("click", () => {
   location.reload();
 });
+
+// タイトル画面に戦績を表示 (retry は location.reload なのでロード時のみでよい)
+renderWinRecord();

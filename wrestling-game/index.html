@@ -171,8 +171,14 @@
       }
       .subtitle {
         color: rgba(255,255,255,0.6); font-size: 16px;
-        letter-spacing: 4px; margin-bottom: 48px;
+        letter-spacing: 4px; margin-bottom: 12px;
       }
+      #win-record {
+        color: rgba(255,215,0,0.75); font-size: 12px;
+        letter-spacing: 3px; margin-bottom: 36px;
+        text-transform: uppercase; min-height: 15px;
+      }
+      #win-record .streak-hot { color: #ff8800; text-shadow: 0 0 8px rgba(255,136,0,0.6); }
       .mode-section { margin-bottom: 28px; text-align: center; }
       .mode-label {
         color: rgba(255,255,255,0.45); font-size: 11px;
@@ -606,6 +612,7 @@
     <div id="title-screen">
       <h1>WRESTLING</h1>
       <div class="subtitle">THREE.JS CHAMPIONSHIP EDITION</div>
+      <div id="win-record"></div>
 
       <div class="mode-section">
         <div class="mode-label">1 Player vs CPU — Select Difficulty</div>
