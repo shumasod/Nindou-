@@ -72,6 +72,19 @@
         text-shadow: 0 0 10px rgba(255,200,0,0.8); letter-spacing: 3px;
       }
 
+      /* ── Danger vignette (低HP時の赤フチ) ─────────────────── */
+      @keyframes vignettePulse {
+        from { opacity: 0.35; }
+        to   { opacity: 0.85; }
+      }
+      #danger-vignette {
+        position: fixed; inset: 0;
+        pointer-events: none; z-index: 5;
+        display: none;
+        box-shadow: inset 0 0 120px 40px rgba(255, 0, 0, 0.55);
+        animation: vignettePulse 0.7s infinite alternate ease-in-out;
+      }
+
       /* ── Ring-out count ──────────────────────────────────── */
       #ringout-display {
         position: absolute; bottom: 170px; left: 50%;
@@ -477,6 +490,8 @@
   </head>
   <body>
     <div id="canvas-container"></div>
+
+    <div id="danger-vignette"></div>
 
     <div id="hud">
       <!-- P1 HUD -->
