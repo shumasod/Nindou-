@@ -19,6 +19,11 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
 
   const enemy = ENEMIES[quest.target];
   const progress = state.progress.questProgress[quest.id] ?? 0;
+  const player = state.player;
+  const levelOk = player.level >= quest.minLevel;
+  const playerPower = player.stats.attack + player.stats.defense + player.stats.speed;
+  const enemyPower = enemy ? enemy.attack + enemy.defense + enemy.speed : 0;
+  const difficultyRatio = enemyPower > 0 ? Math.min(1, playerPower / enemyPower) : 1;
 
   return (
     <div
@@ -68,6 +73,38 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
             <p style={{ color: C.dim, fontSize: "12px", margin: 0 }}>
               進捗: <span style={{ color: C.accent2 }}>{progress} / {quest.count}</span>
             </p>
+          </div>
+        </div>
+
+        {/* 難易度分析 */}
+        <div style={{ ...S.panel, marginBottom: "16px" }}>
+          <p style={{ ...S.label, marginBottom: "8px" }}>難易度分析</p>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>
+              推奨レベル: <span style={{ color: levelOk ? C.success : C.accent1 }}>Lv.{quest.minLevel}</span>
+            </span>
+            <span style={{ color: levelOk ? C.success : C.accent1, fontSize: "12px" }}>
+              {levelOk ? "✓ 条件クリア" : "⚠ レベル不足"}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ color: C.dim, fontSize: "11px" }}>あなたの戦闘力</span>
+            <span style={{ color: C.text, fontSize: "11px" }}>{playerPower}</span>
+          </div>
+          <div style={{ height: "6px", background: `${C.dim}33`, borderRadius: "3px", marginBottom: "4px" }}>
+            <div
+              style={{
+                width: `${Math.min(100, difficultyRatio * 100)}%`,
+                height: "100%",
+                background: difficultyRatio >= 1 ? C.success : difficultyRatio >= 0.7 ? C.accent2 : C.accent1,
+                borderRadius: "3px",
+                transition: "width 0.3s",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: C.dim, fontSize: "11px" }}>敵の総合戦力</span>
+            <span style={{ color: C.text, fontSize: "11px" }}>{enemyPower}</span>
           </div>
         </div>
 
