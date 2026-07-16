@@ -1590,5 +1590,21 @@ document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
   location.reload();
 });
 
+// ─── ミュートボタン ───────────────────────────────────────────────────────────
+const muteBtn = document.getElementById("mute-btn") as HTMLButtonElement | null;
+
+function syncMuteBtn(): void {
+  if (!muteBtn) return;
+  muteBtn.textContent = audio.muted ? "🔇" : "🔊";
+  muteBtn.classList.toggle("muted", audio.muted);
+}
+
+muteBtn?.addEventListener("click", () => {
+  audio.toggleMute();
+  syncMuteBtn();
+  muteBtn.blur(); // フォーカスを外してスペースキー誤爆を防ぐ
+});
+syncMuteBtn();
+
 // タイトル画面に戦績を表示 (retry は location.reload なのでロード時のみでよい)
 renderWinRecord();
