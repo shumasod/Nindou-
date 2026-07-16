@@ -188,6 +188,14 @@ function hpColor(hp: number): string {
 }
 
 const MATCH_TIME_LIMIT = 180;
+const SUDDEN_DEATH_EXTRA = 45; // 延長時間 (秒)
+
+let suddenDeath = false;
+
+/** サドンデス中は延長された制限時間を返す */
+function timeLimit(): number {
+  return suddenDeath ? MATCH_TIME_LIMIT + SUDDEN_DEATH_EXTRA : MATCH_TIME_LIMIT;
+}
 
 function updateHUD(elapsed: number): void {
   const p1HpPct = (player1.hp / player1.maxHp) * 100;
@@ -217,11 +225,13 @@ function updateHUD(elapsed: number): void {
   }
 
   if (hudTimer) {
-    const rem = Math.max(0, MATCH_TIME_LIMIT - elapsed);
+    const rem = Math.max(0, timeLimit() - elapsed);
     const m = Math.floor(rem / 60);
     const s = Math.floor(rem % 60);
-    hudTimer.textContent = `${m}:${s.toString().padStart(2, "0")}`;
-    hudTimer.style.color = rem < 30 ? "#ff4444" : "#ffffff";
+    hudTimer.textContent = suddenDeath
+      ? `SD ${m}:${s.toString().padStart(2, "0")}`
+      : `${m}:${s.toString().padStart(2, "0")}`;
+    hudTimer.style.color = suddenDeath || rem < 30 ? "#ff4444" : "#ffffff";
   }
 
   if (hudPinDisp) {
@@ -733,6 +743,7 @@ function startNextRound(): void {
   p2WasCorner   = false;
   crowdMeter    = 0;
   wasHotCrowd   = false;
+  suddenDeath   = false;
   resetRingOut();
   resetKickout();
   if (hudCombo) hudCombo.style.display = "none";
@@ -1226,6 +1237,13 @@ const KD_LABELS = ["1ST KNOCKDOWN!", "2ND KNOCKDOWN!", "TKO!!"];
 
 /** ノックダウン後に呼ぶ — 回数に応じたメッセージ + TKO 判定 */
 function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: string): void {
+  // サドンデス中は最初のノックダウンで即決着
+  if (suddenDeath) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult(winnerLabel, "SUDDEN DEATH  ");
+    return;
+  }
   const n = victim.knockdownCount; // startKnockdown() で既にインクリメント済み
   const label = KD_LABELS[Math.min(n, KD_LABELS.length) - 1];
   if (label) flashMoveName(`${victimLabel} ${label}`);
@@ -1245,6 +1263,12 @@ function checkMatchEnd(): void {
 
   if (player1.hp <= 0) { showResult(p2Label); return; }
   if (player2.hp <= 0) { showResult("P1");    return; }
+
+  // サドンデス: どの発生源のノックダウンでも即決着 (CPU 技・ホイップ激突含む)
+  if (suddenDeath) {
+    if (player1.state === "knockdown") { showResult(p2Label, "SUDDEN DEATH  "); return; }
+    if (player2.state === "knockdown") { showResult("P1",    "SUDDEN DEATH  "); return; }
+  }
 
   if (player1.state === "pinning" && player2.state === "being_pinned") {
     player1.pinCount += 1 / 60;
@@ -1271,10 +1295,19 @@ function checkMatchEnd(): void {
     return;
   }
 
-  if (matchElapsed >= MATCH_TIME_LIMIT) {
-    if (player1.hp > player2.hp)      showResult("P1",    "TIME UP  ");
-    else if (player2.hp > player1.hp) showResult(p2Label, "TIME UP  ");
-    else                               showResult("DRAW",  "TIME UP  ");
+  if (matchElapsed >= timeLimit()) {
+    if (player1.hp > player2.hp)      { showResult("P1",    "TIME UP  "); return; }
+    if (player2.hp > player1.hp)      { showResult(p2Label, "TIME UP  "); return; }
+    // 同点: 一度だけサドンデス延長 (先にノックダウンを奪った側が勝利)
+    if (!suddenDeath) {
+      suddenDeath = true;
+      flashMoveName("SUDDEN DEATH!!");
+      effects.shake(0.3);
+      audio.crowd();
+      addCrowdPop(30);
+      return;
+    }
+    showResult("DRAW", "TIME UP  ");
   }
 }
 
@@ -1383,6 +1416,7 @@ function startMatch(
   p2WasCorner  = false;
   crowdMeter   = 0;
   wasHotCrowd  = false;
+  suddenDeath  = false;
   resetRingOut();
   resetKickout();
   phase = "countdown";
