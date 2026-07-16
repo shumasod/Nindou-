@@ -56,7 +56,7 @@ const input2 = new InputManager(2);
 
 // ─── Game mode ────────────────────────────────────────────────────────────────
 type GameMode   = "1p" | "2p";
-type GamePhase  = "title" | "countdown" | "match" | "result" | "between_rounds";
+type GamePhase  = "title" | "countdown" | "match" | "result" | "between_rounds" | "paused";
 
 let mode: GameMode  = "1p";
 let phase: GamePhase = "title";
@@ -1530,6 +1530,29 @@ document.getElementById("btn-bo3-2p")?.addEventListener("click", () => {
 
 // Retry
 document.getElementById("retry-btn")?.addEventListener("click", () => {
+  location.reload();
+});
+
+// ─── ポーズメニュー ───────────────────────────────────────────────────────────
+const pauseScreen = document.getElementById("pause-screen") as HTMLElement | null;
+
+function togglePause(): void {
+  if (phase === "match") {
+    phase = "paused";
+    if (pauseScreen) pauseScreen.style.display = "flex";
+  } else if (phase === "paused") {
+    phase = "match";
+    if (pauseScreen) pauseScreen.style.display = "none";
+    clock.getDelta(); // ポーズ中の経過時間を破棄 (再開直後の巨大 dt を防ぐ)
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") togglePause();
+});
+
+document.getElementById("pause-resume-btn")?.addEventListener("click", togglePause);
+document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
   location.reload();
 });
 
