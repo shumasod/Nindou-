@@ -45,6 +45,8 @@ export default function MapScreen({ state, dispatch }: Props) {
         {Object.entries(AREAS).map(([areaId, area]) => {
           const locked = player.level < area.minLevel;
           const areaQuests = QUESTS.filter((q) => area.quests.includes(q.id));
+          const areaCleared = !locked && areaQuests.length > 0 && areaQuests.every((q) => progress.completedQuests.includes(q.id));
+          const clearedColor = "#d4a017";
 
           return (
             <div
@@ -52,7 +54,8 @@ export default function MapScreen({ state, dispatch }: Props) {
               style={{
                 ...S.panel,
                 opacity: locked ? 0.4 : 1,
-                border: `1px solid ${locked ? C.border : C.border}`,
+                border: `1px solid ${areaCleared ? clearedColor : C.border}`,
+                boxShadow: areaCleared ? `0 0 6px ${clearedColor}44` : "none",
               }}
             >
               {/* エリアヘッダー */}
@@ -64,11 +67,26 @@ export default function MapScreen({ state, dispatch }: Props) {
                     <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>{area.desc}</p>
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
+                <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                  {areaCleared && (
+                    <span
+                      style={{
+                        color: clearedColor,
+                        border: `1px solid ${clearedColor}`,
+                        fontSize: "10px",
+                        padding: "1px 6px",
+                        borderRadius: "2px",
+                        fontWeight: "bold",
+                        letterSpacing: "0.1em",
+                      }}
+                    >
+                      ★ CLEARED
+                    </span>
+                  )}
                   {locked ? (
                     <span style={{ color: C.danger, fontSize: "11px" }}>🔒 Lv{area.minLevel}〜</span>
                   ) : (
-                    <span style={{ color: C.success, fontSize: "11px" }}>解放済 Lv{area.minLevel}〜</span>
+                    <span style={{ color: areaCleared ? clearedColor : C.success, fontSize: "11px" }}>解放済 Lv{area.minLevel}〜</span>
                   )}
                 </div>
               </div>
