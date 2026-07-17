@@ -17,7 +17,7 @@ const camera    = createCamera();
 const scene     = createScene();
 
 setupLighting(scene);
-buildRing(scene);
+const ring = buildRing(scene);
 
 // ─── Wrestlers (created lazily after character select) ────────────────────────
 let player1!: Wrestler;
@@ -380,6 +380,24 @@ function checkGrappleFatigue(): void {
   };
   tryBreak(player1, player2, "P1");
   tryBreak(player2, player1, p2Label());
+}
+
+// ─── ロープ揺れ (リバウンド検出) ──────────────────────────────────────────────
+let p1WasRebounding = false;
+let p2WasRebounding = false;
+
+function checkRopeWobble(): void {
+  // ホイップは X 軸方向なので east/west ロープに当たる
+  const check = (w: typeof player1, was: boolean): boolean => {
+    const now = w.isRebounding();
+    if (now && !was) {
+      ring.wobbleRopes(w.position.x > 0 ? "east" : "west");
+      effects.shake(0.06);
+    }
+    return now;
+  };
+  p1WasRebounding = check(player1, p1WasRebounding);
+  p2WasRebounding = check(player2, p2WasRebounding);
 }
 
 function checkDangerFlash(): void {
@@ -930,6 +948,8 @@ function animate(): void {
     updateRingOut(dt);
     checkGrappleFatigue();
     checkGassedFlash();
+    checkRopeWobble();
+    ring.update(dt);
     checkDangerFlash();
     checkMomentumDecayFlash();
     checkCornerFlash();
