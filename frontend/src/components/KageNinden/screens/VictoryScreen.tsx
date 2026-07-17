@@ -9,9 +9,18 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+function survivalGrade(hpRatio: number): { label: string; color: string } {
+  if (hpRatio > 0.75) return { label: "S  完璧", color: "#d4a017" };
+  if (hpRatio > 0.5)  return { label: "A  優秀", color: "#c41e1e" };
+  if (hpRatio > 0.25) return { label: "B  良好", color: "#7a4bb5" };
+  return { label: "C  辛勝", color: "#4a9e5c" };
+}
+
 export default function VictoryScreen({ state, dispatch }: Props) {
-  const { ui, player } = state;
+  const { ui, player, battle } = state;
   const reward = ui.lastReward;
+  const hpRatio = player.hp / player.maxHp;
+  const grade = survivalGrade(hpRatio);
 
   return (
     <div
@@ -78,6 +87,31 @@ export default function VictoryScreen({ state, dispatch }: Props) {
             </div>
           </div>
         )}
+
+        {/* 戦績サマリー */}
+        <div style={{ ...S.panelSm, marginBottom: "16px" }}>
+          <p style={{ ...S.label, marginBottom: "8px" }}>戦績</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ color: C.dim, fontSize: "12px" }}>消費ターン: <span style={{ color: C.text }}>{battle.turn - 1}</span></span>
+              <span style={{ color: C.dim, fontSize: "12px" }}>撃破数: <span style={{ color: C.text }}>{battle.killCount}</span></span>
+              <span style={{ color: C.dim, fontSize: "12px" }}>残りHP: <span style={{ color: C.text }}>{player.hp} / {player.maxHp}</span></span>
+            </div>
+            <div
+              style={{
+                border: `2px solid ${grade.color}`,
+                color: grade.color,
+                fontSize: "13px",
+                fontWeight: "bold",
+                padding: "8px 14px",
+                borderRadius: "4px",
+                letterSpacing: "0.1em",
+              }}
+            >
+              {grade.label}
+            </div>
+          </div>
+        </div>
 
         {/* Lvアップ通知 */}
         {ui.levelUpPending && (
