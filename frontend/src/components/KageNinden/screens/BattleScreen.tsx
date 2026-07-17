@@ -55,6 +55,8 @@ export default function BattleScreen({ state, dispatch }: Props) {
 
   const playerItems = player.items.filter((it) => ITEMS[it.id]);
   const playerSkills = player.skills.filter((sid) => SKILLS[sid]);
+  const isStunned = playerStatus.some((e) => e.id === "stun");
+  const stunTurns = playerStatus.find((e) => e.id === "stun")?.turns ?? 0;
 
   return (
     <div
@@ -165,7 +167,24 @@ export default function BattleScreen({ state, dispatch }: Props) {
 
       {/* ─── 行動選択 ─── */}
       <div style={{ ...S.panel }}>
-        {showSkills ? (
+        {isStunned && !isAnimating ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "12px 8px",
+              border: `1px solid ${C.chakra}`,
+              borderRadius: "4px",
+              background: `${C.chakra}11`,
+            }}
+          >
+            <p style={{ color: C.chakra, fontSize: "15px", fontWeight: "bold", margin: "0 0 4px" }}>
+              ⚡ 行動不能！
+            </p>
+            <p style={{ color: C.dim, fontSize: "12px", margin: 0 }}>
+              スタン状態 — あと {stunTurns} ターン
+            </p>
+          </div>
+        ) : showSkills ? (
           <SkillPanel
             player={player}
             skills={playerSkills}
