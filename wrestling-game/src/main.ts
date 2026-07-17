@@ -146,16 +146,34 @@ const CAM_LERP  = 5;
 const camTarget = new THREE.Vector3();
 const camBase   = new THREE.Vector3();
 
+// フィニッシャー演出ズーム: 0 = 通常, 1 = 完全ズームイン
+let camZoom = 0;
+
 function updateCamera(dt: number): void {
   const mid = new THREE.Vector3()
     .addVectors(player1.position, player2.position)
     .multiplyScalar(0.5);
 
-  const desired = new THREE.Vector3(mid.x * 0.5, 8, mid.z * 0.3 + 14);
+  // シグネチャー/フィニッシャー中はドラマチックにズームイン
+  const dramatic = player1.state === "signature" || player2.state === "signature";
+  const zoomTarget = dramatic ? 1 : 0;
+  // ズームインは速く (4/s)、ズームアウトはゆっくり (1.5/s) 戻す
+  const zoomSpeed = zoomTarget > camZoom ? 4 : 1.5;
+  camZoom += (zoomTarget - camZoom) * Math.min(1, zoomSpeed * dt);
+
+  // 通常: 高く引いた視点 / ズーム時: 低く近い視点
+  const height = THREE.MathUtils.lerp(8, 4.2, camZoom);
+  const dist   = THREE.MathUtils.lerp(14, 7.5, camZoom);
+  const desired = new THREE.Vector3(
+    THREE.MathUtils.lerp(mid.x * 0.5, mid.x * 0.85, camZoom),
+    height,
+    mid.z * 0.3 + dist
+  );
   camBase.lerp(desired, Math.min(1, CAM_LERP * dt));
   camera.position.copy(camBase);
 
-  camTarget.lerp(new THREE.Vector3(mid.x, 0.8, mid.z), Math.min(1, CAM_LERP * dt));
+  const lookY = THREE.MathUtils.lerp(0.8, 1.3, camZoom);
+  camTarget.lerp(new THREE.Vector3(mid.x, lookY, mid.z), Math.min(1, CAM_LERP * dt));
   camera.lookAt(camTarget);
 }
 
