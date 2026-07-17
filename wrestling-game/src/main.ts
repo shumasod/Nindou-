@@ -438,6 +438,10 @@ let wasHotCrowd  = false;
 
 function addCrowdPop(amount: number): void {
   crowdMeter = Math.min(100, crowdMeter + amount);
+  // 大きな盛り上がり (フィニッシャー・コーナークラッシュ等) でスタンドにフラッシュ
+  if (amount >= 16) {
+    effects.spawnCrowdFlashes(Math.min(1, amount / 30));
+  }
 }
 
 function updateCrowd(dt: number): void {
