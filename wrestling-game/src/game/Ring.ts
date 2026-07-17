@@ -5,7 +5,28 @@ const ROPE_RADIUS = 0.04;
 
 export const RING_BOUNDS = RING_HALF - 0.4; // 衝突判定に使う内側の境界
 
-export function buildRing(scene: THREE.Scene): void {
+export type RopeSide = "north" | "east" | "south" | "west";
+
+/** ロープの揺れを制御するコントローラ (buildRing が返す) */
+export interface RingController {
+  /** 指定サイドのロープを揺らす — リバウンド時に呼ぶ */
+  wobbleRopes(side: RopeSide): void;
+  /** 毎フレーム呼ぶ */
+  update(dt: number): void;
+}
+
+interface WobbleState {
+  meshes: THREE.Mesh[];        // そのサイドの 3 本のロープ
+  basePos: THREE.Vector3[];    // 揺れの基準位置
+  normal: THREE.Vector3;       // 外向き法線 (揺れの方向)
+  timer: number;               // 経過秒 (< 0 = 非アクティブ)
+}
+
+const ropeSideMeshes: Record<RopeSide, THREE.Mesh[]> = {
+  north: [], east: [], south: [], west: [],
+};
+
+export function buildRing(scene: THREE.Scene): RingController {
   // ─── マット ───────────────────────────────────────────────────
   const matGeo = new THREE.BoxGeometry(RING_HALF * 2, 0.15, RING_HALF * 2);
   const matMat = new THREE.MeshStandardMaterial({
@@ -100,6 +121,54 @@ export function buildRing(scene: THREE.Scene): void {
 
   // ─── スポットライト演出 ────────────────────────────────────────
   addArenaDecor(scene);
+
+  return createRopeWobbleController();
+}
+
+const WOBBLE_DURATION = 1.1;  // 揺れの継続時間 (秒)
+const WOBBLE_AMP      = 0.22; // 最大振幅 (m)
+const WOBBLE_FREQ     = 18;   // 振動数 (rad/s)
+
+function createRopeWobbleController(): RingController {
+  const outwardNormal: Record<RopeSide, THREE.Vector3> = {
+    north: new THREE.Vector3(0, 0, -1),
+    east:  new THREE.Vector3(1, 0, 0),
+    south: new THREE.Vector3(0, 0, 1),
+    west:  new THREE.Vector3(-1, 0, 0),
+  };
+
+  const states: WobbleState[] = (Object.keys(ropeSideMeshes) as RopeSide[]).map((side) => ({
+    meshes:  ropeSideMeshes[side],
+    basePos: ropeSideMeshes[side].map((m) => m.position.clone()),
+    normal:  outwardNormal[side],
+    timer:   -1,
+  }));
+
+  const sideIndex: Record<RopeSide, number> = { north: 0, east: 1, south: 2, west: 3 };
+
+  return {
+    wobbleRopes(side: RopeSide): void {
+      const st = states[sideIndex[side]];
+      if (st) st.timer = 0;
+    },
+    update(dt: number): void {
+      for (const st of states) {
+        if (st.timer < 0) continue;
+        st.timer += dt;
+        if (st.timer >= WOBBLE_DURATION) {
+          st.timer = -1;
+          st.meshes.forEach((m, i) => m.position.copy(st.basePos[i]!));
+          continue;
+        }
+        // 減衰する外向き振動
+        const decay  = 1 - st.timer / WOBBLE_DURATION;
+        const offset = Math.sin(st.timer * WOBBLE_FREQ) * WOBBLE_AMP * decay * decay;
+        st.meshes.forEach((m, i) => {
+          m.position.copy(st.basePos[i]!).addScaledVector(st.normal, Math.max(0, offset));
+        });
+      }
+    },
+  };
 }
 
 function addMatLines(scene: THREE.Scene): void {
@@ -158,14 +227,14 @@ function addRopeSegments(
   mat: THREE.Material
 ): void {
   const R = RING_HALF;
-  const segments: Array<{ from: THREE.Vector3; to: THREE.Vector3 }> = [
-    { from: new THREE.Vector3(-R, y, -R), to: new THREE.Vector3( R, y, -R) },
-    { from: new THREE.Vector3( R, y, -R), to: new THREE.Vector3( R, y,  R) },
-    { from: new THREE.Vector3( R, y,  R), to: new THREE.Vector3(-R, y,  R) },
-    { from: new THREE.Vector3(-R, y,  R), to: new THREE.Vector3(-R, y, -R) },
+  const segments: Array<{ from: THREE.Vector3; to: THREE.Vector3; side: RopeSide }> = [
+    { from: new THREE.Vector3(-R, y, -R), to: new THREE.Vector3( R, y, -R), side: "north" },
+    { from: new THREE.Vector3( R, y, -R), to: new THREE.Vector3( R, y,  R), side: "east" },
+    { from: new THREE.Vector3( R, y,  R), to: new THREE.Vector3(-R, y,  R), side: "south" },
+    { from: new THREE.Vector3(-R, y,  R), to: new THREE.Vector3(-R, y, -R), side: "west" },
   ];
 
-  segments.forEach(({ from, to }) => {
+  segments.forEach(({ from, to, side }) => {
     const dir = new THREE.Vector3().subVectors(to, from);
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
@@ -183,6 +252,7 @@ function addRopeSegments(
     mesh.quaternion.copy(quaternion);
     mesh.castShadow = true;
     scene.add(mesh);
+    ropeSideMeshes[side].push(mesh);
   });
 }
 
