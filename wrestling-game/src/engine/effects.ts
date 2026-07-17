@@ -209,6 +209,41 @@ export class EffectsSystem {
   }
 
   /**
+   * 観客席のカメラフラッシュ — 大技の瞬間にスタンドで白い閃光が瞬く
+   * 強度 (0-1) に応じてフラッシュ数が増える
+   */
+  spawnCrowdFlashes(intensity = 0.5): void {
+    const count = Math.round(4 + intensity * 10);
+    for (let i = 0; i < count; i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 6,
+        transparent: true,
+      });
+      const size = 0.25 + Math.random() * 0.3;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, 0.02), mat);
+      // 観客席シリンダー (半径 ~28) の内側にランダム配置
+      const angle  = Math.random() * Math.PI * 2;
+      const radius = 20 + Math.random() * 7;
+      mesh.position.set(
+        Math.cos(angle) * radius,
+        2 + Math.random() * 8,
+        Math.sin(angle) * radius
+      );
+      mesh.lookAt(0, 3, 0); // リング中央を向く
+      this.scene.add(mesh);
+
+      this.particles.push({
+        mesh,
+        vel: new THREE.Vector3(0, 0, 0), // 静止 — 点滅のみ
+        life: 0.08 + Math.random() * 0.35, // ランダムに時間差で消える
+        maxLife: 0.15,
+      });
+    }
+  }
+
+  /**
    * ダメージ数値ポップアップ — DOM オーバーレイに浮遊テキストを出す
    * 大ダメージ (>= 20) は大きく赤系で表示
    */
