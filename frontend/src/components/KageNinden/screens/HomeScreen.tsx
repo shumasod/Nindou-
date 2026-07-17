@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
-import { CLANS, SKILLS, ITEMS } from "../data";
+import { CLANS, SKILLS, ITEMS, SKILL_UNLOCK } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -350,6 +350,12 @@ function SkillsListView({
   player: GameState["player"];
   setSubView: (v: SubView) => void;
 }) {
+  const nextUnlock = player.clan
+    ? Object.entries(SKILL_UNLOCK)
+        .filter(([id, cond]) => cond.clan === player.clan && cond.level > player.level && !player.skills.includes(id))
+        .sort(([, a], [, b]) => a.level - b.level)[0]
+    : null;
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
@@ -375,6 +381,36 @@ function SkillsListView({
               </div>
             );
           })}
+        </div>
+      )}
+      {nextUnlock && (
+        <div
+          style={{
+            ...S.panelSm,
+            marginTop: "12px",
+            borderColor: C.purple,
+            background: `${C.purple}11`,
+          }}
+        >
+          <p style={{ color: C.purple, fontSize: "11px", margin: "0 0 4px" }}>── 次の習得技能 ──</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: C.text, fontSize: "13px" }}>{SKILLS[nextUnlock[0]]?.name ?? nextUnlock[0]}</span>
+            <span style={{ color: C.dim, fontSize: "11px" }}>Lv.{nextUnlock[1].level} で習得</span>
+          </div>
+          <div style={{ marginTop: "6px", height: "4px", background: `${C.dim}33`, borderRadius: "2px" }}>
+            <div
+              style={{
+                width: `${Math.min(100, (player.level / nextUnlock[1].level) * 100)}%`,
+                height: "100%",
+                background: C.purple,
+                borderRadius: "2px",
+                transition: "width 0.3s",
+              }}
+            />
+          </div>
+          <p style={{ color: C.dim, fontSize: "10px", margin: "4px 0 0", textAlign: "right" }}>
+            Lv.{player.level} / {nextUnlock[1].level}
+          </p>
         </div>
       )}
     </div>
