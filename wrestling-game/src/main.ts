@@ -976,7 +976,7 @@ function animate(): void {
     updateCrowd(dt);
     checkCrowdFlash();
     updateHUD(matchElapsed);
-    checkMatchEnd();
+    checkMatchEnd(dt);
   } else if (phase === "countdown") {
     updateCamera(dt);
     effects.update(dt, camera); // イントロパイロの粒子を動かす
@@ -1315,7 +1315,7 @@ function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: s
 }
 
 // ─── Match end ────────────────────────────────────────────────────────────────
-function checkMatchEnd(): void {
+function checkMatchEnd(dt: number): void {
   if (phase !== "match") return;
 
   const p2Label = mode === "2p" ? "P2" : "CPU";
@@ -1344,12 +1344,14 @@ function checkMatchEnd(): void {
     if (player2.state === "knockdown") { showResult("P1",    "SUDDEN DEATH  "); return; }
   }
 
+  // ピンカウント進行 — 実時間ベース (1 カウント / 秒)。
+  // 以前は += 1/60 固定でフレームレート依存 (144Hz で 2.4 倍速) だった
   if (player1.state === "pinning" && player2.state === "being_pinned") {
-    player1.pinCount += 1 / 60;
+    player1.pinCount += dt;
     if (player1.pinCount >= 3) { showResult("P1", "PINFALL  "); return; }
   }
   if (player2.state === "pinning" && player1.state === "being_pinned") {
-    player2.pinCount += 1 / 60;
+    player2.pinCount += dt;
     if (player2.pinCount >= 3) { showResult(p2Label, "PINFALL  "); return; }
   }
 
