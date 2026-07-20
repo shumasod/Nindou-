@@ -808,6 +808,8 @@ function startNextRound(): void {
   p2WasCorner   = false;
   p1WasCornered = false;
   p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
   camZoom       = 0;
   crowdMeter    = 0;
   wasHotCrowd   = false;
@@ -1508,6 +1510,8 @@ function startMatch(
   p2WasCorner  = false;
   p1WasCornered = false;
   p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
   camZoom      = 0;
   crowdMeter   = 0;
   wasHotCrowd  = false;
