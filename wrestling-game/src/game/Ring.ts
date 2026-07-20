@@ -27,6 +27,9 @@ const ropeSideMeshes: Record<RopeSide, THREE.Mesh[]> = {
 };
 
 export function buildRing(scene: THREE.Scene): RingController {
+  // 再構築時に前回のロープ参照が蓄積しないようクリア (冪等性の保証)
+  (Object.keys(ropeSideMeshes) as RopeSide[]).forEach((s) => { ropeSideMeshes[s] = []; });
+
   // ─── マット ───────────────────────────────────────────────────
   const matGeo = new THREE.BoxGeometry(RING_HALF * 2, 0.15, RING_HALF * 2);
   const matMat = new THREE.MeshStandardMaterial({
