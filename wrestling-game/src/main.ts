@@ -798,6 +798,8 @@ function startNextRound(): void {
   comboCount = 0;
   comboTimer = 0;
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  p1WasGassed   = false;
+  p2WasGassed   = false;
   p1WasDanger   = false;
   p2WasDanger   = false;
   p1WasMomDecay = false;
