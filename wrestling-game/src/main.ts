@@ -806,6 +806,8 @@ function startNextRound(): void {
   p2WasMomDecay = false;
   p1WasCorner   = false;
   p2WasCorner   = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
   crowdMeter    = 0;
   wasHotCrowd   = false;
   suddenDeath   = false;
@@ -1503,6 +1505,8 @@ function startMatch(
   p2WasMomDecay = false;
   p1WasCorner  = false;
   p2WasCorner  = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
   crowdMeter   = 0;
   wasHotCrowd  = false;
   suddenDeath  = false;
