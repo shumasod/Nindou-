@@ -1685,7 +1685,11 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") togglePause();
 });
 
-document.getElementById("pause-resume-btn")?.addEventListener("click", togglePause);
+document.getElementById("pause-resume-btn")?.addEventListener("click", (e) => {
+  // フォーカスを外す — 残ると再開後の SPACE (シグネチャー) / Enter が RESUME を再発火して即再ポーズする
+  (e.currentTarget as HTMLButtonElement).blur();
+  togglePause();
+});
 document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
   location.reload();
 });
