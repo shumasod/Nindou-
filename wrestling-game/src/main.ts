@@ -532,6 +532,13 @@ const strikeChain: { p1: number; p2: number; timer: { p1: number; p2: number } }
   p1: 0, p2: 0, timer: { p1: 0, p2: 0 },
 };
 
+function resetStrikeChains(): void {
+  strikeChain.p1 = 0;
+  strikeChain.p2 = 0;
+  strikeChain.timer.p1 = 0;
+  strikeChain.timer.p2 = 0;
+}
+
 function incrementStrikeChain(side: "p1" | "p2"): boolean {
   strikeChain.timer[side] = STRIKE_CHAIN_WINDOW;
   strikeChain[side]++;
@@ -802,6 +809,7 @@ function startNextRound(): void {
   suddenDeath   = false;
   resetRingOut();
   resetKickout();
+  resetStrikeChains();
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -1495,6 +1503,7 @@ function startMatch(
   suddenDeath  = false;
   resetRingOut();
   resetKickout();
+  resetStrikeChains();
   phase = "countdown";
   clock.start();
   showMatchIntro(() => {
