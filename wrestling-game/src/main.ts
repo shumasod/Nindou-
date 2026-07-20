@@ -1323,6 +1323,21 @@ function checkMatchEnd(): void {
   if (player1.hp <= 0) { showResult(p2Label); return; }
   if (player2.hp <= 0) { showResult("P1");    return; }
 
+  // TKO: 累計 3 ノックダウンで決着 — onKnockdown() を通らない
+  // CPU 起因のノックダウン (CpuAI が startKnockdown を直接呼ぶ) もここで拾う
+  if (player1.knockdownCount >= 3) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult(p2Label, "TKO  ");
+    return;
+  }
+  if (player2.knockdownCount >= 3) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult("P1", "TKO  ");
+    return;
+  }
+
   // サドンデス: どの発生源のノックダウンでも即決着 (CPU 技・ホイップ激突含む)
   if (suddenDeath) {
     if (player1.state === "knockdown") { showResult(p2Label, "SUDDEN DEATH  "); return; }
