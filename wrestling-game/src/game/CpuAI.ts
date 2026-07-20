@@ -98,8 +98,9 @@ export class CpuAI {
    */
   private get hpGapFactor(): number {
     const hpRatio = (this.cpu.hp / this.cpu.maxHp) - (this.player.hp / this.player.maxHp);
-    if (hpRatio > 0.3)  return 0.7;  // 大きなリード → 守備的 (decisonBase × 0.7 = 遅い)
-    if (hpRatio < -0.3) return 1.4;  // 大きな劣勢 → 積極的 (decisionBase × 1.4 = 速い)
+    // decisionTimer への乗数: 大きいほど待機が長い = 遅い
+    if (hpRatio > 0.3)  return 1.4;  // 大きなリード → 守備的 (待機 ×1.4 = 遅い)
+    if (hpRatio < -0.3) return 0.7;  // 大きな劣勢 → 積極的 (待機 ×0.7 = 速い)
     return 1.0;
   }
 
