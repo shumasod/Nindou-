@@ -1490,6 +1490,9 @@ function startMatch(
 
   tracker = new MatchTracker();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  comboCount = 0;
+  comboTimer = 0;
+  if (hudCombo) hudCombo.style.display = "none";
   p1WasGassed = false;
   p2WasGassed = false;
   p1WasDanger  = false;
