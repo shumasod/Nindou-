@@ -63,6 +63,9 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const isPlayerTurn = phase === "player";
   const hpRatio = player.hp / player.maxHp;
   const isDanger = hpRatio <= 0.25;
+  const isStunned = playerStatus.some((e) => e.id === "stun");
+  const stunTurns = playerStatus.find((e) => e.id === "stun")?.turns ?? 0;
+  const isPoisoned = playerStatus.some((e) => e.id === "poison");
 
   if (!enemy) return null;
 
@@ -157,15 +160,22 @@ export default function BattleScreen({ state, dispatch }: Props) {
         {/* HP */}
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-            <span style={{ ...S.label }}>HP</span>
+            <span style={{ ...S.label }}>
+              HP{isPoisoned && <span style={{ color: "#8b6914", marginLeft: "6px", fontSize: "11px" }}>☠ 毒</span>}
+            </span>
           </div>
-          <div style={barTrackStyle}><div style={hpBarStyle(player.hp, player.maxHp)} /></div>
+          <div style={barTrackStyle}>
+            <div style={isPoisoned ? poisonHpBarStyle(player.hp, player.maxHp) : hpBarStyle(player.hp, player.maxHp)} />
+          </div>
         </div>
         {/* チャクラ */}
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
             <span style={{ ...S.label }}>チャクラ</span>
-            <span style={{ color: C.chakra, fontSize: "11px" }}>{player.chakra}/{player.maxChakra}</span>
+            <span style={{ color: C.chakra, fontSize: "11px" }}>
+              {player.chakra}/{player.maxChakra}
+              <span style={{ color: C.dim, fontSize: "10px", marginLeft: "4px" }}>+3〜7/T</span>
+            </span>
           </div>
           <div style={barTrackStyle}><div style={chakraBarStyle(player.chakra, player.maxChakra)} /></div>
         </div>
@@ -181,7 +191,24 @@ export default function BattleScreen({ state, dispatch }: Props) {
 
       {/* ─── 行動選択 ─── */}
       <div style={{ ...S.panel }}>
-        {showSkills ? (
+        {isStunned && !isAnimating ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "14px 8px",
+              border: `1px solid ${C.chakra}`,
+              borderRadius: "4px",
+              background: `${C.chakra}11`,
+            }}
+          >
+            <p style={{ color: C.chakra, fontSize: "15px", fontWeight: "bold", margin: "0 0 4px" }}>
+              ⚡ 行動不能！
+            </p>
+            <p style={{ color: C.dim, fontSize: "12px", margin: 0 }}>
+              スタン状態 — あと {stunTurns} ターン
+            </p>
+          </div>
+        ) : showSkills ? (
           <SkillPanel
             player={player}
             skills={playerSkills}
@@ -232,6 +259,7 @@ export default function BattleScreen({ state, dispatch }: Props) {
           </div>
         )}
       </div>
+
 
       {/* ─── 戦闘ログ ─── */}
       <div ref={logRef} style={{ ...S.panel, maxHeight: "160px", overflowY: "auto" }}>
@@ -398,6 +426,18 @@ function logColor(line: string, index: number): string {
   if (line.includes("フェーズ")) return C.accent1;
   if (line.includes("ダメージ") && line.includes(line.split("の")[0])) return C.text;
   return C.text;
+}
+
+// ─── 毒状態のHPバースタイル ───
+function poisonHpBarStyle(current: number, max: number): CSSProperties {
+  return {
+    width: `${Math.max(0, (current / max) * 100)}%`,
+    height: "100%",
+    background: "#8b6914",
+    transition: "width 0.3s, background 0.3s",
+    borderRadius: "2px",
+    animation: "blink 1.5s infinite",
+  };
 }
 
 // ─── スタイル ───
