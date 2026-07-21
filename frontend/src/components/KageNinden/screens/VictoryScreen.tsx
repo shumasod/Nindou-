@@ -4,6 +4,13 @@ import { ITEMS } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
+function survivalGrade(hpRatio: number): { label: string; color: string } {
+  if (hpRatio > 0.75) return { label: "S  完璧", color: "#d4a017" };
+  if (hpRatio > 0.5)  return { label: "A  優秀", color: C.accent1 };
+  if (hpRatio > 0.25) return { label: "B  良好", color: C.purple };
+  return { label: "C  辛勝", color: C.success };
+}
+
 interface Props {
   state: GameState;
   dispatch: (a: GameAction) => void;
@@ -102,6 +109,35 @@ export default function VictoryScreen({ state, dispatch }: Props) {
             </p>
           </div>
         )}
+
+        {/* 戦闘サマリー */}
+        <div style={{ ...S.panelSm, marginBottom: "24px" }}>
+          <p style={{ ...S.label, marginBottom: "8px" }}>戦闘サマリー</p>
+          {(() => {
+            const hpRatio = player.hp / player.maxHp;
+            const grade = survivalGrade(hpRatio);
+            return (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ color: C.dim, fontSize: "12px" }}>使用ターン数</span>
+                  <span style={{ color: C.text, fontSize: "12px" }}>{state.battle.turn - 1} T</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ color: C.dim, fontSize: "12px" }}>撃破数</span>
+                  <span style={{ color: C.text, fontSize: "12px" }}>{state.battle.killCount} 体</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ color: C.dim, fontSize: "12px" }}>残存 HP</span>
+                  <span style={{ color: C.text, fontSize: "12px" }}>{player.hp} / {player.maxHp} ({Math.round(hpRatio * 100)}%)</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.border}`, paddingTop: "6px", marginTop: "4px" }}>
+                  <span style={{ color: C.dim, fontSize: "12px" }}>評価</span>
+                  <span style={{ color: grade.color, fontSize: "13px", fontWeight: "bold" }}>{grade.label}</span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
 
         {/* 現在ステータス */}
         <div style={{ ...S.panelSm, marginBottom: "24px" }}>
