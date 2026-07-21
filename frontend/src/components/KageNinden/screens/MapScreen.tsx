@@ -64,6 +64,9 @@ export default function MapScreen({ state, dispatch }: Props) {
         {Object.entries(AREAS).map(([areaId, area]) => {
           const locked = player.level < area.minLevel;
           const areaQuests = QUESTS.filter((q) => area.quests.includes(q.id));
+          const clearedCount = areaQuests.filter((q) => progress.completedQuests.includes(q.id)).length;
+          const areaCleared = !locked && areaQuests.length > 0 && clearedCount === areaQuests.length;
+          const clearedColor = "#d4a017";
 
           return (
             <div
@@ -71,7 +74,9 @@ export default function MapScreen({ state, dispatch }: Props) {
               style={{
                 ...S.panel,
                 opacity: locked ? 0.4 : 1,
-                border: `1px solid ${areaQuests.length > 0 && areaQuests.every(q => progress.completedQuests.includes(q.id)) ? C.success : C.border}`,
+                border: `1px solid ${areaCleared ? clearedColor : C.border}`,
+                boxShadow: areaCleared ? `0 0 8px ${clearedColor}44` : "none",
+                transition: "box-shadow 0.3s",
               }}
             >
               {/* エリアヘッダー */}
@@ -86,10 +91,26 @@ export default function MapScreen({ state, dispatch }: Props) {
                 <div style={{ textAlign: "right" }}>
                   {locked ? (
                     <span style={{ color: C.danger, fontSize: "11px" }}>🔒 Lv{area.minLevel}〜</span>
-                  ) : areaQuests.length > 0 && areaQuests.every(q => progress.completedQuests.includes(q.id)) ? (
-                    <span style={{ color: C.success, fontSize: "11px" }}>✓ 制圧済み</span>
+                  ) : areaCleared ? (
+                    <span
+                      style={{
+                        color: clearedColor,
+                        fontSize: "12px",
+                        border: `1px solid ${clearedColor}`,
+                        padding: "2px 8px",
+                        borderRadius: "2px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      ★ 制圧完了
+                    </span>
                   ) : (
-                    <span style={{ color: C.accent2, fontSize: "11px" }}>Lv{area.minLevel}〜</span>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ color: C.accent2, fontSize: "11px", display: "block" }}>Lv{area.minLevel}〜</span>
+                      {areaQuests.length > 0 && (
+                        <span style={{ color: C.dim, fontSize: "10px" }}>{clearedCount}/{areaQuests.length} 完了</span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
