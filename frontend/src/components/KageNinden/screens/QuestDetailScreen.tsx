@@ -19,6 +19,16 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
 
   const enemy = ENEMIES[quest.target];
   const progress = state.progress.questProgress[quest.id] ?? 0;
+  const player = state.player;
+  const levelOk = player.level >= quest.minLevel;
+  const playerPower = player.stats.attack + player.stats.defense + player.stats.speed;
+  const enemyPower = enemy ? enemy.attack + enemy.defense + enemy.speed : 0;
+  const powerRatio = enemyPower > 0 ? Math.min(1.5, playerPower / enemyPower) : 1;
+  const diffLabel =
+    powerRatio >= 1.3 ? { text: "有利", color: C.success } :
+    powerRatio >= 0.9 ? { text: "互角", color: C.accent2 } :
+    powerRatio >= 0.6 ? { text: "不利", color: C.accent1 } :
+    { text: "危険", color: C.danger };
 
   return (
     <div
@@ -110,6 +120,35 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
                 {ITEMS[ri.id]?.icon} {ITEMS[ri.id]?.name} ×{ri.count ?? 1}
               </span>
             ))}
+          </div>
+        </div>
+
+        {/* 難易度分析 */}
+        <div style={{ ...S.panelSm, marginBottom: "20px" }}>
+          <p style={{ ...S.label, marginBottom: "8px" }}>難易度分析</p>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>レベル条件</span>
+            <span style={{ color: levelOk ? C.success : C.danger, fontSize: "12px" }}>
+              {levelOk ? `✓ Lv${player.level} (条件Lv${quest.minLevel})` : `✗ Lv${player.level} / 必要Lv${quest.minLevel}`}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>戦力比較</span>
+            <span style={{ color: diffLabel.color, fontSize: "13px", fontWeight: "bold" }}>{diffLabel.text}</span>
+          </div>
+          <div style={{ background: C.border, borderRadius: "4px", height: "6px", overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${Math.min(100, powerRatio * 66.7)}%`,
+                height: "100%",
+                background: diffLabel.color,
+                transition: "width 0.4s",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+            <span style={{ color: C.dim, fontSize: "10px" }}>自陣: {playerPower}</span>
+            <span style={{ color: C.dim, fontSize: "10px" }}>敵陣: {enemyPower}</span>
           </div>
         </div>
 
