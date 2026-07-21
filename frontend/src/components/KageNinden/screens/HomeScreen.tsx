@@ -15,8 +15,9 @@ type SubView = "menu" | "items" | "train" | "skills_list";
 
 export default function HomeScreen({ state, dispatch }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
-  const { player, ui } = state;
+  const { player, ui, progress } = state;
   const clanData = player.clan ? CLANS[player.clan] : null;
+  const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
 
   return (
     <div
@@ -132,11 +133,19 @@ export default function HomeScreen({ state, dispatch }: Props) {
             ))}
           </div>
 
-          {/* ゴールド */}
+          {/* ゴールド・戦績 */}
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "10px", marginTop: "6px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
               <span style={{ color: C.dim, fontSize: "12px" }}>💰 所持金</span>
               <span style={{ color: C.accent2, fontSize: "13px" }}>{player.gold} G</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ color: C.dim, fontSize: "12px" }}>⚔ 撃破数</span>
+              <span style={{ color: C.text, fontSize: "12px" }}>{totalKills}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: C.dim, fontSize: "12px" }}>📜 任務完了</span>
+              <span style={{ color: C.text, fontSize: "12px" }}>{progress.completedQuests.length}</span>
             </div>
           </div>
 
