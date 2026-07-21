@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
 import { SKILLS, ITEMS } from "../data";
+import { BATTLE_TURN_LIMIT } from "../reducer/helpers";
 import type { GameState, StatusEffect } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -92,9 +93,23 @@ export default function BattleScreen({ state, dispatch }: Props) {
         </div>
       )}
 
-      {/* ターン数 */}
-      <div style={{ textAlign: "right" }}>
-        <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn}</span>
+      {/* ターン数 + 制限 */}
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px" }}>
+        <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn} / {BATTLE_TURN_LIMIT}</span>
+        {turn >= BATTLE_TURN_LIMIT - 5 && (
+          <span
+            style={{
+              color: C.accent1,
+              fontSize: "10px",
+              border: `1px solid ${C.accent1}`,
+              padding: "1px 4px",
+              borderRadius: "2px",
+              animation: "blink 0.8s infinite",
+            }}
+          >
+            引き分け間近
+          </span>
+        )}
       </div>
 
       {/* ─── 敵情報 ─── */}

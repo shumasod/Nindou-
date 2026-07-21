@@ -10,6 +10,7 @@ import {
 
 // ===== 定数 =====
 export const MAX_LEVEL = 99;
+export const BATTLE_TURN_LIMIT = 30;
 
 // ===== ログ追記 =====
 export function addLog(state: GameState, msg: string): GameState {
@@ -159,6 +160,17 @@ export function finalizeEnemyTurn(state: GameState): GameState {
   const newPlayerStatus = decrementStatus(state.battle.playerStatus);
   const newEnemyStatus = decrementStatus(state.battle.enemyStatus);
   const newChakra = Math.min(state.player.maxChakra, state.player.chakra + getRandom(3, 7));
+  const nextTurn = state.battle.turn + 1;
+
+  if (nextTurn > BATTLE_TURN_LIMIT) {
+    const timeoutLog = [`ターン${BATTLE_TURN_LIMIT}を超えた。引き分けで撤退する…`, ...state.battle.log];
+    return {
+      ...state,
+      player: { ...state.player, chakra: newChakra },
+      battle: { ...state.battle, active: false, log: timeoutLog, phase: "player" },
+      ui: { ...state.ui, screen: "home" },
+    };
+  }
 
   return {
     ...state,
@@ -167,7 +179,7 @@ export function finalizeEnemyTurn(state: GameState): GameState {
       ...state.battle,
       playerStatus: newPlayerStatus,
       enemyStatus: newEnemyStatus,
-      turn: state.battle.turn + 1,
+      turn: nextTurn,
       phase: "player",
       playerDodgeChance: newPlayerStatus.some((e) => e.id === "shadow_clone")
         ? state.battle.playerDodgeChance
