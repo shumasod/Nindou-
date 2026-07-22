@@ -676,9 +676,9 @@ function showMatchIntro(cb: () => void): void {
   if (!overlay) { cb(); return; }
 
   if (p1NameEl)  p1NameEl.textContent  = player1.name;
-  if (p1TitleEl) p1TitleEl.textContent = player1.title ?? "";
+  if (p1TitleEl) p1TitleEl.textContent = player1.title;
   if (p2NameEl)  p2NameEl.textContent  = player2.name;
-  if (p2TitleEl) p2TitleEl.textContent = player2.title ?? "";
+  if (p2TitleEl) p2TitleEl.textContent = player2.title;
 
   // キャラクターカラーを名前に反映
   const p1El = document.getElementById("intro-p1");
