@@ -63,6 +63,8 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const isPlayerTurn = phase === "player";
   const hpRatio = player.hp / player.maxHp;
   const isDanger = hpRatio <= 0.25;
+  const isPoisoned = playerStatus.some((e) => e.id === "poison");
+  const poisonTurns = playerStatus.find((e) => e.id === "poison")?.turns ?? 0;
 
   if (!enemy) return null;
 
@@ -157,9 +159,16 @@ export default function BattleScreen({ state, dispatch }: Props) {
         {/* HP */}
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-            <span style={{ ...S.label }}>HP</span>
+            <span style={{ ...S.label, color: isPoisoned ? "#8b6914" : undefined }}>HP</span>
+            {isPoisoned && (
+              <span style={{ color: "#8b6914", fontSize: "11px", animation: "blink 0.8s infinite" }}>
+                ☠ 毒({poisonTurns}T)
+              </span>
+            )}
           </div>
-          <div style={barTrackStyle}><div style={hpBarStyle(player.hp, player.maxHp)} /></div>
+          <div style={barTrackStyle}>
+            <div style={isPoisoned ? poisonHpBarStyle(player.hp, player.maxHp) : hpBarStyle(player.hp, player.maxHp)} />
+          </div>
         </div>
         {/* チャクラ */}
         <div style={{ marginBottom: "6px" }}>
@@ -398,6 +407,19 @@ function logColor(line: string, index: number): string {
   if (line.includes("フェーズ")) return C.accent1;
   if (line.includes("ダメージ") && line.includes(line.split("の")[0])) return C.text;
   return C.text;
+}
+
+// ─── 毒HPバー ───
+function poisonHpBarStyle(current: number, max: number): CSSProperties {
+  const ratio = Math.max(0, Math.min(1, current / max));
+  return {
+    height: "100%",
+    width: `${ratio * 100}%`,
+    background: "#8b6914",
+    borderRadius: "2px",
+    transition: "width 0.4s ease",
+    animation: "blink 0.8s infinite",
+  };
 }
 
 // ─── スタイル ───
