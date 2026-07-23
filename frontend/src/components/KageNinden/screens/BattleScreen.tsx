@@ -59,6 +59,13 @@ export default function BattleScreen({ state, dispatch }: Props) {
     }
   }, [log[0]]);
 
+  // ログ先頭へ自動スクロール
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = 0;
+    }
+  }, [log.length]);
+
   const isAnimating = phase === "enemy";
   const isPlayerTurn = phase === "player";
   const hpRatio = player.hp / player.maxHp;
