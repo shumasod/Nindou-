@@ -63,6 +63,8 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const isPlayerTurn = phase === "player";
   const hpRatio = player.hp / player.maxHp;
   const isDanger = hpRatio <= 0.25;
+  const isStunned = playerStatus.some((e) => e.id === "stun");
+  const stunTurns = playerStatus.find((e) => e.id === "stun")?.turns ?? 0;
 
   if (!enemy) return null;
 
@@ -89,6 +91,13 @@ export default function BattleScreen({ state, dispatch }: Props) {
       {ambushBanner && (
         <div style={ambushBannerStyle}>
           ⚡ 奇襲成功！先手を取った！ ⚡
+        </div>
+      )}
+
+      {/* スタンバナー */}
+      {isStunned && !isAnimating && (
+        <div style={stunBannerStyle}>
+          ⚡ スタン中！行動不能 ({stunTurns}T残) ⚡
         </div>
       )}
 
@@ -181,7 +190,16 @@ export default function BattleScreen({ state, dispatch }: Props) {
 
       {/* ─── 行動選択 ─── */}
       <div style={{ ...S.panel }}>
-        {showSkills ? (
+        {isStunned && !isAnimating ? (
+          <div style={{ textAlign: "center", padding: "12px 0" }}>
+            <p style={{ color: C.chakra, fontSize: "14px", margin: 0, animation: "blink 0.8s infinite" }}>
+              ⚡ スタン中 — 行動できない！ ⚡
+            </p>
+            <p style={{ color: C.dim, fontSize: "11px", margin: "6px 0 0" }}>
+              敵のターンが来るまで待機…
+            </p>
+          </div>
+        ) : showSkills ? (
           <SkillPanel
             player={player}
             skills={playerSkills}
@@ -401,6 +419,18 @@ function logColor(line: string, index: number): string {
 }
 
 // ─── スタイル ───
+const stunBannerStyle: CSSProperties = {
+  background: `${C.chakra}22`,
+  border: `1px solid ${C.chakra}`,
+  color: C.chakra,
+  padding: "8px 16px",
+  fontSize: "13px",
+  fontWeight: "bold",
+  borderRadius: "4px",
+  textAlign: "center",
+  animation: "blink 0.8s infinite",
+};
+
 const ambushBannerStyle: CSSProperties = {
   position: "fixed",
   top: "20%",
