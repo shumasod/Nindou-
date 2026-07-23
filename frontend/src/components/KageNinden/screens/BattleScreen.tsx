@@ -391,13 +391,20 @@ function StatusBadge({ effect }: { effect: StatusEffect }) {
 
 // ─── ログの色分け ───
 function logColor(line: string, index: number): string {
-  if (index > 0) return C.dim;
-  if (line.includes("CRITICAL")) return C.accent1;
-  if (line.includes("倒した")) return C.success;
-  if (line.includes("奇襲")) return C.accent2;
-  if (line.includes("フェーズ")) return C.accent1;
-  if (line.includes("ダメージ") && line.includes(line.split("の")[0])) return C.text;
-  return C.text;
+  const bright = index === 0;
+  const dim = (c: string) => bright ? c : C.dim;
+
+  if (line.includes("CRITICAL"))                                      return dim(C.accent1);
+  if (line.includes("倒した"))                                        return dim(C.success);
+  if (line.includes("奇襲"))                                          return dim(C.accent2);
+  if (line.includes("フェーズ2"))                                     return dim(C.accent1);
+  if (line.includes("毒のダメージ") || line.includes("毒状態"))       return dim("#8b6914");
+  if (line.includes("スタン") || line.includes("行動不能"))          return dim(C.chakra);
+  if (line.includes("回避") || line.includes("かわした") || line.includes("無効化")) return dim(C.purple);
+  if (line.includes("防御態勢"))                                      return dim(C.chakra);
+  if (line.includes("幻惑") || line.includes("混乱"))                return dim(C.purple);
+  if (line.includes("Lv") && line.includes("上がった"))              return dim(C.accent2);
+  return bright ? C.text : C.dim;
 }
 
 // ─── スタイル ───
