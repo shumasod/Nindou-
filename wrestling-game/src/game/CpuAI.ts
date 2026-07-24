@@ -190,7 +190,9 @@ export class CpuAI {
     const gapMult = this.hpGapFactor;
 
     // スプリント中 + コーナー追い詰め → コーナースプラッシュ (優先)
-    if (sprint && this.player.isInCorner() && len < 2.5 && this.cpu.isActionReady()) {
+    // decisionTimer も見る — actionCooldown だけでは難易度別ペーシング (decisionBase 倍率) が効かない
+    if (sprint && this.player.isInCorner() && len < 2.5 &&
+        this.cpu.isActionReady() && this.decisionTimer <= 0) {
       this.cpu.startCornerSplash();
       const dmg = (22 + Math.random() * 8) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
@@ -206,7 +208,7 @@ export class CpuAI {
     }
 
     // スプリント中 + 射程内 → ランニングストライク
-    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady()) {
+    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady() && this.decisionTimer <= 0) {
       this.cpu.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
@@ -333,12 +335,12 @@ export class CpuAI {
     if (this.cpu.distanceTo(this.player) < 3.5) {
       this.cpu.move(dx / len, dz / len, false, dt);
     }
-    // Hard 限定: 遠ければたまにタントして煽る
+    // Hard 限定: 遠ければたまにタントして煽る (~0.5 回/秒の期待値、dt スケールでフレームレート非依存)
     if (this.p.missChance < 0.1 &&
         this.cpu.distanceTo(this.player) > 4 &&
         this.cpu.state === "idle" &&
         this.decisionTimer <= 0 &&
-        Math.random() < 0.008) {
+        Math.random() < 0.5 * dt) {
       this.cpu.startTaunt();
       audio.crowd();
       this.decisionTimer = 1.5;
