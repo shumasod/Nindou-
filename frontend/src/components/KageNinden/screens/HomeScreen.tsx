@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
-import { CLANS, SKILLS, ITEMS } from "../data";
+import { CLANS, SKILLS, ITEMS, SKILL_UNLOCK } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -417,6 +417,12 @@ function SkillsListView({
   player: GameState["player"];
   setSubView: (v: SubView) => void;
 }) {
+  const nextUnlock = player.clan
+    ? Object.entries(SKILL_UNLOCK)
+        .filter(([id, cond]) => cond.clan === player.clan && cond.level > player.level && !player.skills.includes(id))
+        .sort(([, a], [, b]) => a.level - b.level)[0]
+    : null;
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
@@ -442,6 +448,21 @@ function SkillsListView({
               </div>
             );
           })}
+        </div>
+      )}
+      {nextUnlock && (
+        <div style={{
+          marginTop: "14px",
+          padding: "8px 10px",
+          border: `1px solid ${C.purple}`,
+          borderRadius: "4px",
+          background: `${C.purple}11`,
+        }}>
+          <p style={{ color: C.purple, fontSize: "11px", margin: "0 0 4px" }}>次回解放 (Lv.{nextUnlock[1].level})</p>
+          <p style={{ color: C.text, fontSize: "13px", margin: 0 }}>{SKILLS[nextUnlock[0]]?.name ?? nextUnlock[0]}</p>
+          <p style={{ color: C.dim, fontSize: "11px", margin: "2px 0 0" }}>
+            あと {nextUnlock[1].level - player.level} レベル
+          </p>
         </div>
       )}
     </div>
