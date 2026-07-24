@@ -183,6 +183,7 @@ const hudP1Sta  = document.getElementById("player-sta")   as HTMLElement | null;
 const hudP1Mom  = document.getElementById("player-mom")   as HTMLElement | null;
 const hudP2Hp   = document.getElementById("cpu-hp")       as HTMLElement | null;
 const hudP2Sta  = document.getElementById("cpu-sta")      as HTMLElement | null;
+const hudP2Mom  = document.getElementById("cpu-mom")      as HTMLElement | null;
 const hudTimer  = document.getElementById("match-timer")  as HTMLElement | null;
 const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
@@ -240,6 +241,13 @@ function updateHUD(elapsed: number): void {
       ? "linear-gradient(90deg,#c0392b,#e67e22)"
       : "linear-gradient(90deg,#2980b9,#27ae60)";
     hudP2Sta.style.animation = player2.isGassed ? "dangerBlink 0.35s infinite alternate" : "";
+  }
+  if (hudP2Mom) {
+    hudP2Mom.style.width = pct(player2.momentum);
+    hudP2Mom.style.background = player2.momentumDecaying
+      ? "linear-gradient(90deg,#c0392b,#e74c3c)"
+      : "linear-gradient(90deg,#f39c12,#f1c40f)";
+    hudP2Mom.style.animation = player2.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
 
   if (hudTimer) {
@@ -668,9 +676,9 @@ function showMatchIntro(cb: () => void): void {
   if (!overlay) { cb(); return; }
 
   if (p1NameEl)  p1NameEl.textContent  = player1.name;
-  if (p1TitleEl) p1TitleEl.textContent = player1.title ?? "";
+  if (p1TitleEl) p1TitleEl.textContent = player1.title;
   if (p2NameEl)  p2NameEl.textContent  = player2.name;
-  if (p2TitleEl) p2TitleEl.textContent = player2.title ?? "";
+  if (p2TitleEl) p2TitleEl.textContent = player2.title;
 
   // キャラクターカラーを名前に反映
   const p1El = document.getElementById("intro-p1");
