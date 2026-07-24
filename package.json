@@ -4,15 +4,18 @@
   "private": true,
   "workspaces": [
     "frontend",
-    "server"
+    "server",
+    "wrestling-game"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=frontend",
     "dev:server": "npm run dev --workspace=server",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "dev:wrestling": "npm run dev --workspace=wrestling-game",
     "build": "npm run build --workspace=frontend",
     "start": "npm start --workspace=frontend",
-    "test": "npm test --workspace=frontend"
+    "test": "npm test --workspace=frontend",
+    "test:wrestling": "npm test --workspace=wrestling-game"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

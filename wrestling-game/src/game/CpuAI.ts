@@ -77,7 +77,7 @@ export class CpuAI {
 
   /** サブミッション中の CPU 脱出速度 (per second, 0–1 scale) */
   get escapeRate(): number {
-    // Hard: ~0.22/s, Normal: ~0.13/s, Easy: ~0.06/s
+    // Hard: 0.24/s, Normal: ~0.21/s, Easy: ~0.16/s
     return (1 - this.p.missChance) * 0.25;
   }
 
@@ -86,7 +86,7 @@ export class CpuAI {
     return Math.max(0, 1 - this.p.missChance * 3);
   }
 
-  /** ストライクカウンター発動確率 (Hard: ~0.36, Normal: ~0.18, Easy: ~0.05) */
+  /** ストライクカウンター発動確率 (Hard: 0.36, Normal: 0.25, Easy: 0.05) */
   get counterChance(): number {
     return Math.max(0, 0.4 - this.p.missChance);
   }
@@ -121,7 +121,7 @@ export class CpuAI {
       return;
     }
 
-    // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
+    // 難易度ベースでリバーサルを試みる (Hard: 90%、Normal: 62.5%、Easy: 12.5%)
     if (this.cpu.canReversal()) {
       const reversalChance = 1 - this.p.missChance * 2.5;
       if (Math.random() < reversalChance) {
@@ -190,7 +190,9 @@ export class CpuAI {
     const gapMult = this.hpGapFactor;
 
     // スプリント中 + コーナー追い詰め → コーナースプラッシュ (優先)
-    if (sprint && this.player.isInCorner() && len < 2.5 && this.cpu.isActionReady()) {
+    // decisionTimer も見る — actionCooldown だけでは難易度別ペーシング (decisionBase 倍率) が効かない
+    if (sprint && this.player.isInCorner() && len < 2.5 &&
+        this.cpu.isActionReady() && this.decisionTimer <= 0) {
       this.cpu.startCornerSplash();
       const dmg = (22 + Math.random() * 8) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
@@ -206,7 +208,7 @@ export class CpuAI {
     }
 
     // スプリント中 + 射程内 → ランニングストライク
-    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady()) {
+    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady() && this.decisionTimer <= 0) {
       this.cpu.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
@@ -333,12 +335,12 @@ export class CpuAI {
     if (this.cpu.distanceTo(this.player) < 3.5) {
       this.cpu.move(dx / len, dz / len, false, dt);
     }
-    // Hard 限定: 遠ければたまにタントして煽る
+    // Hard 限定: 遠ければたまにタントして煽る (~0.5 回/秒の期待値、dt スケールでフレームレート非依存)
     if (this.p.missChance < 0.1 &&
         this.cpu.distanceTo(this.player) > 4 &&
         this.cpu.state === "idle" &&
         this.decisionTimer <= 0 &&
-        Math.random() < 0.008) {
+        Math.random() < 0.5 * dt) {
       this.cpu.startTaunt();
       audio.crowd();
       this.decisionTimer = 1.5;
