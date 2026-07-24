@@ -165,7 +165,10 @@ export default function BattleScreen({ state, dispatch }: Props) {
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
             <span style={{ ...S.label }}>チャクラ</span>
-            <span style={{ color: C.chakra, fontSize: "11px" }}>{player.chakra}/{player.maxChakra}</span>
+            <span style={{ color: C.chakra, fontSize: "11px" }}>
+              {player.chakra}/{player.maxChakra}
+              <span style={{ color: C.dim, fontSize: "10px", marginLeft: "6px" }}>+3〜7/T</span>
+            </span>
           </div>
           <div style={barTrackStyle}><div style={chakraBarStyle(player.chakra, player.maxChakra)} /></div>
         </div>
