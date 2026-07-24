@@ -9,9 +9,19 @@ interface Props {
   dispatch: (a: GameAction) => void;
 }
 
+function survivalGrade(hpRatio: number): { label: string; color: string } {
+  if (hpRatio > 0.75) return { label: "S  完璧", color: "#d4a017" };
+  if (hpRatio > 0.5)  return { label: "A  優秀", color: C.accent1 };
+  if (hpRatio > 0.25) return { label: "B  良好", color: C.purple };
+  return { label: "C  辛勝", color: C.success };
+}
+
 export default function VictoryScreen({ state, dispatch }: Props) {
-  const { ui, player } = state;
+  const { ui, player, battle } = state;
   const reward = ui.lastReward;
+  const hpRatio = player.hp / player.maxHp;
+  const grade = survivalGrade(hpRatio);
+  const turnsUsed = Math.max(1, battle.turn - 1);
 
   return (
     <div
@@ -102,6 +112,32 @@ export default function VictoryScreen({ state, dispatch }: Props) {
             </p>
           </div>
         )}
+
+        {/* 戦闘サマリー */}
+        <div style={{ ...S.panelSm, marginBottom: "16px" }}>
+          <p style={{ color: C.dim, fontSize: "11px", margin: "0 0 8px" }}>戦闘結果</p>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>経過ターン</span>
+            <span style={{ color: C.text, fontSize: "12px" }}>{turnsUsed} T</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>残HP</span>
+            <span style={{ color: C.text, fontSize: "12px" }}>{player.hp} / {player.maxHp} ({Math.round(hpRatio * 100)}%)</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>評価</span>
+            <span style={{
+              color: grade.color,
+              border: `1px solid ${grade.color}`,
+              fontSize: "12px",
+              padding: "1px 8px",
+              borderRadius: "2px",
+              fontWeight: "bold",
+            }}>
+              {grade.label}
+            </span>
+          </div>
+        </div>
 
         {/* 現在ステータス */}
         <div style={{ ...S.panelSm, marginBottom: "24px" }}>
