@@ -20,6 +20,17 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
   const enemy = ENEMIES[quest.target];
   const progress = state.progress.questProgress[quest.id] ?? 0;
 
+  const player = state.player;
+  const levelOk = player.level >= quest.minLevel;
+  const playerPower = player.stats.attack + player.stats.defense + player.stats.speed;
+  const enemyPower = enemy ? enemy.attack + enemy.defense + enemy.speed : 0;
+  const powerRatio = enemyPower > 0 ? Math.min(1.5, playerPower / enemyPower) : 1;
+  const diffLabel =
+    powerRatio >= 1.3 ? { text: "有利", color: "#4caf50" } :
+    powerRatio >= 0.9 ? { text: "互角", color: "#d4a017" } :
+    powerRatio >= 0.6 ? { text: "不利", color: "#c94c4c" } :
+    { text: "危険", color: "#8b1a1a" };
+
   return (
     <div
       style={{
@@ -98,6 +109,36 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
             </div>
           </div>
         )}
+
+        {/* 難易度分析 */}
+        <div style={{ ...S.panel, marginBottom: "16px" }}>
+          <p style={{ ...S.label, marginBottom: "8px" }}>難易度分析</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>推奨レベル</span>
+            <span style={{ color: levelOk ? C.success : C.accent1, fontSize: "12px" }}>
+              Lv.{quest.minLevel} {levelOk ? "✓ 達成" : `(現在 Lv.${player.level})`}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>戦力比較</span>
+            <span style={{ color: C.dim, fontSize: "12px" }}>
+              自{playerPower} vs 敵{enemyPower}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>判定</span>
+            <span style={{
+              color: diffLabel.color,
+              border: `1px solid ${diffLabel.color}`,
+              fontSize: "12px",
+              padding: "1px 10px",
+              borderRadius: "2px",
+              fontWeight: "bold",
+            }}>
+              {diffLabel.text}
+            </span>
+          </div>
+        </div>
 
         {/* 報酬 */}
         <div style={{ ...S.panel, marginBottom: "24px" }}>
