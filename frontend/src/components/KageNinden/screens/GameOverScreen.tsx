@@ -9,7 +9,8 @@ interface Props {
 }
 
 export default function GameOverScreen({ state, dispatch }: Props) {
-  const { player, battle } = state;
+  const { player, battle, progress } = state;
+  const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
 
   return (
     <div
@@ -70,7 +71,9 @@ export default function GameOverScreen({ state, dispatch }: Props) {
               { label: "経験値", val: `${player.exp} EXP`,      color: C.purple },
               { label: "所持金", val: `${player.gold} G`,       color: C.accent2 },
               { label: "クラン", val: player.clan ?? "─",       color: C.dim },
-              { label: "討伐数", val: `${battle.killCount}体`,   color: C.success },
+              { label: "討伐数(戦闘)", val: `${battle.killCount}体`,  color: C.success },
+              { label: "累計討伐",    val: `${totalKills}体`,        color: C.success },
+              { label: "任務完了",    val: `${progress.completedQuests.length}件`, color: C.accent2 },
             ].map(({ label, val, color }) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.dim, fontSize: "13px" }}>{label}</span>
