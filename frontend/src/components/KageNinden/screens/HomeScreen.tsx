@@ -382,10 +382,18 @@ function InnView({
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.border}`, paddingTop: "6px", marginTop: "4px" }}>
           <span style={{ color: C.dim, fontSize: "12px" }}>宿泊費</span>
-          <span style={{ color: canAfford ? C.accent2 : C.danger, fontSize: "13px", fontWeight: "bold" }}>
+          <span style={{ color: canAfford ? C.accent2 : "#8b1a1a", fontSize: "13px", fontWeight: "bold" }}>
             {alreadyFull ? "─ G" : `${cost} G`}
           </span>
         </div>
+        {!alreadyFull && (
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+            <span style={{ color: C.dim, fontSize: "11px" }}>支払後残高</span>
+            <span style={{ color: canAfford ? C.dim : "#8b1a1a", fontSize: "11px" }}>
+              {canAfford ? `${player.gold - cost} G` : "所持金不足"}
+            </span>
+          </div>
+        )}
       </div>
       {alreadyFull ? (
         <p style={{ color: C.success, fontSize: "13px", textAlign: "center" }}>
