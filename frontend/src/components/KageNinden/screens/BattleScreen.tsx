@@ -98,21 +98,38 @@ export default function BattleScreen({ state, dispatch }: Props) {
       </div>
 
       {/* ─── 敵情報 ─── */}
-      <div style={{ ...S.panel }}>
+      <div style={{
+        ...S.panel,
+        border: enemy.phase2 ? `1px solid ${C.danger}80` : S.panel.border,
+        boxShadow: enemy.phase2 ? `0 0 12px ${C.danger}40` : "none",
+        transition: "border 0.3s, box-shadow 0.3s",
+      }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <span style={{ fontSize: "32px" }}>{enemy.icon}</span>
+            <span style={{ fontSize: "32px", filter: enemy.phase2 ? "drop-shadow(0 0 6px #c41e1e)" : "none" }}>
+              {enemy.icon}
+            </span>
             <div>
-              <p style={{ margin: 0, fontSize: "16px", color: C.accent1 }}>{enemy.name}</p>
+              <p style={{ margin: 0, fontSize: "16px", color: enemy.phase2 ? C.danger : C.accent1 }}>
+                {enemy.name}
+              </p>
               {enemy.phase2 && (
-                <span style={{ color: C.accent2, fontSize: "11px", animation: "pulse 1s infinite" }}>
-                  【フェーズ2】
+                <span style={{
+                  color: C.danger,
+                  fontSize: "11px",
+                  animation: "pulse 0.8s infinite",
+                  letterSpacing: "0.05em",
+                }}>
+                  ⚠ フェーズ2：ATK↑ DEF↑
                 </span>
               )}
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <p style={{ margin: 0, color: C.text, fontSize: "13px" }}>{enemy.hp} / {enemy.maxHp}</p>
+            {enemy.phase2 && (
+              <p style={{ margin: "2px 0 0", color: C.danger, fontSize: "10px" }}>ENRAGED</p>
+            )}
           </div>
         </div>
         {/* 敵HPバー */}
