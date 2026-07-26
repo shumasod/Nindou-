@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { C, S } from "../styles";
-import { CLANS, SKILLS } from "../data";
+import { CLANS, SKILLS, SKILL_UNLOCK } from "../data";
 import type { ClanId } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -120,13 +120,31 @@ export default function ClanSelectScreen({ dispatch }: Props) {
                 {playstyles[selected]}
               </p>
               {skill && (
-                <div style={{ padding: "8px", background: "#1a1a28", borderRadius: "4px" }}>
+                <div style={{ padding: "8px", background: "#1a1a28", borderRadius: "4px", marginBottom: "10px" }}>
                   <p style={{ color: clan.color, fontSize: "12px", margin: "0 0 4px", fontWeight: "bold" }}>
                     初期スキル: {skill.name} (コスト {skill.cost}チャクラ)
                   </p>
                   <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>{skill.desc}</p>
                 </div>
               )}
+              <p style={{ ...S.label, marginBottom: "6px" }}>スキル解放ロードマップ</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {Object.entries(SKILL_UNLOCK)
+                  .filter(([, cond]) => cond.clan === selected)
+                  .sort(([, a], [, b]) => a.level - b.level)
+                  .map(([skillId, cond]) => {
+                    const sk = SKILLS[skillId];
+                    if (!sk) return null;
+                    return (
+                      <div key={skillId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ color: C.text, fontSize: "11px" }}>{sk.name}</span>
+                        <span style={{ color: cond.level === 1 ? clan.color : C.dim, fontSize: "11px" }}>
+                          Lv.{cond.level}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           );
         })()}
