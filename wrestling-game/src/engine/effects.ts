@@ -92,40 +92,6 @@ export class EffectsSystem {
     }
   }
 
-  /** シグネチャー専用: 金色の大きな火花 */
-  spawnSignatureBurst(pos: THREE.Vector3): void {
-    const count = 24;
-    for (let i = 0; i < count; i++) {
-      const colors = [0xffd700, 0xff8800, 0xffffff];
-      const color  = colors[Math.floor(Math.random() * colors.length)] ?? 0xffd700;
-      const scale  = 0.1 + Math.random() * 0.15;
-      const geo    = new THREE.BoxGeometry(scale, scale, scale);
-      const mat    = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 3,
-        transparent: true,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.copy(pos).add(new THREE.Vector3(0, 1.2, 0));
-      this.scene.add(mesh);
-
-      const phi   = Math.random() * Math.PI * 2;
-      const theta = Math.random() * Math.PI;
-      const speed = 3 + Math.random() * 4;
-      this.particles.push({
-        mesh,
-        vel: new THREE.Vector3(
-          Math.sin(theta) * Math.cos(phi) * speed,
-          Math.cos(theta) * speed * 0.8 + 2,
-          Math.sin(theta) * Math.sin(phi) * speed
-        ),
-        life: 0.7 + Math.random() * 0.5,
-        maxLife: 1.2,
-      });
-    }
-  }
-
   /**
    * フィニッシャー専用: 3波のカラーバースト
    *  Wave 1 — 白フラッシュリング (速・小・短命)
