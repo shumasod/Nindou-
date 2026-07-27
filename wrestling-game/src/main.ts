@@ -763,6 +763,8 @@ function updateWinPips(): void {
 function showRoundResult(winnerSide: "p1" | "p2" | "draw"): void {
   phase = "between_rounds";
   setDangerVignette(false);
+  // between_rounds では effects.update が回らない — 飛行中の数値を今すぐ破棄する
+  effects.clearDamageNumbers();
 
   const winnerName = winnerSide === "p1" ? "P1" : winnerSide === "p2" ? p2Label() : "DRAW";
 

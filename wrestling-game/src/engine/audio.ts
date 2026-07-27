@@ -105,17 +105,30 @@ export class AudioEngine {
     noiseSrc.start();
   }
 
-  /** 観客の歓声 — シグネチャー */
-  crowd(): void {
-    const ctx = this.getCtx();
-    const dur = 1.2;
+  /**
+   * 観客歓声用ノイズバッファ (1.2 s ≒ 53k サンプル)。
+   * 毎回生成すると 1 回の歓声ごとに ~210KB の確保と 53k 回の乱数生成が発生するため、
+   * 初回だけ作って以降は使い回す (BufferSource 側は毎回新規で使い捨て)。
+   */
+  private crowdBuffer: AudioBuffer | null = null;
+
+  private getCrowdBuffer(ctx: AudioContext, dur: number): AudioBuffer {
+    if (this.crowdBuffer) return this.crowdBuffer;
     const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) {
       data[i] = (Math.random() * 2 - 1) * 0.4;
     }
+    this.crowdBuffer = buf;
+    return buf;
+  }
+
+  /** 観客の歓声 — シグネチャー */
+  crowd(): void {
+    const ctx = this.getCtx();
+    const dur = 1.2;
     const src = ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = this.getCrowdBuffer(ctx, dur);
 
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
