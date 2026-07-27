@@ -467,11 +467,6 @@ export class Wrestler {
     this.actionCooldown = 1.4;
   }
 
-  /** タント中かどうか (外部から参照用) */
-  isTaunting(): boolean {
-    return this.state === "taunting";
-  }
-
   /** 勝利ポーズ — 試合終了後、リザルト画面の背後でループする */
   startVictoryPose(): void {
     this.state = "victory";
