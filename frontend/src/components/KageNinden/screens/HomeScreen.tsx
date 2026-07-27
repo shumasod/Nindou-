@@ -306,39 +306,48 @@ function TrainView({
         </button>
         <h3 style={{ color: C.accent2, margin: 0, fontSize: "15px" }}>── 鍛錬 ──</h3>
       </div>
-      <p style={{ color: C.dim, fontSize: "13px", marginBottom: "14px" }}>
-        残りステータスポイント:{" "}
-        <span style={{ color: player.statPoints > 0 ? C.accent2 : C.dim, fontWeight: "bold" }}>
-          {player.statPoints}
-        </span>
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <p style={{ color: C.dim, fontSize: "13px", margin: 0 }}>
+          残りポイント:{" "}
+          <span style={{ color: player.statPoints > 0 ? C.accent2 : C.dim, fontWeight: "bold" }}>
+            {player.statPoints}
+          </span>
+        </p>
+        <p style={{ color: C.dim, fontSize: "12px", margin: 0 }}>
+          総戦力: <span style={{ color: C.text }}>{Object.values(player.stats).reduce((a, b) => a + b, 0)}</span>
+        </p>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {stats.map(({ key, label, icon }) => (
-          <div
-            key={key}
-            style={{
-              ...S.panelSm,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span style={{ fontSize: "14px" }}>
-              {icon} {label}: <strong style={{ color: C.text }}>{player.stats[key]}</strong>
-            </span>
-            <button
-              style={
-                player.statPoints > 0
-                  ? { ...S.btn(C.accent2), padding: "4px 12px", fontSize: "13px" }
-                  : { ...S.btnDisabled, padding: "4px 12px", fontSize: "13px" }
-              }
-              disabled={player.statPoints <= 0}
-              onClick={() => dispatch({ type: "ALLOCATE_STAT", stat: key })}
+        {stats.map(({ key, label, icon }) => {
+          const val = player.stats[key];
+          const barWidth = Math.min(100, (val / 80) * 100);
+          return (
+            <div
+              key={key}
+              style={{ ...S.panelSm }}
             >
-              + 振る
-            </button>
-          </div>
-        ))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ fontSize: "13px" }}>
+                  {icon} {label}: <strong style={{ color: C.text }}>{val}</strong>
+                </span>
+                <button
+                  style={
+                    player.statPoints > 0
+                      ? { ...S.btn(C.accent2), padding: "4px 12px", fontSize: "13px" }
+                      : { ...S.btnDisabled, padding: "4px 12px", fontSize: "13px" }
+                  }
+                  disabled={player.statPoints <= 0}
+                  onClick={() => dispatch({ type: "ALLOCATE_STAT", stat: key })}
+                >
+                  + 振る
+                </button>
+              </div>
+              <div style={{ background: "#1a1a28", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
+                <div style={{ width: `${barWidth}%`, height: "100%", background: C.accent2, transition: "width 0.3s" }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

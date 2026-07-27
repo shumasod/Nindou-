@@ -18,9 +18,8 @@ function baseState(): GameState {
       skills: ["spin_slash"],
       items: [],
       statPoints: 0,
-      stats: { attack: 15, defense: 10, speed: 10 },
-      weapon: "kunai_basic",
-      armor: "cloth_basic",
+      stats: { attack: 15, defense: 10, speed: 10, stealth: 5 },
+      equip: { weapon: "kunai_basic", armor: "cloth_basic" },
     },
     battle: {
       active: false,
@@ -31,18 +30,22 @@ function baseState(): GameState {
       playerStatus: [],
       enemyStatus: [],
       killCount: 0,
+      playerDodge: 0,
       playerDodgeChance: 0,
+      questId: null,
     },
     progress: {
       activeQuest: null,
       completedQuests: [],
       questProgress: {},
       unlockedAreas: ["forest"],
+      currentArea: "forest",
     },
     ui: {
       screen: "home" as const,
       lastReward: null,
       levelUpPending: false,
+      message: "",
     },
   };
 }

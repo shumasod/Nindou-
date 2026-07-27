@@ -17,9 +17,8 @@ function baseState(): GameState {
       skills: ["spin_slash", "iron_stance", "thousand_thrust", "phantom_clone", "confusion_jutsu", "shinigami_illusion", "flash_step", "smoke_escape", "shadow_clone"],
       items: [],
       statPoints: 0,
-      stats: { attack: 20, defense: 10, speed: 12 },
-      weapon: "kunai_basic",
-      armor: "cloth_basic",
+      stats: { attack: 20, defense: 10, speed: 12, stealth: 5 },
+      equip: { weapon: "kunai_basic", armor: "cloth_basic" },
     },
     battle: {
       active: true,
@@ -45,18 +44,22 @@ function baseState(): GameState {
       playerStatus: [],
       enemyStatus: [],
       killCount: 0,
+      playerDodge: 0,
       playerDodgeChance: 0,
+      questId: null,
     },
     progress: {
       activeQuest: null,
       completedQuests: [],
       questProgress: {},
       unlockedAreas: ["forest"],
+      currentArea: "forest",
     },
     ui: {
       screen: "battle" as const,
       lastReward: null,
       levelUpPending: false,
+      message: "",
     },
   };
 }
