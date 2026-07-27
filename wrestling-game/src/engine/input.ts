@@ -72,15 +72,24 @@ const globalKeys     = new Set<string>();
 const globalPrevKeys = new Set<string>();
 let listenersAttached = false;
 
+/**
+ * ゲームが実際に使用するキー。
+ * ここに含まれるキーだけ既定動作を抑止する (SPACE のページスクロール等)。
+ * それ以外 (Tab / Escape / ブラウザショートカット) はブラウザに委ねる。
+ */
+const GAME_KEYS: ReadonlySet<string> = new Set([
+  ...Object.values(P1_MAP).flat(),
+  ...Object.values(P2_MAP).flat(),
+]);
+
 function attachListeners(): void {
   if (listenersAttached) return;
   listenersAttached = true;
   window.addEventListener("keydown", (e) => {
     globalKeys.add(e.code);
-    // ブラウザのFキーショートカットは通す
-    if (e.code !== "F5" && e.code !== "F11" && e.code !== "F12") {
-      e.preventDefault();
-    }
+    // 修飾キー併用時はブラウザショートカット (Ctrl+R / Cmd+L 等) を優先
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (GAME_KEYS.has(e.code)) e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
     globalKeys.delete(e.code);
