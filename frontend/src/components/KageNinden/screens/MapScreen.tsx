@@ -55,6 +55,24 @@ export default function MapScreen({ state, dispatch }: Props) {
         );
       })()}
 
+      {/* 次解放エリアヒント */}
+      {(() => {
+        const nextLocked = Object.entries(AREAS)
+          .filter(([, a]) => player.level < a.minLevel)
+          .sort(([, a], [, b]) => a.minLevel - b.minLevel)[0];
+        if (!nextLocked) return null;
+        const [, area] = nextLocked;
+        const levelsNeeded = area.minLevel - player.level;
+        return (
+          <div style={{ ...S.panelSm, marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>
+              {area.icon} 次の解放エリア: <span style={{ color: C.text }}>{area.name}</span>
+            </span>
+            <span style={{ color: C.accent2, fontSize: "12px" }}>あと Lv{levelsNeeded} 上げると解放</span>
+          </div>
+        );
+      })()}
+
       <p style={{ color: C.dim, fontSize: "12px", marginBottom: "20px" }}>
         任務を選んで出陣せよ。Lv不足のエリアは進入不可。
       </p>
@@ -87,9 +105,16 @@ export default function MapScreen({ state, dispatch }: Props) {
                   {locked ? (
                     <span style={{ color: C.danger, fontSize: "11px" }}>🔒 Lv{area.minLevel}〜</span>
                   ) : areaQuests.length > 0 && areaQuests.every(q => progress.completedQuests.includes(q.id)) ? (
-                    <span style={{ color: C.success, fontSize: "11px" }}>✓ 制圧済み</span>
+                    <span style={{ color: C.success, fontSize: "11px" }}>★ 制圧済み</span>
                   ) : (
-                    <span style={{ color: C.accent2, fontSize: "11px" }}>Lv{area.minLevel}〜</span>
+                    <>
+                      <span style={{ color: C.accent2, fontSize: "11px" }}>Lv{area.minLevel}〜</span>
+                      {areaQuests.length > 0 && (
+                        <p style={{ margin: "2px 0 0", color: C.dim, fontSize: "10px" }}>
+                          {areaQuests.filter(q => progress.completedQuests.includes(q.id)).length}/{areaQuests.length} 完了
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
