@@ -243,6 +243,15 @@ export class EffectsSystem {
     });
   }
 
+  /**
+   * 浮遊ダメージ数値をすべて即時破棄する。
+   * effects.update が回らないフェーズ (ラウンド間など) へ遷移する前に呼ぶ。
+   */
+  clearDamageNumbers(): void {
+    for (const n of this.dmgNumbers) n.el.remove();
+    this.dmgNumbers.length = 0;
+  }
+
   /** カメラシェイクをトリガー */
   shake(strength: number): void {
     this.shakeStrength = Math.max(this.shakeStrength, strength);
