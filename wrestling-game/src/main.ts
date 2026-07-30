@@ -1251,8 +1251,7 @@ function handleInput(
 
   // 50% Special move (weaker, no crowd burst, costs half momentum)
   if (s.signaturePressed && self.momentum >= 50 && self.momentum < 100 && self.canGrapple(opponent)) {
-    self.startSignature(opponent);
-    self.momentum = Math.max(0, self.momentum - 50); // 100% 消費ではなく半分だけ
+    self.startSignature(opponent, 50); // 100% 消費ではなく半分だけ
     const dmg = 20 * self.damageMult;
     opponent.takeDamage(dmg);
     const r = (self.specialColor >> 16) & 0xff;
