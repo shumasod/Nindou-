@@ -101,6 +101,8 @@ export default function MapScreen({ state, dispatch }: Props) {
                     const done = progress.completedQuests.includes(q.id);
                     const levelOk = player.level >= q.minLevel;
                     const canStart = !done && levelOk;
+                    const isActive = progress.activeQuest?.id === q.id && !done;
+                    const killProgress = isActive ? (progress.questProgress[q.id] ?? 0) : 0;
 
                     return (
                       <div
@@ -130,11 +132,29 @@ export default function MapScreen({ state, dispatch }: Props) {
                             </span>
                             <span style={{ fontSize: "13px", color: done ? C.dim : C.text }}>{q.title}</span>
                             {done && <span style={{ color: C.success, fontSize: "11px" }}>✓ 完了</span>}
-                            {progress.activeQuest?.id === q.id && !done && (
+                            {isActive && (
                               <span style={{ color: C.accent1, fontSize: "11px", animation: "blink 1.2s step-end infinite" }}>► 進行中</span>
                             )}
                           </div>
                           <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>{q.desc}</p>
+                          {isActive && (
+                            <div style={{ marginTop: "6px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                                <span style={{ color: C.accent1, fontSize: "10px" }}>討伐進捗</span>
+                                <span style={{ color: C.accent1, fontSize: "10px" }}>{killProgress} / {q.count}</span>
+                              </div>
+                              <div style={{ background: "#1a1a28", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    width: `${Math.min(100, (killProgress / q.count) * 100)}%`,
+                                    height: "100%",
+                                    background: C.accent1,
+                                    transition: "width 0.4s ease",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
                           <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
                             <span style={{ color: C.accent2, fontSize: "11px" }}>EXP +{q.reward.exp}</span>
                             <span style={{ color: C.accent2, fontSize: "11px" }}>G +{q.reward.gold}</span>
