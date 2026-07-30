@@ -301,6 +301,9 @@ export class EffectsSystem {
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
         (p.mesh.material as THREE.Material).dispose();
+        // ジオメトリはパーティクルごとに新規生成されるものだけ破棄する。
+        // PARTICLE_GEO は全ヒットスパークで共有しているため破棄してはいけない。
+        if (p.mesh.geometry !== PARTICLE_GEO) p.mesh.geometry.dispose();
         this.particles.splice(i, 1);
         continue;
       }
