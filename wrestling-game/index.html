@@ -492,6 +492,11 @@
         cursor: pointer; pointer-events: auto;
         text-align: center; transition: border-color 0.15s, transform 0.1s;
         background: rgba(255,255,255,0.04);
+        /* button 要素のためのリセット (フォントは継承させる) */
+        font: inherit; color: inherit; width: 100%; display: block;
+      }
+      .char-card:focus-visible {
+        outline: 3px solid #ffd700; outline-offset: 2px;
       }
       .char-card:hover { border-color: rgba(255,255,255,0.6); transform: translateY(-3px); }
       .char-card.selected { border-color: #ffd700; box-shadow: 0 0 18px rgba(255,215,0,0.4); }

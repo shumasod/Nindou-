@@ -1583,9 +1583,13 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
   grid.innerHTML = "";
 
   ROSTER.forEach((ch, i) => {
-    const card = document.createElement("div");
+    // button 要素にすることで Tab フォーカス・Enter/Space 起動が標準で効く
+    const card = document.createElement("button");
+    card.type = "button";
     card.className = "char-card";
     card.dataset["idx"] = String(i);
+    card.setAttribute("aria-pressed", "false");
+    card.setAttribute("aria-label", `${ch.name} — ${ch.title}`);
 
     // カラースウォッチ
     const r = (ch.primaryColor >> 16) & 0xff;
@@ -1608,8 +1612,12 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
       </div>`;
 
     card.addEventListener("click", () => {
-      grid.querySelectorAll(".char-card").forEach((c) => c.classList.remove("selected"));
+      grid.querySelectorAll(".char-card").forEach((c) => {
+        c.classList.remove("selected");
+        c.setAttribute("aria-pressed", "false");
+      });
       card.classList.add("selected");
+      card.setAttribute("aria-pressed", "true");
       sel.selectedIdx = i;
       confirmBtn.disabled = false;
     });
