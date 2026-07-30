@@ -289,6 +289,23 @@ export class Wrestler {
     scene.add(this.root);
   }
 
+  /**
+   * シーンから取り外し、GPU リソースを解放する。
+   * scene.remove() だけではジオメトリ/マテリアルは GPU に残り続けるため、
+   * レスラーを作り直す (試合・ラウンド開始) たびにリークする。
+   */
+  disposeFromScene(scene: THREE.Scene): void {
+    scene.remove(this.root);
+    this.root.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.geometry.dispose();
+      const mat = obj.material;
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat.dispose();
+    });
+    this.bodyMeshes.length = 0;
+  }
+
   get position(): THREE.Vector3 {
     return this.root.position;
   }

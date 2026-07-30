@@ -24,9 +24,9 @@ let player1!: Wrestler;
 let player2!: Wrestler;
 
 function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
-  // Remove old wrestlers if restarting
-  if (player1) scene.remove(player1.root);
-  if (player2) scene.remove(player2.root);
+  // 作り直し時は GPU リソースまで解放する (scene.remove だけでは残る)
+  if (player1) player1.disposeFromScene(scene);
+  if (player2) player2.disposeFromScene(scene);
 
   player1 = new Wrestler({
     ...def1, startX: -2.5,
