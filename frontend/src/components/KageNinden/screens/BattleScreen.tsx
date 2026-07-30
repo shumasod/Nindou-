@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
+const TURN_LIMIT = 30;
 import { SKILLS, ITEMS } from "../data";
 import type { GameState, StatusEffect } from "../types";
 import type { GameAction } from "../reducer";
@@ -92,9 +93,23 @@ export default function BattleScreen({ state, dispatch }: Props) {
         </div>
       )}
 
-      {/* ターン数 */}
-      <div style={{ textAlign: "right" }}>
-        <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn}</span>
+      {/* ターン数 + 残ターンバー */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+        <div style={{ flex: 1, maxWidth: "120px" }}>
+          <div style={{ background: "#1a1a28", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${Math.min(100, (turn / TURN_LIMIT) * 100)}%`,
+                height: "100%",
+                background: turn >= TURN_LIMIT * 0.8 ? C.danger : turn >= TURN_LIMIT * 0.5 ? C.accent2 : C.dim,
+                transition: "width 0.3s, background 0.3s",
+              }}
+            />
+          </div>
+        </div>
+        <span style={{ color: turn >= TURN_LIMIT * 0.8 ? C.danger : C.dim, fontSize: "11px" }}>
+          Turn {turn}/{TURN_LIMIT}
+        </span>
       </div>
 
       {/* ─── 敵情報 ─── */}
