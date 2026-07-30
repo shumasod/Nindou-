@@ -563,18 +563,30 @@ function updateStrikeChains(dt: number): void {
 }
 
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
-let comboCount = 0;
-let comboTimer = 0;
 const COMBO_WINDOW = 2.5;
+const comboCount: { p1: number; p2: number } = { p1: 0, p2: 0 };
+const comboTimer: { p1: number; p2: number } = { p1: 0, p2: 0 };
+// 表示中のコンボの持ち主 (2P モードで両者が交互にコンボした場合の表示切替用)
+let comboOwner: "p1" | "p2" = "p1";
 
-function addCombo(): void {
-  comboCount++;
-  comboTimer = COMBO_WINDOW;
-  tracker.recordCombo("p1", comboCount);
-  if (hudCombo && comboCount >= 2) {
+function resetCombos(): void {
+  comboCount.p1 = 0; comboCount.p2 = 0;
+  comboTimer.p1 = 0; comboTimer.p2 = 0;
+  if (hudCombo) hudCombo.style.display = "none";
+}
+
+function addCombo(side: "p1" | "p2"): void {
+  comboCount[side]++;
+  comboTimer[side] = COMBO_WINDOW;
+  tracker.recordCombo(side, comboCount[side]);
+
+  comboOwner = side;
+  const n = comboCount[side];
+  if (hudCombo && n >= 2) {
+    const who = mode === "2p" ? `${side === "p1" ? "P1" : "P2"} ` : "";
     hudCombo.style.display  = "block";
-    hudCombo.textContent    = `${comboCount} HIT COMBO!`;
-    hudCombo.style.fontSize = `${Math.min(36, 18 + comboCount * 2)}px`;
+    hudCombo.textContent    = `${who}${n} HIT COMBO!`;
+    hudCombo.style.fontSize = `${Math.min(36, 18 + n * 2)}px`;
     hudCombo.style.animation = "none";
     void (hudCombo as HTMLElement).offsetWidth;
     hudCombo.style.animation = "comboZoom 0.15s ease-out";
@@ -582,11 +594,13 @@ function addCombo(): void {
 }
 
 function updateCombo(dt: number): void {
-  if (comboTimer > 0) {
-    comboTimer -= dt;
-    if (comboTimer <= 0) {
-      comboCount = 0;
-      if (hudCombo) hudCombo.style.display = "none";
+  for (const side of ["p1", "p2"] as const) {
+    if (comboTimer[side] <= 0) continue;
+    comboTimer[side] -= dt;
+    if (comboTimer[side] <= 0) {
+      comboCount[side] = 0;
+      // 表示中のコンボが切れたときだけ非表示にする
+      if (hudCombo && comboOwner === side) hudCombo.style.display = "none";
     }
   }
 }
@@ -805,8 +819,7 @@ function startNextRound(): void {
   tournament.roundNum++;
   tracker = new MatchTracker();
   matchElapsed = 0;
-  comboCount = 0;
-  comboTimer = 0;
+  resetCombos();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
   p1WasGassed   = false;
   p2WasGassed   = false;
@@ -1027,7 +1040,6 @@ function handleInput(
   side: "p1" | "p2"
 ): void {
   const s = inp.state;
-  const trackCombo = side === "p1";
   const oppSide: "p1" | "p2" = side === "p1" ? "p2" : "p1";
 
   let dx = 0, dz = 0;
@@ -1087,7 +1099,7 @@ function handleInput(
     audio.punch();
     addCrowdPop(10);
     tracker.recordStrike(side, dmg, false);
-    if (side === "p1") addCombo();
+    addCombo(side);
     flashMoveName("COUNTER!!");
     return;
   }
@@ -1143,7 +1155,7 @@ function handleInput(
       audio.crowd();
       addCrowdPop(22);
       tracker.recordCornerSplash(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashMoveName("CORNER SPLASH!!");
     } else if (isClothesline) {
       // クロスライン — リバウンド中の相手を迎撃する高威力打撃
@@ -1160,7 +1172,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(knockdown ? (outsideKD ? 20 : 15) : 8);
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
       if (!knockdown) flashMoveName("CLOTHESLINE!!");
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else if (isRunning) {
@@ -1178,7 +1190,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(knockdown ? (outsideKD ? 18 : 12) : 5);
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
       if (!knockdown) flashMoveName("RUNNING STRIKE!!");
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else {
@@ -1208,7 +1220,7 @@ function handleInput(
         if (!knockdown) flashMoveName("STRIKE!");
       }
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
     }
   }
 
@@ -1233,7 +1245,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(8);
       tracker.recordSlam(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashMoveName("SLAM!");
     } else if (self.canGrapple(opponent)) {
       self.startGrapple(opponent);
@@ -1263,7 +1275,7 @@ function handleInput(
     audio.slam();
     addCrowdPop(14);
     tracker.recordSignature(side, dmg);
-    if (trackCombo) addCombo();
+    addCombo(side);
     const el = document.getElementById("move-name");
     if (el) {
       el.style.color = `rgb(${r},${g},${b})`;
@@ -1300,7 +1312,7 @@ function handleInput(
       audio.crowd();
       addCrowdPop(30);
       tracker.recordSignature(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashFinisher(self.name, self.finisherName, self.finisherColor);
     }
   }
@@ -1506,9 +1518,7 @@ function startMatch(
 
   tracker = new MatchTracker();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
-  comboCount = 0;
-  comboTimer = 0;
-  if (hudCombo) hudCombo.style.display = "none";
+  resetCombos();
   p1WasGassed = false;
   p2WasGassed = false;
   p1WasDanger  = false;
