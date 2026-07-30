@@ -15,8 +15,10 @@ type SubView = "menu" | "items" | "train" | "skills_list" | "inn";
 
 export default function HomeScreen({ state, dispatch }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
-  const { player, ui } = state;
+  const { player, ui, progress } = state;
   const clanData = player.clan ? CLANS[player.clan] : null;
+  const activeQuest = progress.activeQuest;
+  const questKills = activeQuest ? (progress.questProgress[activeQuest.id] ?? 0) : 0;
 
   return (
     <div
@@ -55,6 +57,37 @@ export default function HomeScreen({ state, dispatch }: Props) {
           <p style={{ color: C.dim, fontSize: "12px", margin: "4px 0 0" }}>
             ステータスポイント +3 獲得！「鍛錬」で割り振れ。
           </p>
+        </div>
+      )}
+
+      {/* 進行中の任務 */}
+      {activeQuest && (
+        <div
+          style={{
+            background: `${C.accent1}15`,
+            border: `1px solid ${C.accent1}40`,
+            borderRadius: "4px",
+            padding: "10px 14px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <p style={{ color: C.accent1, fontSize: "13px", margin: 0 }}>
+              ► 進行中: {activeQuest.title}
+            </p>
+            <span style={{ color: C.accent2, fontSize: "12px" }}>
+              {questKills} / {activeQuest.count} 討伐
+            </span>
+          </div>
+          <div style={{ background: "#1a1a28", borderRadius: "2px", height: "5px", overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${Math.min(100, (questKills / activeQuest.count) * 100)}%`,
+                height: "100%",
+                background: C.accent1,
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
         </div>
       )}
 
