@@ -548,11 +548,16 @@ export class Wrestler {
     this.stamina = Math.max(0, this.stamina - 15);
   }
 
-  startSignature(target: Wrestler): void {
+  /**
+   * シグネチャー演出。フィニッシャー (100%) と 50% スペシャルで共用する。
+   * @param momentumCost 消費するモーメンタム量。既定は全消費 (フィニッシャー)。
+   *                     50% スペシャルは 50 を渡して残りを次の技へ持ち越す。
+   */
+  startSignature(target: Wrestler, momentumCost = Infinity): void {
     this.state = "signature";
     this.stateTimer = 1.0;
     this.actionCooldown = 1.2;
-    this.momentum = 0;
+    this.momentum = Math.max(0, this.momentum - momentumCost);
     target.state = "being_slammed";
     target.stateTimer = 2.0;
     target.actionCooldown = 2.5;
