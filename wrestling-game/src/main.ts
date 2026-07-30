@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { createRenderer, createCamera, createScene, setupLighting } from "./engine/renderer.js";
-import { buildRing } from "./game/Ring.js";
+import { buildRing, RING_BOUNDS } from "./game/Ring.js";
 import { InputManager } from "./engine/input.js";
 import { Wrestler } from "./game/Wrestler.js";
 import { CpuAI, type Difficulty } from "./game/CpuAI.js";
@@ -715,7 +715,7 @@ function showMatchIntro(cb: () => void): void {
   audio.crowd();
 
   // コーナーパイロ — 4 コーナーから時間差でキャラカラーの火花が上がる
-  const RB = 5.1; // RING_BOUNDS 相当のコーナー位置
+  const RB = RING_BOUNDS; // コーナー位置はリング境界に追従させる
   const pyroSpots: Array<{ x: number; z: number; color: number }> = [
     { x: -RB, z: -RB, color: player1.primaryColor },
     { x: -RB, z:  RB, color: player1.primaryColor },
