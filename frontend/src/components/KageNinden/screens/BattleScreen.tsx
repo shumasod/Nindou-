@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
 import { SKILLS, ITEMS } from "../data";
+import { calcEscapeRate } from "../utils";
 import type { GameState, StatusEffect } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -63,6 +64,7 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const isPlayerTurn = phase === "player";
   const hpRatio = player.hp / player.maxHp;
   const isDanger = hpRatio <= 0.25;
+  const escapePct = enemy ? Math.round(calcEscapeRate(player.stats.speed, enemy.speed) * 100) : 0;
 
   if (!enemy) return null;
 
@@ -227,8 +229,8 @@ export default function BattleScreen({ state, dispatch }: Props) {
               onClick={() => dispatch({ type: "PLAYER_DEFEND" })}
             />
             <ActionBtn
-              label="💨 逃走"
-              color={C.dim}
+              label={`💨 逃走 ${escapePct}%`}
+              color={escapePct >= 60 ? C.success : escapePct >= 40 ? C.accent2 : C.danger}
               disabled={isAnimating}
               onClick={() => dispatch({ type: "PLAYER_ESCAPE" })}
             />
