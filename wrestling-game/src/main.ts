@@ -1726,8 +1726,13 @@ const muteBtn = document.getElementById("mute-btn") as HTMLButtonElement | null;
 
 function syncMuteBtn(): void {
   if (!muteBtn) return;
-  muteBtn.textContent = audio.muted ? "🔇" : "🔊";
-  muteBtn.classList.toggle("muted", audio.muted);
+  const muted = audio.muted;
+  // アイコンは装飾 (aria-hidden) — textContent で span ごと潰さないよう子要素を更新する
+  const icon = muteBtn.querySelector<HTMLElement>("span");
+  if (icon) icon.textContent = muted ? "🔇" : "🔊";
+  muteBtn.classList.toggle("muted", muted);
+  muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+  muteBtn.setAttribute("aria-label", muted ? "サウンドのミュートを解除" : "サウンドをミュート");
 }
 
 muteBtn?.addEventListener("click", () => {
