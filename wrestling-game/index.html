@@ -13,6 +13,26 @@
     />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      /*
+       * 前庭障害・光感受性への配慮。
+       * 無限ループする点滅系 (ガス欠バー・瀕死ビネット・場外カウント・
+       * モーメンタム/クラウドのパルス) を静止させる。
+       * 一度きりの演出アニメーションは意味を持つため残す。
+       */
+      @media (prefers-reduced-motion: reduce) {
+        #danger-vignette,
+        #ringout-count,
+        #player-mom, #cpu-mom,
+        #player-sta, #cpu-sta,
+        #crowd-bar.hot,
+        #sub-mash {
+          animation: none !important;
+        }
+        /* 点滅を止める代わりに危険状態が分かる定常表示にする */
+        #danger-vignette { opacity: 0.6; }
+        #sub-mash { opacity: 1; }
+      }
       body { background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
       #canvas-container { width: 100vw; height: 100vh; }
       #canvas-container canvas { display: block; }
