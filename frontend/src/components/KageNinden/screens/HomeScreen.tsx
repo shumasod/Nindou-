@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { C, S, hpBarStyle, chakraBarStyle, barTrackStyle } from "../styles";
-import { CLANS, SKILLS, ITEMS } from "../data";
+import { CLANS, SKILLS, ITEMS, SKILL_UNLOCK } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -459,6 +459,13 @@ function SkillsListView({
   player: GameState["player"];
   setSubView: (v: SubView) => void;
 }) {
+  const nextUnlocks = player.clan
+    ? Object.entries(SKILL_UNLOCK)
+        .filter(([id, cond]) => cond.clan === player.clan && cond.level > player.level && !player.skills.includes(id))
+        .sort(([, a], [, b]) => a.level - b.level)
+        .slice(0, 1)
+    : [];
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
@@ -486,6 +493,23 @@ function SkillsListView({
           })}
         </div>
       )}
+      {nextUnlocks.length > 0 && (() => {
+        const [nextId, nextCond] = nextUnlocks[0];
+        const nextSkill = SKILLS[nextId];
+        if (!nextSkill) return null;
+        return (
+          <div style={{ marginTop: "12px", borderTop: `1px solid ${C.border}`, paddingTop: "10px" }}>
+            <p style={{ ...S.label, marginBottom: "6px" }}>次の技能解放</p>
+            <div style={{ ...S.panelSm, border: `1px dashed ${C.purple}40` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ color: C.purple, fontSize: "13px" }}>🔒 {nextSkill.name}</span>
+                <span style={{ color: C.dim, fontSize: "11px" }}>Lv.{nextCond.level} で解放</span>
+              </div>
+              <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>{nextSkill.desc}</p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
