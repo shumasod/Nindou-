@@ -158,6 +158,11 @@ export default function BattleScreen({ state, dispatch }: Props) {
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
             <span style={{ ...S.label }}>HP</span>
+            {playerStatus.some((e) => e.id === "poison") && (
+              <span style={{ color: "#8b6914", fontSize: "10px", animation: "pulse 1.2s infinite" }}>
+                ☠ 次ターン -3〜7
+              </span>
+            )}
           </div>
           <div style={barTrackStyle}><div style={hpBarStyle(player.hp, player.maxHp)} /></div>
         </div>
