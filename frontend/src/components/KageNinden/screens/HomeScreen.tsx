@@ -193,7 +193,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
 
         {/* ─── 右パネル: コンテンツエリア ─── */}
         <div style={{ ...S.panel, flex: 1, minWidth: "240px" }}>
-          {subView === "menu" && <MenuView dispatch={dispatch} setSubView={setSubView} />}
+          {subView === "menu" && <MenuView dispatch={dispatch} setSubView={setSubView} completedCount={progress.completedQuests.length} />}
           {subView === "items" && <ItemsView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "train" && <TrainView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "skills_list" && <SkillsListView player={player} setSubView={setSubView} />}
@@ -218,12 +218,14 @@ export default function HomeScreen({ state, dispatch }: Props) {
 function MenuView({
   dispatch,
   setSubView,
+  completedCount,
 }: {
   dispatch: (a: GameAction) => void;
   setSubView: (v: SubView) => void;
+  completedCount: number;
 }) {
-  const btns: { label: string; icon: string; action: () => void; color?: string }[] = [
-    { label: "フィールドへ", icon: "🗺", action: () => dispatch({ type: "GO_TO_SCREEN", screen: "map" }), color: C.success },
+  const btns: { label: string; icon: string; action: () => void; color?: string; badge?: string }[] = [
+    { label: "フィールドへ", icon: "🗺", action: () => dispatch({ type: "GO_TO_SCREEN", screen: "map" }), color: C.success, badge: completedCount > 0 ? `${completedCount}任務済` : undefined },
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
     { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
@@ -242,7 +244,14 @@ function MenuView({
             onMouseEnter={(e) => { e.currentTarget.style.background = b.color ?? C.accent1; e.currentTarget.style.color = C.bg; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = b.color ?? C.accent1; }}
           >
-            {b.icon}　{b.label}
+            <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{b.icon}　{b.label}</span>
+              {b.badge && (
+                <span style={{ fontSize: "10px", color: C.dim, border: `1px solid ${C.border}`, padding: "1px 5px", borderRadius: "2px" }}>
+                  {b.badge}
+                </span>
+              )}
+            </span>
           </button>
         ))}
       </div>
