@@ -55,6 +55,26 @@ export default function MapScreen({ state, dispatch }: Props) {
         );
       })()}
 
+      {/* ランク凡例 */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ color: C.dim, fontSize: "11px" }}>ランク:</span>
+        {(["S", "A", "B", "C"] as const).map((rank) => (
+          <span
+            key={rank}
+            style={{
+              color: rankColor(rank),
+              border: `1px solid ${rankColor(rank)}`,
+              padding: "1px 6px",
+              fontSize: "11px",
+              borderRadius: "2px",
+            }}
+          >
+            {rank}
+          </span>
+        ))}
+        <span style={{ color: C.dim, fontSize: "11px", marginLeft: "4px" }}>（右→難易度高）</span>
+      </div>
+
       <p style={{ color: C.dim, fontSize: "12px", marginBottom: "20px" }}>
         任務を選んで出陣せよ。Lv不足のエリアは進入不可。
       </p>
