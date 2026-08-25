@@ -221,7 +221,7 @@ export default function BattleScreen({ state, dispatch }: Props) {
               onClick={() => { setShowItems(true); setShowSkills(false); }}
             />
             <ActionBtn
-              label="🛡 防御"
+              label={`🛡 防御 ⚡+3〜7`}
               color={C.chakra}
               disabled={isAnimating}
               onClick={() => dispatch({ type: "PLAYER_DEFEND" })}
