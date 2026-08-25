@@ -1,6 +1,6 @@
 "use client";
 import { C, S } from "../styles";
-import { ITEMS } from "../data";
+import { ITEMS, SKILLS, SKILL_UNLOCK } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -13,6 +13,12 @@ export default function VictoryScreen({ state, dispatch }: Props) {
   const { ui, player, battle, progress } = state;
   const reward = ui.lastReward;
   const totalKills = Object.values(progress.questProgress).reduce((a, b) => a + b, 0);
+
+  const nextSkill = player.clan
+    ? Object.entries(SKILL_UNLOCK)
+        .filter(([sid, u]) => u.clan === player.clan && !player.skills.includes(sid))
+        .sort((a, b) => a[1].level - b[1].level)[0]
+    : null;
 
   return (
     <div
@@ -146,6 +152,29 @@ export default function VictoryScreen({ state, dispatch }: Props) {
             </div>
           </div>
         </div>
+
+        {/* 次スキル解放ヒント */}
+        {nextSkill && (
+          <div style={{ ...S.panelSm, marginBottom: "24px", borderColor: C.purple }}>
+            <p style={{ ...S.label, marginBottom: "6px", color: C.purple }}>次のスキル解放</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: C.text, fontSize: "13px" }}>{SKILLS[nextSkill[0]]?.name ?? nextSkill[0]}</span>
+              <span style={{ color: C.dim, fontSize: "11px" }}>Lv{nextSkill[1].level} で習得</span>
+            </div>
+            {player.level < nextSkill[1].level && (
+              <div style={{ marginTop: "6px", background: C.border, borderRadius: "4px", height: "4px", overflow: "hidden" }}>
+                <div
+                  style={{
+                    width: `${Math.round((player.level / nextSkill[1].level) * 100)}%`,
+                    height: "100%",
+                    background: C.purple,
+                    transition: "width 0.4s ease",
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ボタン */}
         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
