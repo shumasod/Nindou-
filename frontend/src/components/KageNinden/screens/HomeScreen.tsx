@@ -430,9 +430,24 @@ function InnView({
         </div>
       </div>
       {alreadyFull ? (
-        <p style={{ color: C.success, fontSize: "13px", textAlign: "center" }}>
-          ✓ 既に万全の状態だ。
-        </p>
+        <div
+          style={{
+            background: `${C.success}18`,
+            border: `1px solid ${C.success}`,
+            borderRadius: "4px",
+            padding: "12px 16px",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ color: C.success, fontSize: "15px", margin: "0 0 4px" }}>✓ 既に万全の状態だ！</p>
+          <p style={{ color: C.dim, fontSize: "11px", margin: "0 0 10px" }}>HP・チャクラは満タンです</p>
+          <button
+            style={{ ...S.btn(C.dim), padding: "6px 20px", fontSize: "12px" }}
+            onClick={() => setSubView("menu")}
+          >
+            ← 戻る
+          </button>
+        </div>
       ) : !canAfford ? (
         <p style={{ color: C.danger, fontSize: "13px", textAlign: "center" }}>
           所持金が足りない（{player.gold} G / {cost} G 必要）
