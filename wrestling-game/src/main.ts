@@ -1583,9 +1583,13 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
   grid.innerHTML = "";
 
   ROSTER.forEach((ch, i) => {
-    const card = document.createElement("div");
+    // button 要素にすることで Tab フォーカス・Enter/Space 起動が標準で効く
+    const card = document.createElement("button");
+    card.type = "button";
     card.className = "char-card";
     card.dataset["idx"] = String(i);
+    card.setAttribute("aria-pressed", "false");
+    card.setAttribute("aria-label", `${ch.name} — ${ch.title}`);
 
     // カラースウォッチ
     const r = (ch.primaryColor >> 16) & 0xff;
@@ -1608,8 +1612,12 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
       </div>`;
 
     card.addEventListener("click", () => {
-      grid.querySelectorAll(".char-card").forEach((c) => c.classList.remove("selected"));
+      grid.querySelectorAll(".char-card").forEach((c) => {
+        c.classList.remove("selected");
+        c.setAttribute("aria-pressed", "false");
+      });
       card.classList.add("selected");
+      card.setAttribute("aria-pressed", "true");
       sel.selectedIdx = i;
       confirmBtn.disabled = false;
     });
@@ -1718,8 +1726,13 @@ const muteBtn = document.getElementById("mute-btn") as HTMLButtonElement | null;
 
 function syncMuteBtn(): void {
   if (!muteBtn) return;
-  muteBtn.textContent = audio.muted ? "🔇" : "🔊";
-  muteBtn.classList.toggle("muted", audio.muted);
+  const muted = audio.muted;
+  // アイコンは装飾 (aria-hidden) — textContent で span ごと潰さないよう子要素を更新する
+  const icon = muteBtn.querySelector<HTMLElement>("span");
+  if (icon) icon.textContent = muted ? "🔇" : "🔊";
+  muteBtn.classList.toggle("muted", muted);
+  muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+  muteBtn.setAttribute("aria-label", muted ? "サウンドのミュートを解除" : "サウンドをミュート");
 }
 
 muteBtn?.addEventListener("click", () => {
