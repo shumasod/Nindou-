@@ -135,7 +135,12 @@ export default function HomeScreen({ state, dispatch }: Props) {
           <div style={{ marginBottom: "14px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
               <span style={{ ...S.label }}>EXP</span>
-              <span style={{ color: C.text, fontSize: "12px" }}>{player.exp} / {player.expToNext}</span>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ color: C.text, fontSize: "12px" }}>{player.exp} / {player.expToNext}</span>
+                <span style={{ color: C.dim, fontSize: "10px", marginLeft: "6px" }}>
+                  (あと{player.expToNext - player.exp})
+                </span>
+              </div>
             </div>
             <div style={barTrackStyle}>
               <div
