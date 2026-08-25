@@ -92,8 +92,19 @@ export default function BattleScreen({ state, dispatch }: Props) {
         </div>
       )}
 
-      {/* ターン数 */}
-      <div style={{ textAlign: "right" }}>
+      {/* ターン数 / 速度比較 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {(() => {
+          const ps = player.stats.speed;
+          const es = enemy.speed;
+          const faster = ps > es;
+          const equal = ps === es;
+          return (
+            <span style={{ fontSize: "11px", color: faster ? C.success : equal ? C.dim : C.danger }}>
+              {faster ? "▲" : equal ? "─" : "▼"} 速{ps} vs 敵{es}
+            </span>
+          );
+        })()}
         <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn}</span>
       </div>
 
