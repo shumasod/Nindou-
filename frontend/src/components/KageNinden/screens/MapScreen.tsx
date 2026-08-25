@@ -64,6 +64,8 @@ export default function MapScreen({ state, dispatch }: Props) {
         {Object.entries(AREAS).map(([areaId, area]) => {
           const locked = player.level < area.minLevel;
           const areaQuests = QUESTS.filter((q) => area.quests.includes(q.id));
+          const diffStars = area.minLevel >= 15 ? 5 : area.minLevel >= 10 ? 4 : area.minLevel >= 5 ? 3 : area.minLevel >= 3 ? 2 : 1;
+          const diffColor = diffStars >= 5 ? C.danger : diffStars >= 4 ? C.accent1 : diffStars >= 3 ? C.accent2 : C.success;
 
           return (
             <div
@@ -79,7 +81,12 @@ export default function MapScreen({ state, dispatch }: Props) {
                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                   <span style={{ fontSize: "22px" }}>{area.icon}</span>
                   <div>
-                    <p style={{ margin: 0, fontSize: "14px", color: locked ? C.dim : C.text }}>{area.name}</p>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <p style={{ margin: 0, fontSize: "14px", color: locked ? C.dim : C.text }}>{area.name}</p>
+                      <span style={{ color: diffColor, fontSize: "10px", letterSpacing: "-1px" }}>
+                        {"★".repeat(diffStars)}{"☆".repeat(5 - diffStars)}
+                      </span>
+                    </div>
                     <p style={{ margin: 0, fontSize: "11px", color: C.dim }}>{area.desc}</p>
                   </div>
                 </div>
