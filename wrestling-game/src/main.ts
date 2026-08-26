@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { createRenderer, createCamera, createScene, setupLighting } from "./engine/renderer.js";
-import { buildRing } from "./game/Ring.js";
+import { buildRing, RING_BOUNDS } from "./game/Ring.js";
 import { InputManager } from "./engine/input.js";
 import { Wrestler } from "./game/Wrestler.js";
 import { CpuAI, type Difficulty } from "./game/CpuAI.js";
@@ -24,9 +24,9 @@ let player1!: Wrestler;
 let player2!: Wrestler;
 
 function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
-  // Remove old wrestlers if restarting
-  if (player1) scene.remove(player1.root);
-  if (player2) scene.remove(player2.root);
+  // 作り直し時は GPU リソースまで解放する (scene.remove だけでは残る)
+  if (player1) player1.disposeFromScene(scene);
+  if (player2) player2.disposeFromScene(scene);
 
   player1 = new Wrestler({
     ...def1, startX: -2.5,
@@ -563,18 +563,30 @@ function updateStrikeChains(dt: number): void {
 }
 
 // ─── コンボカウンター ─────────────────────────────────────────────────────────
-let comboCount = 0;
-let comboTimer = 0;
 const COMBO_WINDOW = 2.5;
+const comboCount: { p1: number; p2: number } = { p1: 0, p2: 0 };
+const comboTimer: { p1: number; p2: number } = { p1: 0, p2: 0 };
+// 表示中のコンボの持ち主 (2P モードで両者が交互にコンボした場合の表示切替用)
+let comboOwner: "p1" | "p2" = "p1";
 
-function addCombo(): void {
-  comboCount++;
-  comboTimer = COMBO_WINDOW;
-  tracker.recordCombo("p1", comboCount);
-  if (hudCombo && comboCount >= 2) {
+function resetCombos(): void {
+  comboCount.p1 = 0; comboCount.p2 = 0;
+  comboTimer.p1 = 0; comboTimer.p2 = 0;
+  if (hudCombo) hudCombo.style.display = "none";
+}
+
+function addCombo(side: "p1" | "p2"): void {
+  comboCount[side]++;
+  comboTimer[side] = COMBO_WINDOW;
+  tracker.recordCombo(side, comboCount[side]);
+
+  comboOwner = side;
+  const n = comboCount[side];
+  if (hudCombo && n >= 2) {
+    const who = mode === "2p" ? `${side === "p1" ? "P1" : "P2"} ` : "";
     hudCombo.style.display  = "block";
-    hudCombo.textContent    = `${comboCount} HIT COMBO!`;
-    hudCombo.style.fontSize = `${Math.min(36, 18 + comboCount * 2)}px`;
+    hudCombo.textContent    = `${who}${n} HIT COMBO!`;
+    hudCombo.style.fontSize = `${Math.min(36, 18 + n * 2)}px`;
     hudCombo.style.animation = "none";
     void (hudCombo as HTMLElement).offsetWidth;
     hudCombo.style.animation = "comboZoom 0.15s ease-out";
@@ -582,11 +594,13 @@ function addCombo(): void {
 }
 
 function updateCombo(dt: number): void {
-  if (comboTimer > 0) {
-    comboTimer -= dt;
-    if (comboTimer <= 0) {
-      comboCount = 0;
-      if (hudCombo) hudCombo.style.display = "none";
+  for (const side of ["p1", "p2"] as const) {
+    if (comboTimer[side] <= 0) continue;
+    comboTimer[side] -= dt;
+    if (comboTimer[side] <= 0) {
+      comboCount[side] = 0;
+      // 表示中のコンボが切れたときだけ非表示にする
+      if (hudCombo && comboOwner === side) hudCombo.style.display = "none";
     }
   }
 }
@@ -701,7 +715,7 @@ function showMatchIntro(cb: () => void): void {
   audio.crowd();
 
   // コーナーパイロ — 4 コーナーから時間差でキャラカラーの火花が上がる
-  const RB = 5.1; // RING_BOUNDS 相当のコーナー位置
+  const RB = RING_BOUNDS; // コーナー位置はリング境界に追従させる
   const pyroSpots: Array<{ x: number; z: number; color: number }> = [
     { x: -RB, z: -RB, color: player1.primaryColor },
     { x: -RB, z:  RB, color: player1.primaryColor },
@@ -805,8 +819,7 @@ function startNextRound(): void {
   tournament.roundNum++;
   tracker = new MatchTracker();
   matchElapsed = 0;
-  comboCount = 0;
-  comboTimer = 0;
+  resetCombos();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
   p1WasGassed   = false;
   p2WasGassed   = false;
@@ -1027,7 +1040,6 @@ function handleInput(
   side: "p1" | "p2"
 ): void {
   const s = inp.state;
-  const trackCombo = side === "p1";
   const oppSide: "p1" | "p2" = side === "p1" ? "p2" : "p1";
 
   let dx = 0, dz = 0;
@@ -1087,7 +1099,7 @@ function handleInput(
     audio.punch();
     addCrowdPop(10);
     tracker.recordStrike(side, dmg, false);
-    if (side === "p1") addCombo();
+    addCombo(side);
     flashMoveName("COUNTER!!");
     return;
   }
@@ -1143,7 +1155,7 @@ function handleInput(
       audio.crowd();
       addCrowdPop(22);
       tracker.recordCornerSplash(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashMoveName("CORNER SPLASH!!");
     } else if (isClothesline) {
       // クロスライン — リバウンド中の相手を迎撃する高威力打撃
@@ -1160,7 +1172,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(knockdown ? (outsideKD ? 20 : 15) : 8);
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
       if (!knockdown) flashMoveName("CLOTHESLINE!!");
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else if (isRunning) {
@@ -1178,7 +1190,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(knockdown ? (outsideKD ? 18 : 12) : 5);
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
       if (!knockdown) flashMoveName("RUNNING STRIKE!!");
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else {
@@ -1208,7 +1220,7 @@ function handleInput(
         if (!knockdown) flashMoveName("STRIKE!");
       }
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
     }
   }
 
@@ -1233,7 +1245,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(8);
       tracker.recordSlam(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashMoveName("SLAM!");
     } else if (self.canGrapple(opponent)) {
       self.startGrapple(opponent);
@@ -1251,8 +1263,7 @@ function handleInput(
 
   // 50% Special move (weaker, no crowd burst, costs half momentum)
   if (s.signaturePressed && self.momentum >= 50 && self.momentum < 100 && self.canGrapple(opponent)) {
-    self.startSignature(opponent);
-    self.momentum = Math.max(0, self.momentum - 50); // 100% 消費ではなく半分だけ
+    self.startSignature(opponent, 50); // 100% 消費ではなく半分だけ
     const dmg = 20 * self.damageMult;
     opponent.takeDamage(dmg);
     const r = (self.specialColor >> 16) & 0xff;
@@ -1264,7 +1275,7 @@ function handleInput(
     audio.slam();
     addCrowdPop(14);
     tracker.recordSignature(side, dmg);
-    if (trackCombo) addCombo();
+    addCombo(side);
     const el = document.getElementById("move-name");
     if (el) {
       el.style.color = `rgb(${r},${g},${b})`;
@@ -1301,7 +1312,7 @@ function handleInput(
       audio.crowd();
       addCrowdPop(30);
       tracker.recordSignature(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashFinisher(self.name, self.finisherName, self.finisherColor);
     }
   }
@@ -1507,9 +1518,7 @@ function startMatch(
 
   tracker = new MatchTracker();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
-  comboCount = 0;
-  comboTimer = 0;
-  if (hudCombo) hudCombo.style.display = "none";
+  resetCombos();
   p1WasGassed = false;
   p2WasGassed = false;
   p1WasDanger  = false;
@@ -1574,9 +1583,13 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
   grid.innerHTML = "";
 
   ROSTER.forEach((ch, i) => {
-    const card = document.createElement("div");
+    // button 要素にすることで Tab フォーカス・Enter/Space 起動が標準で効く
+    const card = document.createElement("button");
+    card.type = "button";
     card.className = "char-card";
     card.dataset["idx"] = String(i);
+    card.setAttribute("aria-pressed", "false");
+    card.setAttribute("aria-label", `${ch.name} — ${ch.title}`);
 
     // カラースウォッチ
     const r = (ch.primaryColor >> 16) & 0xff;
@@ -1599,8 +1612,12 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
       </div>`;
 
     card.addEventListener("click", () => {
-      grid.querySelectorAll(".char-card").forEach((c) => c.classList.remove("selected"));
+      grid.querySelectorAll(".char-card").forEach((c) => {
+        c.classList.remove("selected");
+        c.setAttribute("aria-pressed", "false");
+      });
       card.classList.add("selected");
+      card.setAttribute("aria-pressed", "true");
       sel.selectedIdx = i;
       confirmBtn.disabled = false;
     });
@@ -1709,8 +1726,13 @@ const muteBtn = document.getElementById("mute-btn") as HTMLButtonElement | null;
 
 function syncMuteBtn(): void {
   if (!muteBtn) return;
-  muteBtn.textContent = audio.muted ? "🔇" : "🔊";
-  muteBtn.classList.toggle("muted", audio.muted);
+  const muted = audio.muted;
+  // アイコンは装飾 (aria-hidden) — textContent で span ごと潰さないよう子要素を更新する
+  const icon = muteBtn.querySelector<HTMLElement>("span");
+  if (icon) icon.textContent = muted ? "🔇" : "🔊";
+  muteBtn.classList.toggle("muted", muted);
+  muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+  muteBtn.setAttribute("aria-label", muted ? "サウンドのミュートを解除" : "サウンドをミュート");
 }
 
 muteBtn?.addEventListener("click", () => {
