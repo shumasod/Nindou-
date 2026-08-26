@@ -3,9 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Three.js + TypeScript で作られたブラウザ 3D プロレスゲーム。1P vs CPU / ローカル 2P / 3本先取のチャンピオンシップに対応。" />
+    <meta name="theme-color" content="#0a0a14" />
     <title>Wrestling Game</title>
+    <!-- インライン SVG favicon — 外部ファイル不要 (アセットゼロ方針を維持) -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a14'/%3E%3Crect x='4' y='9' width='24' height='2.5' fill='%23ff2222'/%3E%3Crect x='4' y='15' width='24' height='2.5' fill='%23ffffff'/%3E%3Crect x='4' y='21' width='24' height='2.5' fill='%232244ff'/%3E%3Crect x='3' y='6' width='3' height='21' rx='1' fill='%23ccaa00'/%3E%3Crect x='26' y='6' width='3' height='21' rx='1' fill='%23ccaa00'/%3E%3C/svg%3E"
+    />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      /*
+       * 前庭障害・光感受性への配慮。
+       * 無限ループする点滅系 (ガス欠バー・瀕死ビネット・場外カウント・
+       * モーメンタム/クラウドのパルス) を静止させる。
+       * 一度きりの演出アニメーションは意味を持つため残す。
+       */
+      @media (prefers-reduced-motion: reduce) {
+        #danger-vignette,
+        #ringout-count,
+        #player-mom, #cpu-mom,
+        #player-sta, #cpu-sta,
+        #crowd-bar.hot,
+        #sub-mash {
+          animation: none !important;
+        }
+        /* 点滅を止める代わりに危険状態が分かる定常表示にする */
+        #danger-vignette { opacity: 0.6; }
+        #sub-mash { opacity: 1; }
+      }
       body { background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
       #canvas-container { width: 100vw; height: 100vh; }
       #canvas-container canvas { display: block; }
@@ -492,6 +519,11 @@
         cursor: pointer; pointer-events: auto;
         text-align: center; transition: border-color 0.15s, transform 0.1s;
         background: rgba(255,255,255,0.04);
+        /* button 要素のためのリセット (フォントは継承させる) */
+        font: inherit; color: inherit; width: 100%; display: block;
+      }
+      .char-card:focus-visible {
+        outline: 3px solid #ffd700; outline-offset: 2px;
       }
       .char-card:hover { border-color: rgba(255,255,255,0.6); transform: translateY(-3px); }
       .char-card.selected { border-color: #ffd700; box-shadow: 0 0 18px rgba(255,215,0,0.4); }
@@ -539,7 +571,10 @@
 
     <div id="danger-vignette"></div>
 
-    <button id="mute-btn" title="Toggle sound">🔊</button>
+    <button id="mute-btn" type="button" title="Toggle sound"
+            aria-label="サウンドをミュート" aria-pressed="false">
+      <span aria-hidden="true">🔊</span>
+    </button>
 
     <div id="hud">
       <!-- P1 HUD -->
