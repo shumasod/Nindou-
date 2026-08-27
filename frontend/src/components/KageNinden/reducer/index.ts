@@ -80,6 +80,7 @@ export type GameAction =
   | { type: "PLAYER_ESCAPE" }
   | { type: "ENEMY_TURN" }
   | { type: "ALLOCATE_STAT"; stat: keyof Player["stats"] }
+  | { type: "REST_AT_INN" }
   | { type: "RESET_GAME" };
 
 // ===== メインReducer =====
@@ -123,6 +124,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "ALLOCATE_STAT":
       return handleAllocateStat(state, action.stat);
+
+    case "REST_AT_INN": {
+      const cost = Math.max(10, Math.floor((state.player.maxHp - state.player.hp) * 0.5 + (state.player.maxChakra - state.player.chakra) * 0.3));
+      if (state.player.gold < cost) return state;
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          hp: state.player.maxHp,
+          chakra: state.player.maxChakra,
+          gold: state.player.gold - cost,
+        },
+      };
+    }
 
     default:
       return state;

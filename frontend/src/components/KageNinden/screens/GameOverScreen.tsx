@@ -42,7 +42,7 @@ export default function GameOverScreen({ state, dispatch }: Props) {
 
         {/* 最後の戦闘情報 */}
         {battle.enemy && (
-          <div style={{ ...S.panel, marginBottom: "24px" }}>
+          <div style={{ ...S.panel, marginBottom: "24px", border: `1px solid ${C.danger}40` }}>
             <p style={{ ...S.label, marginBottom: "8px" }}>最後の戦い</p>
             <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: "28px" }}>{battle.enemy.icon}</span>
@@ -50,6 +50,10 @@ export default function GameOverScreen({ state, dispatch }: Props) {
                 <p style={{ margin: 0, color: C.accent1, fontSize: "15px" }}>{battle.enemy.name}</p>
                 <p style={{ margin: "2px 0 0", color: C.dim, fontSize: "12px" }}>
                   Turn {battle.turn} で討死
+                </p>
+                <p style={{ margin: "2px 0 0", color: C.dim, fontSize: "11px" }}>
+                  残HP: {battle.enemy.hp} / {battle.enemy.maxHp}
+                  （あと <span style={{ color: C.accent2 }}>{battle.enemy.hp}</span> で撃破）
                 </p>
               </div>
             </div>
@@ -61,14 +65,16 @@ export default function GameOverScreen({ state, dispatch }: Props) {
           <p style={{ ...S.label, marginBottom: "8px" }}>最終記録</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {[
-              ["名前", player.name],
-              ["レベル", `Lv.${player.level}`],
-              ["経験値", `${player.exp} EXP`],
-              ["所持金", `${player.gold} G`],
-            ].map(([label, val]) => (
+              { label: "名前",   val: player.name,              color: C.text },
+              { label: "レベル", val: `Lv.${player.level}`,     color: C.text },
+              { label: "経験値", val: `${player.exp} EXP`,      color: C.purple },
+              { label: "所持金", val: `${player.gold} G`,       color: C.accent2 },
+              { label: "クラン", val: player.clan ?? "─",       color: C.dim },
+              { label: "討伐数", val: `${battle.killCount}体`,   color: C.success },
+            ].map(({ label, val, color }) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.dim, fontSize: "13px" }}>{label}</span>
-                <span style={{ color: C.text, fontSize: "13px" }}>{val}</span>
+                <span style={{ color, fontSize: "13px" }}>{val}</span>
               </div>
             ))}
           </div>

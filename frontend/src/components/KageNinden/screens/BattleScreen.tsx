@@ -18,6 +18,8 @@ export default function BattleScreen({ state, dispatch }: Props) {
   const [showItems, setShowItems] = useState(false);
   const [critFlash, setCritFlash] = useState(false);
   const [ambushBanner, setAmbushBanner] = useState(false);
+  const [hitFlash, setHitFlash] = useState(false);
+  const [dodgeFlash, setDodgeFlash] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   // 奇襲バナー表示
@@ -43,6 +45,17 @@ export default function BattleScreen({ state, dispatch }: Props) {
     if (log[0]?.includes("CRITICAL")) {
       setCritFlash(true);
       setTimeout(() => setCritFlash(false), 800);
+    }
+  }, [log[0]]);
+
+  // ダメージ/回避アニメーション
+  useEffect(() => {
+    if (log[0]?.includes("ダメージ") || log[0]?.includes("を受けた")) {
+      setHitFlash(true);
+      setTimeout(() => setHitFlash(false), 500);
+    } else if (log[0]?.includes("回避") || log[0]?.includes("かわした")) {
+      setDodgeFlash(true);
+      setTimeout(() => setDodgeFlash(false), 500);
     }
   }, [log[0]]);
 
@@ -133,7 +146,10 @@ export default function BattleScreen({ state, dispatch }: Props) {
       </div>
 
       {/* ─── プレイヤー情報 ─── */}
-      <div style={{ ...S.panel }}>
+      <div style={{
+        ...S.panel,
+        animation: hitFlash ? "hitFlash 0.5s ease" : dodgeFlash ? "dodgeFlash 0.5s ease" : "none",
+      }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
           <p style={{ margin: 0, fontSize: "15px" }}>{player.name}</p>
           <p style={{ margin: 0, fontSize: "13px", color: C.text }}>{player.hp} / {player.maxHp}</p>
@@ -149,7 +165,10 @@ export default function BattleScreen({ state, dispatch }: Props) {
         <div style={{ marginBottom: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
             <span style={{ ...S.label }}>チャクラ</span>
-            <span style={{ color: C.chakra, fontSize: "11px" }}>{player.chakra}/{player.maxChakra}</span>
+            <span style={{ color: C.chakra, fontSize: "11px" }}>
+              {player.chakra}/{player.maxChakra}
+              <span style={{ color: C.dim, fontSize: "10px", marginLeft: "6px" }}>+3〜7/T</span>
+            </span>
           </div>
           <div style={barTrackStyle}><div style={chakraBarStyle(player.chakra, player.maxChakra)} /></div>
         </div>
@@ -227,7 +246,7 @@ export default function BattleScreen({ state, dispatch }: Props) {
               margin: "2px 0",
               fontSize: "12px",
               color: logColor(line, i),
-              animation: i === 0 ? "fadeIn 0.3s ease" : "none",
+              animation: i === 0 ? "slideIn 0.25s ease" : "none",
             }}
           >
             {line}
