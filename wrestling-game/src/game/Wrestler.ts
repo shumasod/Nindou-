@@ -395,15 +395,18 @@ export class Wrestler {
     this.root.position.z = Math.max(-limit, Math.min(limit, nz));
 
     if (!crawling) {
-      if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+      const moving = Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01;
+      if (moving) {
         this.facingAngle = Math.atan2(dx, dz);
         this.state = canSprint ? "sprinting" : "walking";
-      } else {
-        if (this.state === "walking" || this.state === "sprinting") {
-          this.state = "idle";
-        }
+      } else if (this.state === "walking" || this.state === "sprinting") {
+        this.state = "idle";
       }
-      this.stamina = Math.max(0, this.stamina - (sprint ? 8 : 2) * dt);
+      // 実際に移動しているときだけ消費。ダッシュ料金は実際に走れた場合のみ
+      // (ガス欠中は canSprint=false → 速度は歩き相当なので歩きコストで揃える)
+      if (moving) {
+        this.stamina = Math.max(0, this.stamina - (canSprint ? 8 : 2) * dt);
+      }
     }
   }
 
@@ -462,11 +465,6 @@ export class Wrestler {
     this.state = "taunting";
     this.stateTimer = 1.2;
     this.actionCooldown = 1.4;
-  }
-
-  /** タント中かどうか (外部から参照用) */
-  isTaunting(): boolean {
-    return this.state === "taunting";
   }
 
   /** 勝利ポーズ — 試合終了後、リザルト画面の背後でループする */
