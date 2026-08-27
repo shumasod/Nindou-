@@ -3,9 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Three.js + TypeScript で作られたブラウザ 3D プロレスゲーム。1P vs CPU / ローカル 2P / 3本先取のチャンピオンシップに対応。" />
+    <meta name="theme-color" content="#0a0a14" />
     <title>Wrestling Game</title>
+    <!-- インライン SVG favicon — 外部ファイル不要 (アセットゼロ方針を維持) -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a14'/%3E%3Crect x='4' y='9' width='24' height='2.5' fill='%23ff2222'/%3E%3Crect x='4' y='15' width='24' height='2.5' fill='%23ffffff'/%3E%3Crect x='4' y='21' width='24' height='2.5' fill='%232244ff'/%3E%3Crect x='3' y='6' width='3' height='21' rx='1' fill='%23ccaa00'/%3E%3Crect x='26' y='6' width='3' height='21' rx='1' fill='%23ccaa00'/%3E%3C/svg%3E"
+    />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      /*
+       * 前庭障害・光感受性への配慮。
+       * 無限ループする点滅系 (ガス欠バー・瀕死ビネット・場外カウント・
+       * モーメンタム/クラウドのパルス) を静止させる。
+       * 一度きりの演出アニメーションは意味を持つため残す。
+       */
+      @media (prefers-reduced-motion: reduce) {
+        #danger-vignette,
+        #ringout-count,
+        #player-mom, #cpu-mom,
+        #player-sta, #cpu-sta,
+        #crowd-bar.hot,
+        #sub-mash {
+          animation: none !important;
+        }
+        /* 点滅を止める代わりに危険状態が分かる定常表示にする */
+        #danger-vignette { opacity: 0.6; }
+        #sub-mash { opacity: 1; }
+      }
       body { background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
       #canvas-container { width: 100vw; height: 100vh; }
       #canvas-container canvas { display: block; }
@@ -70,6 +97,59 @@
       #match-timer {
         font-size: 28px; font-weight: bold;
         text-shadow: 0 0 10px rgba(255,200,0,0.8); letter-spacing: 3px;
+      }
+
+      /* ── Danger vignette (低HP時の赤フチ) ─────────────────── */
+      @keyframes vignettePulse {
+        from { opacity: 0.35; }
+        to   { opacity: 0.85; }
+      }
+      #danger-vignette {
+        position: fixed; inset: 0;
+        pointer-events: none; z-index: 5;
+        display: none;
+        box-shadow: inset 0 0 120px 40px rgba(255, 0, 0, 0.55);
+        animation: vignettePulse 0.7s infinite alternate ease-in-out;
+      }
+
+      /* ── Mute button ─────────────────────────────────────── */
+      #mute-btn {
+        position: fixed; bottom: 16px; right: 16px;
+        z-index: 130; pointer-events: auto;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: rgba(255,255,255,0.75);
+        width: 42px; height: 42px; border-radius: 50%;
+        font-size: 18px; cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      #mute-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); }
+      #mute-btn.muted { color: rgba(255,100,100,0.9); border-color: rgba(255,100,100,0.5); }
+
+      /* ── Pause menu ──────────────────────────────────────── */
+      #pause-screen {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.78);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 120;
+      }
+      #pause-title {
+        font-size: 46px; font-weight: 900; color: #fff;
+        letter-spacing: 10px; text-transform: uppercase; margin-bottom: 36px;
+        text-shadow: 0 0 24px rgba(255,255,255,0.4);
+      }
+      .pause-btn {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; padding: 13px 48px; margin-bottom: 14px;
+        font-size: 14px; letter-spacing: 4px; text-transform: uppercase;
+        cursor: pointer; pointer-events: auto; transition: background 0.15s;
+        min-width: 260px;
+      }
+      .pause-btn:hover { background: rgba(255,255,255,0.2); }
+      #pause-hint {
+        color: rgba(255,255,255,0.35); font-size: 11px;
+        letter-spacing: 2px; margin-top: 12px;
       }
 
       /* ── Ring-out count ──────────────────────────────────── */
@@ -158,8 +238,14 @@
       }
       .subtitle {
         color: rgba(255,255,255,0.6); font-size: 16px;
-        letter-spacing: 4px; margin-bottom: 48px;
+        letter-spacing: 4px; margin-bottom: 12px;
       }
+      #win-record {
+        color: rgba(255,215,0,0.75); font-size: 12px;
+        letter-spacing: 3px; margin-bottom: 36px;
+        text-transform: uppercase; min-height: 15px;
+      }
+      #win-record .streak-hot { color: #ff8800; text-shadow: 0 0 8px rgba(255,136,0,0.6); }
       .mode-section { margin-bottom: 28px; text-align: center; }
       .mode-label {
         color: rgba(255,255,255,0.45); font-size: 11px;
@@ -257,6 +343,24 @@
       #escape-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#27ae60,#2ecc71); border-radius: 5px; transition: width 0.08s; }
       #sub-title  { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.35); margin-bottom: 4px; text-transform: uppercase; }
 
+      @keyframes mashPulse {
+        0%   { transform: scale(1);    opacity: 0.6; text-shadow: 0 0  6px #ff4444; }
+        50%  { transform: scale(1.12); opacity: 1;   text-shadow: 0 0 20px #ff2222, 0 0 40px #ff0000; }
+        100% { transform: scale(1);    opacity: 0.6; text-shadow: 0 0  6px #ff4444; }
+      }
+      #sub-mash {
+        font-size: 22px; font-weight: 900; letter-spacing: 5px;
+        color: #ff4444; text-transform: uppercase;
+        display: none;
+        animation: mashPulse 0.45s infinite ease-in-out;
+        margin-top: 4px;
+      }
+      #sub-mash-who {
+        font-size: 9px; letter-spacing: 3px;
+        color: rgba(255,150,150,0.65); text-transform: uppercase;
+        display: none; margin-top: 2px;
+      }
+
       /* ── Finisher banner ─────────────────────────────────── */
       #finisher-banner {
         position: absolute; top: 38%; left: 50%;
@@ -273,6 +377,57 @@
         text-transform: uppercase;
         text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
       }
+
+      /* ── Match intro ─────────────────────────────────────── */
+      #match-intro {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.88);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 50; pointer-events: none;
+        gap: 0;
+      }
+      @keyframes introSlideLeft {
+        0%   { opacity: 0; transform: translateX(120px); }
+        18%  { opacity: 1; transform: translateX(0); }
+        80%  { opacity: 1; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(-60px); }
+      }
+      @keyframes introSlideRight {
+        0%   { opacity: 0; transform: translateX(-120px); }
+        18%  { opacity: 1; transform: translateX(0); }
+        80%  { opacity: 1; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(60px); }
+      }
+      @keyframes introVs {
+        0%   { opacity: 0; transform: scale(0.4); }
+        25%  { opacity: 1; transform: scale(1.15); }
+        55%  { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.8); }
+      }
+      .intro-fighter {
+        text-align: center; padding: 12px 0;
+      }
+      .intro-fighter-tag {
+        font-size: 11px; letter-spacing: 5px;
+        color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 6px;
+      }
+      .intro-fighter-name {
+        font-size: 52px; font-weight: 900;
+        letter-spacing: 8px; text-transform: uppercase;
+        text-shadow: 0 0 30px currentColor, 0 4px 8px #000;
+      }
+      .intro-fighter-title {
+        font-size: 13px; letter-spacing: 3px;
+        color: rgba(255,255,255,0.45); text-transform: uppercase; margin-top: 6px;
+      }
+      #intro-vs {
+        font-size: 36px; font-weight: 900; color: rgba(255,255,255,0.25);
+        letter-spacing: 10px; padding: 8px 0;
+      }
+      #intro-p1 { animation: introSlideLeft  1.8s forwards; }
+      #intro-vs { animation: introVs         1.8s forwards; }
+      #intro-p2 { animation: introSlideRight 1.8s forwards; }
 
       @keyframes crowdPulse {
         from { opacity: 0.8; }
@@ -364,6 +519,11 @@
         cursor: pointer; pointer-events: auto;
         text-align: center; transition: border-color 0.15s, transform 0.1s;
         background: rgba(255,255,255,0.04);
+        /* button 要素のためのリセット (フォントは継承させる) */
+        font: inherit; color: inherit; width: 100%; display: block;
+      }
+      .char-card:focus-visible {
+        outline: 3px solid #ffd700; outline-offset: 2px;
       }
       .char-card:hover { border-color: rgba(255,255,255,0.6); transform: translateY(-3px); }
       .char-card.selected { border-color: #ffd700; box-shadow: 0 0 18px rgba(255,215,0,0.4); }
@@ -409,6 +569,13 @@
   <body>
     <div id="canvas-container"></div>
 
+    <div id="danger-vignette"></div>
+
+    <button id="mute-btn" type="button" title="Toggle sound"
+            aria-label="サウンドをミュート" aria-pressed="false">
+      <span aria-hidden="true">🔊</span>
+    </button>
+
     <div id="hud">
       <!-- P1 HUD -->
       <div class="fighter-hud" id="player-hud">
@@ -432,6 +599,10 @@
         <div class="bar-label">HP</div>
         <div class="bar-wrap"><div class="sta-bar" id="cpu-sta" style="width:100%"></div></div>
         <div class="bar-label">STAMINA</div>
+        <div class="bar-wrap" style="border-color:rgba(255,215,0,0.4)">
+          <div class="sta-bar" id="cpu-mom" style="width:0%;background:linear-gradient(90deg,#e67e22,#f1c40f)"></div>
+        </div>
+        <div class="bar-label" style="color:rgba(255,215,0,0.6)">MOMENTUM</div>
       </div>
 
       <!-- Timer + Crowd meter -->
@@ -464,6 +635,8 @@
           <div class="sub-row-label">ESCAPE</div>
           <div class="sub-track"><div id="escape-bar"></div></div>
         </div>
+        <div id="sub-mash">MASH!!</div>
+        <div id="sub-mash-who"></div>
       </div>
 
       <!-- Combo -->
@@ -474,7 +647,7 @@
 
       <!-- Controls -->
       <div id="controls">
-        <span class="p1-hint">P1: WASD 移動 &nbsp;|&nbsp; SHIFT ダッシュ &nbsp;|&nbsp; F ストライク（ダッシュ/リバウンド中=特殊） &nbsp;|&nbsp; G グラップル/スラム &nbsp;|&nbsp; H アイリッシュウィップ（グラップル中） &nbsp;|&nbsp; SPACE シグネチャー &nbsp;|&nbsp; P ピン &nbsp;|&nbsp; T タント</span><br>
+        <span class="p1-hint">P1: WASD 移動 &nbsp;|&nbsp; SHIFT ダッシュ &nbsp;|&nbsp; F ストライク（ダッシュ/リバウンド中=特殊） &nbsp;|&nbsp; G グラップル/スラム &nbsp;|&nbsp; H アイリッシュウィップ（グラップル中） &nbsp;|&nbsp; SPACE シグネチャー &nbsp;|&nbsp; P ピン &nbsp;|&nbsp; T タント &nbsp;|&nbsp; ESC ポーズ</span><br>
         <span class="p2-hint" id="p2-controls">P2: IJKL 移動 &nbsp;|&nbsp; RCtrl ダッシュ &nbsp;|&nbsp; U ストライク（ダッシュ/リバウンド中=特殊） &nbsp;|&nbsp; O グラップル/スラム &nbsp;|&nbsp; N アイリッシュウィップ（グラップル中） &nbsp;|&nbsp; M シグネチャー &nbsp;|&nbsp; , ピン &nbsp;|&nbsp; B タント</span>
       </div>
     </div>
@@ -498,13 +671,37 @@
       <div id="finisher-move-label"></div>
     </div>
 
+    <!-- Match intro -->
+    <div id="match-intro">
+      <div class="intro-fighter" id="intro-p1">
+        <div class="intro-fighter-tag">INTRODUCING FIRST</div>
+        <div class="intro-fighter-name" id="intro-p1-name">P1</div>
+        <div class="intro-fighter-title" id="intro-p1-title"></div>
+      </div>
+      <div id="intro-vs">VS</div>
+      <div class="intro-fighter" id="intro-p2">
+        <div class="intro-fighter-tag">AND THEIR OPPONENT</div>
+        <div class="intro-fighter-name" id="intro-p2-name">CPU</div>
+        <div class="intro-fighter-title" id="intro-p2-title"></div>
+      </div>
+    </div>
+
     <!-- Match countdown -->
     <div id="match-start-msg"></div>
+
+    <!-- Pause menu -->
+    <div id="pause-screen">
+      <div id="pause-title">PAUSED</div>
+      <button class="pause-btn" id="pause-resume-btn">RESUME</button>
+      <button class="pause-btn" id="pause-quit-btn">QUIT TO TITLE</button>
+      <div id="pause-hint">ESC — RESUME</div>
+    </div>
 
     <!-- Title Screen -->
     <div id="title-screen">
       <h1>WRESTLING</h1>
       <div class="subtitle">THREE.JS CHAMPIONSHIP EDITION</div>
+      <div id="win-record"></div>
 
       <div class="mode-section">
         <div class="mode-label">1 Player vs CPU — Select Difficulty</div>
