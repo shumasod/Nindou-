@@ -85,6 +85,46 @@
         animation: vignettePulse 0.7s infinite alternate ease-in-out;
       }
 
+      /* ── Mute button ─────────────────────────────────────── */
+      #mute-btn {
+        position: fixed; bottom: 16px; right: 16px;
+        z-index: 130; pointer-events: auto;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: rgba(255,255,255,0.75);
+        width: 42px; height: 42px; border-radius: 50%;
+        font-size: 18px; cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      #mute-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); }
+      #mute-btn.muted { color: rgba(255,100,100,0.9); border-color: rgba(255,100,100,0.5); }
+
+      /* ── Pause menu ──────────────────────────────────────── */
+      #pause-screen {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.78);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 120;
+      }
+      #pause-title {
+        font-size: 46px; font-weight: 900; color: #fff;
+        letter-spacing: 10px; text-transform: uppercase; margin-bottom: 36px;
+        text-shadow: 0 0 24px rgba(255,255,255,0.4);
+      }
+      .pause-btn {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; padding: 13px 48px; margin-bottom: 14px;
+        font-size: 14px; letter-spacing: 4px; text-transform: uppercase;
+        cursor: pointer; pointer-events: auto; transition: background 0.15s;
+        min-width: 260px;
+      }
+      .pause-btn:hover { background: rgba(255,255,255,0.2); }
+      #pause-hint {
+        color: rgba(255,255,255,0.35); font-size: 11px;
+        letter-spacing: 2px; margin-top: 12px;
+      }
+
       /* ── Ring-out count ──────────────────────────────────── */
       #ringout-display {
         position: absolute; bottom: 170px; left: 50%;
@@ -499,6 +539,8 @@
 
     <div id="danger-vignette"></div>
 
+    <button id="mute-btn" title="Toggle sound">🔊</button>
+
     <div id="hud">
       <!-- P1 HUD -->
       <div class="fighter-hud" id="player-hud">
@@ -607,6 +649,14 @@
 
     <!-- Match countdown -->
     <div id="match-start-msg"></div>
+
+    <!-- Pause menu -->
+    <div id="pause-screen">
+      <div id="pause-title">PAUSED</div>
+      <button class="pause-btn" id="pause-resume-btn">RESUME</button>
+      <button class="pause-btn" id="pause-quit-btn">QUIT TO TITLE</button>
+      <div id="pause-hint">ESC — RESUME</div>
+    </div>
 
     <!-- Title Screen -->
     <div id="title-screen">

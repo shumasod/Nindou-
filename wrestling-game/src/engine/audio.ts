@@ -1,16 +1,53 @@
+const MUTE_KEY = "wrestling-muted";
+
 /** Web Audio API のみ使用（外部ファイル不要）*/
 export class AudioEngine {
   private ctx: AudioContext | null = null;
+  private master: GainNode | null = null;
+  private _muted: boolean;
+
+  constructor() {
+    try {
+      this._muted = localStorage.getItem(MUTE_KEY) === "1";
+    } catch {
+      this._muted = false;
+    }
+  }
+
+  get muted(): boolean {
+    return this._muted;
+  }
+
+  /** ミュート切替 — localStorage に永続化し、次回訪問時も維持される */
+  toggleMute(): boolean {
+    this._muted = !this._muted;
+    if (this.master) this.master.gain.value = this._muted ? 0 : 1;
+    try {
+      localStorage.setItem(MUTE_KEY, this._muted ? "1" : "0");
+    } catch {
+      // localStorage 不可 — セッション内のみ有効
+    }
+    return this._muted;
+  }
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
       this.ctx = new AudioContext();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this._muted ? 0 : 1;
+      this.master.connect(this.ctx.destination);
     }
     // ユーザー操作後に resume が必要なブラウザ対策
     if (this.ctx.state === "suspended") {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  /** すべての音の出口 — master ゲイン (ミュート制御点) */
+  private out(): GainNode {
+    this.getCtx();
+    return this.master!;
   }
 
   /** 短いノイズバースト — ストライク */
@@ -32,7 +69,7 @@ export class AudioEngine {
 
     src.connect(dist);
     dist.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out());
     src.start();
   }
 
@@ -60,9 +97,9 @@ export class AudioEngine {
     noiseGain.gain.value = 0.5;
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out());
     noiseSrc.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.connect(this.out());
     osc.start();
     osc.stop(ctx.currentTime + 0.4);
     noiseSrc.start();
@@ -93,7 +130,7 @@ export class AudioEngine {
 
     src.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out());
     src.start();
   }
 
@@ -110,7 +147,7 @@ export class AudioEngine {
       g.gain.setValueAtTime(0.3, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
       osc.connect(g);
-      g.connect(ctx.destination);
+      g.connect(this.out());
       osc.start(t);
       osc.stop(t + 0.1);
     }
