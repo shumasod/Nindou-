@@ -17,7 +17,7 @@ const camera    = createCamera();
 const scene     = createScene();
 
 setupLighting(scene);
-buildRing(scene);
+const ring = buildRing(scene);
 
 // ─── Wrestlers (created lazily after character select) ────────────────────────
 let player1!: Wrestler;
@@ -146,16 +146,34 @@ const CAM_LERP  = 5;
 const camTarget = new THREE.Vector3();
 const camBase   = new THREE.Vector3();
 
+// フィニッシャー演出ズーム: 0 = 通常, 1 = 完全ズームイン
+let camZoom = 0;
+
 function updateCamera(dt: number): void {
   const mid = new THREE.Vector3()
     .addVectors(player1.position, player2.position)
     .multiplyScalar(0.5);
 
-  const desired = new THREE.Vector3(mid.x * 0.5, 8, mid.z * 0.3 + 14);
+  // シグネチャー/フィニッシャー中はドラマチックにズームイン
+  const dramatic = player1.state === "signature" || player2.state === "signature";
+  const zoomTarget = dramatic ? 1 : 0;
+  // ズームインは速く (4/s)、ズームアウトはゆっくり (1.5/s) 戻す
+  const zoomSpeed = zoomTarget > camZoom ? 4 : 1.5;
+  camZoom += (zoomTarget - camZoom) * Math.min(1, zoomSpeed * dt);
+
+  // 通常: 高く引いた視点 / ズーム時: 低く近い視点
+  const height = THREE.MathUtils.lerp(8, 4.2, camZoom);
+  const dist   = THREE.MathUtils.lerp(14, 7.5, camZoom);
+  const desired = new THREE.Vector3(
+    THREE.MathUtils.lerp(mid.x * 0.5, mid.x * 0.85, camZoom),
+    height,
+    mid.z * 0.3 + dist
+  );
   camBase.lerp(desired, Math.min(1, CAM_LERP * dt));
   camera.position.copy(camBase);
 
-  camTarget.lerp(new THREE.Vector3(mid.x, 0.8, mid.z), Math.min(1, CAM_LERP * dt));
+  const lookY = THREE.MathUtils.lerp(0.8, 1.3, camZoom);
+  camTarget.lerp(new THREE.Vector3(mid.x, lookY, mid.z), Math.min(1, CAM_LERP * dt));
   camera.lookAt(camTarget);
 }
 
@@ -188,6 +206,14 @@ function hpColor(hp: number): string {
 }
 
 const MATCH_TIME_LIMIT = 180;
+const SUDDEN_DEATH_EXTRA = 45; // 延長時間 (秒)
+
+let suddenDeath = false;
+
+/** サドンデス中は延長された制限時間を返す */
+function timeLimit(): number {
+  return suddenDeath ? MATCH_TIME_LIMIT + SUDDEN_DEATH_EXTRA : MATCH_TIME_LIMIT;
+}
 
 function updateHUD(elapsed: number): void {
   const p1HpPct = (player1.hp / player1.maxHp) * 100;
@@ -217,11 +243,13 @@ function updateHUD(elapsed: number): void {
   }
 
   if (hudTimer) {
-    const rem = Math.max(0, MATCH_TIME_LIMIT - elapsed);
+    const rem = Math.max(0, timeLimit() - elapsed);
     const m = Math.floor(rem / 60);
     const s = Math.floor(rem % 60);
-    hudTimer.textContent = `${m}:${s.toString().padStart(2, "0")}`;
-    hudTimer.style.color = rem < 30 ? "#ff4444" : "#ffffff";
+    hudTimer.textContent = suddenDeath
+      ? `SD ${m}:${s.toString().padStart(2, "0")}`
+      : `${m}:${s.toString().padStart(2, "0")}`;
+    hudTimer.style.color = suddenDeath || rem < 30 ? "#ff4444" : "#ffffff";
   }
 
   if (hudPinDisp) {
@@ -354,6 +382,24 @@ function checkGrappleFatigue(): void {
   tryBreak(player2, player1, p2Label());
 }
 
+// ─── ロープ揺れ (リバウンド検出) ──────────────────────────────────────────────
+let p1WasRebounding = false;
+let p2WasRebounding = false;
+
+function checkRopeWobble(): void {
+  // ホイップは X 軸方向なので east/west ロープに当たる
+  const check = (w: typeof player1, was: boolean): boolean => {
+    const now = w.isRebounding();
+    if (now && !was) {
+      ring.wobbleRopes(w.position.x > 0 ? "east" : "west");
+      effects.shake(0.06);
+    }
+    return now;
+  };
+  p1WasRebounding = check(player1, p1WasRebounding);
+  p2WasRebounding = check(player2, p2WasRebounding);
+}
+
 function checkDangerFlash(): void {
   if (player1.isDanger && !p1WasDanger) {
     flashMoveName("P1 FIRED UP!!");
@@ -392,6 +438,10 @@ let wasHotCrowd  = false;
 
 function addCrowdPop(amount: number): void {
   crowdMeter = Math.min(100, crowdMeter + amount);
+  // 大きな盛り上がり (フィニッシャー・コーナークラッシュ等) でスタンドにフラッシュ
+  if (amount >= 16) {
+    effects.spawnCrowdFlashes(Math.min(1, amount / 30));
+  }
 }
 
 function updateCrowd(dt: number): void {
@@ -634,6 +684,22 @@ function showMatchIntro(cb: () => void): void {
   els.forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
 
   audio.crowd();
+
+  // コーナーパイロ — 4 コーナーから時間差でキャラカラーの火花が上がる
+  const RB = 5.1; // RING_BOUNDS 相当のコーナー位置
+  const pyroSpots: Array<{ x: number; z: number; color: number }> = [
+    { x: -RB, z: -RB, color: player1.primaryColor },
+    { x: -RB, z:  RB, color: player1.primaryColor },
+    { x:  RB, z: -RB, color: player2.primaryColor },
+    { x:  RB, z:  RB, color: player2.primaryColor },
+  ];
+  pyroSpots.forEach((spot, i) => {
+    setTimeout(() => {
+      effects.spawnFinisherBurst(new THREE.Vector3(spot.x, 0.5, spot.z), spot.color);
+      effects.spawnCrowdFlashes(0.4);
+    }, 250 + i * 320);
+  });
+
   setTimeout(() => {
     overlay.style.display = "none";
     cb();
@@ -733,6 +799,7 @@ function startNextRound(): void {
   p2WasCorner   = false;
   crowdMeter    = 0;
   wasHotCrowd   = false;
+  suddenDeath   = false;
   resetRingOut();
   resetKickout();
   if (hudCombo) hudCombo.style.display = "none";
@@ -901,6 +968,8 @@ function animate(): void {
     updateRingOut(dt);
     checkGrappleFatigue();
     checkGassedFlash();
+    checkRopeWobble();
+    ring.update(dt);
     checkDangerFlash();
     checkMomentumDecayFlash();
     checkCornerFlash();
@@ -910,6 +979,7 @@ function animate(): void {
     checkMatchEnd();
   } else if (phase === "countdown") {
     updateCamera(dt);
+    effects.update(dt, camera); // イントロパイロの粒子を動かす
   } else if (phase === "result") {
     // リザルト画面の背後で勝利ポーズをループ再生
     player1.update(dt);
@@ -1226,6 +1296,13 @@ const KD_LABELS = ["1ST KNOCKDOWN!", "2ND KNOCKDOWN!", "TKO!!"];
 
 /** ノックダウン後に呼ぶ — 回数に応じたメッセージ + TKO 判定 */
 function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: string): void {
+  // サドンデス中は最初のノックダウンで即決着
+  if (suddenDeath) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult(winnerLabel, "SUDDEN DEATH  ");
+    return;
+  }
   const n = victim.knockdownCount; // startKnockdown() で既にインクリメント済み
   const label = KD_LABELS[Math.min(n, KD_LABELS.length) - 1];
   if (label) flashMoveName(`${victimLabel} ${label}`);
@@ -1245,6 +1322,12 @@ function checkMatchEnd(): void {
 
   if (player1.hp <= 0) { showResult(p2Label); return; }
   if (player2.hp <= 0) { showResult("P1");    return; }
+
+  // サドンデス: どの発生源のノックダウンでも即決着 (CPU 技・ホイップ激突含む)
+  if (suddenDeath) {
+    if (player1.state === "knockdown") { showResult(p2Label, "SUDDEN DEATH  "); return; }
+    if (player2.state === "knockdown") { showResult("P1",    "SUDDEN DEATH  "); return; }
+  }
 
   if (player1.state === "pinning" && player2.state === "being_pinned") {
     player1.pinCount += 1 / 60;
@@ -1271,10 +1354,19 @@ function checkMatchEnd(): void {
     return;
   }
 
-  if (matchElapsed >= MATCH_TIME_LIMIT) {
-    if (player1.hp > player2.hp)      showResult("P1",    "TIME UP  ");
-    else if (player2.hp > player1.hp) showResult(p2Label, "TIME UP  ");
-    else                               showResult("DRAW",  "TIME UP  ");
+  if (matchElapsed >= timeLimit()) {
+    if (player1.hp > player2.hp)      { showResult("P1",    "TIME UP  "); return; }
+    if (player2.hp > player1.hp)      { showResult(p2Label, "TIME UP  "); return; }
+    // 同点: 一度だけサドンデス延長 (先にノックダウンを奪った側が勝利)
+    if (!suddenDeath) {
+      suddenDeath = true;
+      flashMoveName("SUDDEN DEATH!!");
+      effects.shake(0.3);
+      audio.crowd();
+      addCrowdPop(30);
+      return;
+    }
+    showResult("DRAW", "TIME UP  ");
   }
 }
 
@@ -1383,6 +1475,7 @@ function startMatch(
   p2WasCorner  = false;
   crowdMeter   = 0;
   wasHotCrowd  = false;
+  suddenDeath  = false;
   resetRingOut();
   resetKickout();
   phase = "countdown";
@@ -1555,6 +1648,22 @@ document.getElementById("pause-resume-btn")?.addEventListener("click", togglePau
 document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
   location.reload();
 });
+
+// ─── ミュートボタン ───────────────────────────────────────────────────────────
+const muteBtn = document.getElementById("mute-btn") as HTMLButtonElement | null;
+
+function syncMuteBtn(): void {
+  if (!muteBtn) return;
+  muteBtn.textContent = audio.muted ? "🔇" : "🔊";
+  muteBtn.classList.toggle("muted", audio.muted);
+}
+
+muteBtn?.addEventListener("click", () => {
+  audio.toggleMute();
+  syncMuteBtn();
+  muteBtn.blur(); // フォーカスを外してスペースキー誤爆を防ぐ
+});
+syncMuteBtn();
 
 // タイトル画面に戦績を表示 (retry は location.reload なのでロード時のみでよい)
 renderWinRecord();
