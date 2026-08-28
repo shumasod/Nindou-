@@ -684,6 +684,22 @@ function showMatchIntro(cb: () => void): void {
   els.forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
 
   audio.crowd();
+
+  // コーナーパイロ — 4 コーナーから時間差でキャラカラーの火花が上がる
+  const RB = 5.1; // RING_BOUNDS 相当のコーナー位置
+  const pyroSpots: Array<{ x: number; z: number; color: number }> = [
+    { x: -RB, z: -RB, color: player1.primaryColor },
+    { x: -RB, z:  RB, color: player1.primaryColor },
+    { x:  RB, z: -RB, color: player2.primaryColor },
+    { x:  RB, z:  RB, color: player2.primaryColor },
+  ];
+  pyroSpots.forEach((spot, i) => {
+    setTimeout(() => {
+      effects.spawnFinisherBurst(new THREE.Vector3(spot.x, 0.5, spot.z), spot.color);
+      effects.spawnCrowdFlashes(0.4);
+    }, 250 + i * 320);
+  });
+
   setTimeout(() => {
     overlay.style.display = "none";
     cb();
@@ -963,6 +979,7 @@ function animate(): void {
     checkMatchEnd();
   } else if (phase === "countdown") {
     updateCamera(dt);
+    effects.update(dt, camera); // イントロパイロの粒子を動かす
   } else if (phase === "result") {
     // リザルト画面の背後で勝利ポーズをループ再生
     player1.update(dt);
