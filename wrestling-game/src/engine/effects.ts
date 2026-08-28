@@ -234,11 +234,12 @@ export class EffectsSystem {
       mesh.lookAt(0, 3, 0); // リング中央を向く
       this.scene.add(mesh);
 
+      const life = 0.08 + Math.random() * 0.35; // ランダムに時間差で消える
       this.particles.push({
         mesh,
         vel: new THREE.Vector3(0, 0, 0), // 静止 — 点滅のみ
-        life: 0.08 + Math.random() * 0.35, // ランダムに時間差で消える
-        maxLife: 0.15,
+        life,
+        maxLife: life, // life と一致させ、フェード/スケール計算 (t = life/maxLife) を正しく保つ
       });
     }
   }
