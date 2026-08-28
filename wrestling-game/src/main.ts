@@ -183,6 +183,7 @@ const hudP1Sta  = document.getElementById("player-sta")   as HTMLElement | null;
 const hudP1Mom  = document.getElementById("player-mom")   as HTMLElement | null;
 const hudP2Hp   = document.getElementById("cpu-hp")       as HTMLElement | null;
 const hudP2Sta  = document.getElementById("cpu-sta")      as HTMLElement | null;
+const hudP2Mom  = document.getElementById("cpu-mom")      as HTMLElement | null;
 const hudTimer  = document.getElementById("match-timer")  as HTMLElement | null;
 const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
@@ -240,6 +241,13 @@ function updateHUD(elapsed: number): void {
       ? "linear-gradient(90deg,#c0392b,#e67e22)"
       : "linear-gradient(90deg,#2980b9,#27ae60)";
     hudP2Sta.style.animation = player2.isGassed ? "dangerBlink 0.35s infinite alternate" : "";
+  }
+  if (hudP2Mom) {
+    hudP2Mom.style.width = pct(player2.momentum);
+    hudP2Mom.style.background = player2.momentumDecaying
+      ? "linear-gradient(90deg,#c0392b,#e74c3c)"
+      : "linear-gradient(90deg,#f39c12,#f1c40f)";
+    hudP2Mom.style.animation = player2.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
 
   if (hudTimer) {
@@ -668,9 +676,9 @@ function showMatchIntro(cb: () => void): void {
   if (!overlay) { cb(); return; }
 
   if (p1NameEl)  p1NameEl.textContent  = player1.name;
-  if (p1TitleEl) p1TitleEl.textContent = player1.title ?? "";
+  if (p1TitleEl) p1TitleEl.textContent = player1.title;
   if (p2NameEl)  p2NameEl.textContent  = player2.name;
-  if (p2TitleEl) p2TitleEl.textContent = player2.title ?? "";
+  if (p2TitleEl) p2TitleEl.textContent = player2.title;
 
   // キャラクターカラーを名前に反映
   const p1El = document.getElementById("intro-p1");
@@ -798,12 +806,19 @@ function startNextRound(): void {
   comboCount = 0;
   comboTimer = 0;
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  p1WasGassed   = false;
+  p2WasGassed   = false;
   p1WasDanger   = false;
   p2WasDanger   = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
   p1WasCorner   = false;
   p2WasCorner   = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
+  camZoom       = 0;
   crowdMeter    = 0;
   wasHotCrowd   = false;
   suddenDeath   = false;
@@ -1501,6 +1516,11 @@ function startMatch(
   p2WasMomDecay = false;
   p1WasCorner  = false;
   p2WasCorner  = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
+  camZoom      = 0;
   crowdMeter   = 0;
   wasHotCrowd  = false;
   suddenDeath  = false;
@@ -1673,7 +1693,11 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") togglePause();
 });
 
-document.getElementById("pause-resume-btn")?.addEventListener("click", togglePause);
+document.getElementById("pause-resume-btn")?.addEventListener("click", (e) => {
+  // フォーカスを外す — 残ると再開後の SPACE (シグネチャー) / Enter が RESUME を再発火して即再ポーズする
+  (e.currentTarget as HTMLButtonElement).blur();
+  togglePause();
+});
 document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
   location.reload();
 });
