@@ -9,8 +9,16 @@ interface Particle {
 
 const PARTICLE_GEO = new THREE.BoxGeometry(0.08, 0.08, 0.08);
 
+interface DamageNumber {
+  el: HTMLElement;
+  worldPos: THREE.Vector3;
+  life: number;
+  maxLife: number;
+}
+
 export class EffectsSystem {
   private particles: Particle[] = [];
+  private dmgNumbers: DamageNumber[] = [];
   private scene: THREE.Scene;
 
   // スクリーンシェイク
@@ -200,6 +208,74 @@ export class EffectsSystem {
     }
   }
 
+  /**
+   * 観客席のカメラフラッシュ — 大技の瞬間にスタンドで白い閃光が瞬く
+   * 強度 (0-1) に応じてフラッシュ数が増える
+   */
+  spawnCrowdFlashes(intensity = 0.5): void {
+    const count = Math.round(4 + intensity * 10);
+    for (let i = 0; i < count; i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 6,
+        transparent: true,
+      });
+      const size = 0.25 + Math.random() * 0.3;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, 0.02), mat);
+      // 観客席シリンダー (半径 ~28) の内側にランダム配置
+      const angle  = Math.random() * Math.PI * 2;
+      const radius = 20 + Math.random() * 7;
+      mesh.position.set(
+        Math.cos(angle) * radius,
+        2 + Math.random() * 8,
+        Math.sin(angle) * radius
+      );
+      mesh.lookAt(0, 3, 0); // リング中央を向く
+      this.scene.add(mesh);
+
+      this.particles.push({
+        mesh,
+        vel: new THREE.Vector3(0, 0, 0), // 静止 — 点滅のみ
+        life: 0.08 + Math.random() * 0.35, // ランダムに時間差で消える
+        maxLife: 0.15,
+      });
+    }
+  }
+
+  /**
+   * ダメージ数値ポップアップ — DOM オーバーレイに浮遊テキストを出す
+   * 大ダメージ (>= 20) は大きく赤系で表示
+   */
+  spawnDamageNumber(pos: THREE.Vector3, dmg: number): void {
+    const rounded = Math.round(dmg);
+    if (rounded <= 0) return;
+
+    const el = document.createElement("div");
+    el.textContent = `${rounded}`;
+    const big = rounded >= 20;
+    el.style.cssText = [
+      "position:fixed",
+      "pointer-events:none",
+      "z-index:15",
+      "font-weight:900",
+      "font-family:Arial,sans-serif",
+      `font-size:${big ? 34 : 22}px`,
+      `color:${big ? "#ff5533" : "#ffdd44"}`,
+      `text-shadow:0 0 ${big ? 14 : 8}px ${big ? "rgba(255,60,20,0.9)" : "rgba(255,200,0,0.8)"}, 0 2px 3px #000`,
+      "transform:translate(-50%,-50%)",
+      "letter-spacing:1px",
+    ].join(";");
+    document.body.appendChild(el);
+
+    this.dmgNumbers.push({
+      el,
+      worldPos: pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 2.1, 0)),
+      life: 0.9,
+      maxLife: 0.9,
+    });
+  }
+
   /** カメラシェイクをトリガー */
   shake(strength: number): void {
     this.shakeStrength = Math.max(this.shakeStrength, strength);
@@ -208,7 +284,36 @@ export class EffectsSystem {
   /** フレームごとに呼ぶ — dt: 秒 */
   update(dt: number, camera: THREE.Camera): void {
     this.updateParticles(dt);
+    this.updateDamageNumbers(dt, camera);
     this.updateShake(dt, camera);
+  }
+
+  private updateDamageNumbers(dt: number, camera: THREE.Camera): void {
+    for (let i = this.dmgNumbers.length - 1; i >= 0; i--) {
+      const n = this.dmgNumbers[i]!;
+      n.life -= dt;
+      if (n.life <= 0) {
+        n.el.remove();
+        this.dmgNumbers.splice(i, 1);
+        continue;
+      }
+
+      // ゆっくり上昇
+      n.worldPos.y += 1.1 * dt;
+
+      // 3D → 2D 投影
+      const projected = n.worldPos.clone().project(camera);
+      if (projected.z > 1) { n.el.style.display = "none"; continue; }
+      const x = (projected.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+      n.el.style.display = "block";
+      n.el.style.left = `${x}px`;
+      n.el.style.top  = `${y}px`;
+
+      // 終盤フェードアウト
+      const t = n.life / n.maxLife;
+      n.el.style.opacity = `${Math.min(1, t * 3)}`;
+    }
   }
 
   private updateParticles(dt: number): void {

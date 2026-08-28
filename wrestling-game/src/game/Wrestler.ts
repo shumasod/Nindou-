@@ -22,7 +22,8 @@ export type WrestlerState =
   | "taunting"       // 挑発モーション
   | "submitting"     // サブミッション中 (攻撃側)
   | "in_submission"  // サブミッション中 (被攻撃側)
-  | "corner_splash"; // コーナースプラッシュ
+  | "corner_splash"  // コーナースプラッシュ
+  | "victory";       // 勝利ポーズ (試合終了後ループ)
 
 export interface WrestlerConfig {
   name: string;
@@ -366,11 +367,16 @@ export class Wrestler {
            this.state === "in_submission";
   }
 
+  /** 被ダメージ時フック — main.ts がダメージ数値ポップアップ表示に使う */
+  static onDamage: ((victim: Wrestler, dmg: number) => void) | null = null;
+
   takeDamage(amount: number): void {
     const tauntMult = this.state === "taunting" ? 2.0 : 1.0;
-    this.hp = Math.max(0, this.hp - amount * this.defenceMult * tauntMult);
+    const dmg = amount * this.defenceMult * tauntMult;
+    this.hp = Math.max(0, this.hp - dmg);
     this.flashTimer = 0.15;
     this.momentum = Math.min(100, this.momentum + amount * 0.3);
+    Wrestler.onDamage?.(this, dmg);
   }
 
   move(dx: number, dz: number, sprint: boolean, dt: number): void {
@@ -461,6 +467,16 @@ export class Wrestler {
   /** タント中かどうか (外部から参照用) */
   isTaunting(): boolean {
     return this.state === "taunting";
+  }
+
+  /** 勝利ポーズ — 試合終了後、リザルト画面の背後でループする */
+  startVictoryPose(): void {
+    this.state = "victory";
+    this.stateTimer = 0;       // タイマーなし = ループし続ける
+    this.actionCooldown = 999; // 操作不能に
+    this.grappleTarget = null;
+    this.root.rotation.x = 0;
+    this.root.rotation.z = 0;
   }
 
   startGrapple(target: Wrestler): void {
@@ -770,6 +786,20 @@ export class Wrestler {
       this.upperArmL.rotation.z =  0.8;
       this.upperArmR.rotation.z = -0.8;
       this.head.rotation.x = 0.3; // 上を向く
+      return;
+    }
+
+    if (state === "victory") {
+      // 両腕を高く突き上げてジャンプを繰り返す勝利ポーズ
+      this.breathTimer += dt * 6;
+      const jump = Math.max(0, Math.sin(this.breathTimer)) * 0.35;
+      this.root.position.y = MAT_Y + jump;
+      this.upperArmL.rotation.x = -2.6;
+      this.upperArmR.rotation.x = -2.6;
+      this.upperArmL.rotation.z =  0.25 + Math.sin(this.breathTimer * 2) * 0.15;
+      this.upperArmR.rotation.z = -0.25 - Math.sin(this.breathTimer * 2) * 0.15;
+      this.head.rotation.x = 0.35;
+      this.torso.rotation.x = -0.08;
       return;
     }
 
