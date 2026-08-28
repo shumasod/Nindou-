@@ -183,6 +183,7 @@ const hudP1Sta  = document.getElementById("player-sta")   as HTMLElement | null;
 const hudP1Mom  = document.getElementById("player-mom")   as HTMLElement | null;
 const hudP2Hp   = document.getElementById("cpu-hp")       as HTMLElement | null;
 const hudP2Sta  = document.getElementById("cpu-sta")      as HTMLElement | null;
+const hudP2Mom  = document.getElementById("cpu-mom")      as HTMLElement | null;
 const hudTimer  = document.getElementById("match-timer")  as HTMLElement | null;
 const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
@@ -240,6 +241,13 @@ function updateHUD(elapsed: number): void {
       ? "linear-gradient(90deg,#c0392b,#e67e22)"
       : "linear-gradient(90deg,#2980b9,#27ae60)";
     hudP2Sta.style.animation = player2.isGassed ? "dangerBlink 0.35s infinite alternate" : "";
+  }
+  if (hudP2Mom) {
+    hudP2Mom.style.width = pct(player2.momentum);
+    hudP2Mom.style.background = player2.momentumDecaying
+      ? "linear-gradient(90deg,#c0392b,#e74c3c)"
+      : "linear-gradient(90deg,#f39c12,#f1c40f)";
+    hudP2Mom.style.animation = player2.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
   }
 
   if (hudTimer) {
@@ -532,6 +540,13 @@ const strikeChain: { p1: number; p2: number; timer: { p1: number; p2: number } }
   p1: 0, p2: 0, timer: { p1: 0, p2: 0 },
 };
 
+function resetStrikeChains(): void {
+  strikeChain.p1 = 0;
+  strikeChain.p2 = 0;
+  strikeChain.timer.p1 = 0;
+  strikeChain.timer.p2 = 0;
+}
+
 function incrementStrikeChain(side: "p1" | "p2"): boolean {
   strikeChain.timer[side] = STRIKE_CHAIN_WINDOW;
   strikeChain[side]++;
@@ -661,9 +676,9 @@ function showMatchIntro(cb: () => void): void {
   if (!overlay) { cb(); return; }
 
   if (p1NameEl)  p1NameEl.textContent  = player1.name;
-  if (p1TitleEl) p1TitleEl.textContent = player1.title ?? "";
+  if (p1TitleEl) p1TitleEl.textContent = player1.title;
   if (p2NameEl)  p2NameEl.textContent  = player2.name;
-  if (p2TitleEl) p2TitleEl.textContent = player2.title ?? "";
+  if (p2TitleEl) p2TitleEl.textContent = player2.title;
 
   // キャラクターカラーを名前に反映
   const p1El = document.getElementById("intro-p1");
@@ -791,17 +806,25 @@ function startNextRound(): void {
   comboCount = 0;
   comboTimer = 0;
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  p1WasGassed   = false;
+  p2WasGassed   = false;
   p1WasDanger   = false;
   p2WasDanger   = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
   p1WasCorner   = false;
   p2WasCorner   = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
+  camZoom       = 0;
   crowdMeter    = 0;
   wasHotCrowd   = false;
   suddenDeath   = false;
   resetRingOut();
   resetKickout();
+  resetStrikeChains();
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -976,7 +999,7 @@ function animate(): void {
     updateCrowd(dt);
     checkCrowdFlash();
     updateHUD(matchElapsed);
-    checkMatchEnd();
+    checkMatchEnd(dt);
   } else if (phase === "countdown") {
     updateCamera(dt);
     effects.update(dt, camera); // イントロパイロの粒子を動かす
@@ -1315,7 +1338,7 @@ function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: s
 }
 
 // ─── Match end ────────────────────────────────────────────────────────────────
-function checkMatchEnd(): void {
+function checkMatchEnd(dt: number): void {
   if (phase !== "match") return;
 
   const p2Label = mode === "2p" ? "P2" : "CPU";
@@ -1344,12 +1367,14 @@ function checkMatchEnd(): void {
     if (player2.state === "knockdown") { showResult("P1",    "SUDDEN DEATH  "); return; }
   }
 
+  // ピンカウント進行 — 実時間ベース (1 カウント / 秒)。
+  // 以前は += 1/60 固定でフレームレート依存 (144Hz で 2.4 倍速) だった
   if (player1.state === "pinning" && player2.state === "being_pinned") {
-    player1.pinCount += 1 / 60;
+    player1.pinCount += dt;
     if (player1.pinCount >= 3) { showResult("P1", "PINFALL  "); return; }
   }
   if (player2.state === "pinning" && player1.state === "being_pinned") {
-    player2.pinCount += 1 / 60;
+    player2.pinCount += dt;
     if (player2.pinCount >= 3) { showResult(p2Label, "PINFALL  "); return; }
   }
 
@@ -1480,6 +1505,9 @@ function startMatch(
 
   tracker = new MatchTracker();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  comboCount = 0;
+  comboTimer = 0;
+  if (hudCombo) hudCombo.style.display = "none";
   p1WasGassed = false;
   p2WasGassed = false;
   p1WasDanger  = false;
@@ -1488,11 +1516,17 @@ function startMatch(
   p2WasMomDecay = false;
   p1WasCorner  = false;
   p2WasCorner  = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
+  camZoom      = 0;
   crowdMeter   = 0;
   wasHotCrowd  = false;
   suddenDeath  = false;
   resetRingOut();
   resetKickout();
+  resetStrikeChains();
   phase = "countdown";
   clock.start();
   showMatchIntro(() => {
@@ -1659,7 +1693,11 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") togglePause();
 });
 
-document.getElementById("pause-resume-btn")?.addEventListener("click", togglePause);
+document.getElementById("pause-resume-btn")?.addEventListener("click", (e) => {
+  // フォーカスを外す — 残ると再開後の SPACE (シグネチャー) / Enter が RESUME を再発火して即再ポーズする
+  (e.currentTarget as HTMLButtonElement).blur();
+  togglePause();
+});
 document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
   location.reload();
 });
