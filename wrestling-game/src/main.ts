@@ -17,7 +17,7 @@ const camera    = createCamera();
 const scene     = createScene();
 
 setupLighting(scene);
-buildRing(scene);
+const ring = buildRing(scene);
 
 // ─── Wrestlers (created lazily after character select) ────────────────────────
 let player1!: Wrestler;
@@ -382,6 +382,24 @@ function checkGrappleFatigue(): void {
   tryBreak(player2, player1, p2Label());
 }
 
+// ─── ロープ揺れ (リバウンド検出) ──────────────────────────────────────────────
+let p1WasRebounding = false;
+let p2WasRebounding = false;
+
+function checkRopeWobble(): void {
+  // ホイップは X 軸方向なので east/west ロープに当たる
+  const check = (w: typeof player1, was: boolean): boolean => {
+    const now = w.isRebounding();
+    if (now && !was) {
+      ring.wobbleRopes(w.position.x > 0 ? "east" : "west");
+      effects.shake(0.06);
+    }
+    return now;
+  };
+  p1WasRebounding = check(player1, p1WasRebounding);
+  p2WasRebounding = check(player2, p2WasRebounding);
+}
+
 function checkDangerFlash(): void {
   if (player1.isDanger && !p1WasDanger) {
     flashMoveName("P1 FIRED UP!!");
@@ -420,6 +438,10 @@ let wasHotCrowd  = false;
 
 function addCrowdPop(amount: number): void {
   crowdMeter = Math.min(100, crowdMeter + amount);
+  // 大きな盛り上がり (フィニッシャー・コーナークラッシュ等) でスタンドにフラッシュ
+  if (amount >= 16) {
+    effects.spawnCrowdFlashes(Math.min(1, amount / 30));
+  }
 }
 
 function updateCrowd(dt: number): void {
@@ -662,6 +684,22 @@ function showMatchIntro(cb: () => void): void {
   els.forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
 
   audio.crowd();
+
+  // コーナーパイロ — 4 コーナーから時間差でキャラカラーの火花が上がる
+  const RB = 5.1; // RING_BOUNDS 相当のコーナー位置
+  const pyroSpots: Array<{ x: number; z: number; color: number }> = [
+    { x: -RB, z: -RB, color: player1.primaryColor },
+    { x: -RB, z:  RB, color: player1.primaryColor },
+    { x:  RB, z: -RB, color: player2.primaryColor },
+    { x:  RB, z:  RB, color: player2.primaryColor },
+  ];
+  pyroSpots.forEach((spot, i) => {
+    setTimeout(() => {
+      effects.spawnFinisherBurst(new THREE.Vector3(spot.x, 0.5, spot.z), spot.color);
+      effects.spawnCrowdFlashes(0.4);
+    }, 250 + i * 320);
+  });
+
   setTimeout(() => {
     overlay.style.display = "none";
     cb();
@@ -930,6 +968,8 @@ function animate(): void {
     updateRingOut(dt);
     checkGrappleFatigue();
     checkGassedFlash();
+    checkRopeWobble();
+    ring.update(dt);
     checkDangerFlash();
     checkMomentumDecayFlash();
     checkCornerFlash();
@@ -939,6 +979,7 @@ function animate(): void {
     checkMatchEnd();
   } else if (phase === "countdown") {
     updateCamera(dt);
+    effects.update(dt, camera); // イントロパイロの粒子を動かす
   } else if (phase === "result") {
     // リザルト画面の背後で勝利ポーズをループ再生
     player1.update(dt);
