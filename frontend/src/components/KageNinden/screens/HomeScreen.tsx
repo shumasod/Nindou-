@@ -169,8 +169,13 @@ export default function HomeScreen({ state, dispatch }: Props) {
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "10px", marginTop: "6px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: C.dim, fontSize: "12px" }}>💰 所持金</span>
-              <span style={{ color: C.accent2, fontSize: "13px" }}>{player.gold} G</span>
+              <span style={{ color: player.gold < 50 ? C.danger : C.accent2, fontSize: "13px" }}>{player.gold} G</span>
             </div>
+            {player.gold < 50 && (
+              <p style={{ color: C.danger, fontSize: "10px", margin: "4px 0 0", textAlign: "right" }}>
+                ⚠ 所持金が少ない
+              </p>
+            )}
           </div>
 
           {player.statPoints > 0 && (
