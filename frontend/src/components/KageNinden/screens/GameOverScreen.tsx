@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function GameOverScreen({ state, dispatch }: Props) {
-  const { player, battle } = state;
+  const { player, battle, progress } = state;
 
   return (
     <div
@@ -71,6 +71,7 @@ export default function GameOverScreen({ state, dispatch }: Props) {
               { label: "所持金", val: `${player.gold} G`,       color: C.accent2 },
               { label: "クラン", val: player.clan ?? "─",       color: C.dim },
               { label: "討伐数", val: `${battle.killCount}体`,   color: C.success },
+              { label: "任務完了", val: `${progress.completedQuests.length}件`, color: C.purple },
             ].map(({ label, val, color }) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.dim, fontSize: "13px" }}>{label}</span>
