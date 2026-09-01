@@ -93,9 +93,30 @@ export default function BattleScreen({ state, dispatch }: Props) {
       )}
 
       {/* ターン数 */}
-      <div style={{ textAlign: "right" }}>
-        <span style={{ color: C.dim, fontSize: "11px" }}>Turn {turn}</span>
-      </div>
+      {(() => {
+        const TURN_LIMIT = 30;
+        const remaining = TURN_LIMIT - turn;
+        const warn = turn >= 25;
+        const critical = turn >= 28;
+        return (
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px" }}>
+            {warn && (
+              <span
+                style={{
+                  fontSize: "10px",
+                  color: critical ? C.danger : C.accent2,
+                  animation: critical ? "blink 0.6s step-end infinite" : "none",
+                }}
+              >
+                ⚠ 残{remaining}ターン
+              </span>
+            )}
+            <span style={{ color: warn ? (critical ? C.danger : C.accent2) : C.dim, fontSize: "11px" }}>
+              Turn {turn}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* ─── 敵情報 ─── */}
       <div style={{ ...S.panel }}>
