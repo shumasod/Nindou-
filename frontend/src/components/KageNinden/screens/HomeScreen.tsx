@@ -193,7 +193,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
 
         {/* ─── 右パネル: コンテンツエリア ─── */}
         <div style={{ ...S.panel, flex: 1, minWidth: "240px" }}>
-          {subView === "menu" && <MenuView dispatch={dispatch} setSubView={setSubView} />}
+          {subView === "menu" && <MenuView dispatch={dispatch} setSubView={setSubView} statPoints={player.statPoints} />}
           {subView === "items" && <ItemsView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "train" && <TrainView player={player} dispatch={dispatch} setSubView={setSubView} />}
           {subView === "skills_list" && <SkillsListView player={player} setSubView={setSubView} />}
@@ -218,15 +218,17 @@ export default function HomeScreen({ state, dispatch }: Props) {
 function MenuView({
   dispatch,
   setSubView,
+  statPoints,
 }: {
   dispatch: (a: GameAction) => void;
   setSubView: (v: SubView) => void;
+  statPoints: number;
 }) {
-  const btns: { label: string; icon: string; action: () => void; color?: string }[] = [
+  const btns: { label: string; icon: string; action: () => void; color?: string; badge?: string }[] = [
     { label: "フィールドへ", icon: "🗺", action: () => dispatch({ type: "GO_TO_SCREEN", screen: "map" }), color: C.success },
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
-    { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "鍛錬", icon: "💪", action: () => setSubView("train"), badge: statPoints > 0 ? `SP+${statPoints}` : undefined },
     { label: "宿屋で休む", icon: "🏮", action: () => setSubView("inn"), color: C.purple },
   ];
 
@@ -237,12 +239,25 @@ function MenuView({
         {btns.map((b) => (
           <button
             key={b.label}
-            style={{ ...S.btn(b.color ?? C.accent1), textAlign: "left", padding: "10px 14px" }}
+            style={{ ...S.btn(b.color ?? C.accent1), textAlign: "left", padding: "10px 14px", position: "relative" }}
             onClick={b.action}
             onMouseEnter={(e) => { e.currentTarget.style.background = b.color ?? C.accent1; e.currentTarget.style.color = C.bg; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = b.color ?? C.accent1; }}
           >
-            {b.icon}　{b.label}
+            <span>{b.icon}　{b.label}</span>
+            {b.badge && (
+              <span style={{
+                marginLeft: "8px",
+                background: C.accent2,
+                color: C.bg,
+                fontSize: "10px",
+                padding: "1px 6px",
+                borderRadius: "2px",
+                animation: "pulse 1.5s infinite",
+              }}>
+                {b.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
