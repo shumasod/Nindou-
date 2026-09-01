@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { C, S } from "../styles";
 import { AREAS, QUESTS } from "../data";
 import { rankColor } from "../utils";
@@ -12,6 +13,7 @@ interface Props {
 
 export default function MapScreen({ state, dispatch }: Props) {
   const { player, progress } = state;
+  const [hideCompleted, setHideCompleted] = useState(false);
 
   return (
     <div
@@ -55,9 +57,22 @@ export default function MapScreen({ state, dispatch }: Props) {
         );
       })()}
 
-      <p style={{ color: C.dim, fontSize: "12px", marginBottom: "20px" }}>
-        任務を選んで出陣せよ。Lv不足のエリアは進入不可。
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <p style={{ color: C.dim, fontSize: "12px", margin: 0 }}>
+          任務を選んで出陣せよ。Lv不足のエリアは進入不可。
+        </p>
+        <button
+          style={{
+            ...S.btn(hideCompleted ? C.success : C.dim),
+            padding: "4px 10px",
+            fontSize: "11px",
+            whiteSpace: "nowrap",
+          }}
+          onClick={() => setHideCompleted((v) => !v)}
+        >
+          {hideCompleted ? "✓ 完了非表示" : "全任務表示"}
+        </button>
+      </div>
 
       {/* エリア一覧 */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -97,7 +112,7 @@ export default function MapScreen({ state, dispatch }: Props) {
               {/* クエスト一覧 */}
               {!locked && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {areaQuests.map((q) => {
+                  {areaQuests.filter((q) => !hideCompleted || !progress.completedQuests.includes(q.id)).map((q) => {
                     const done = progress.completedQuests.includes(q.id);
                     const levelOk = player.level >= q.minLevel;
                     const canStart = !done && levelOk;
