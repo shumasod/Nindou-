@@ -145,6 +145,17 @@ export default function VictoryScreen({ state, dispatch }: Props) {
               <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>任務完了</p>
             </div>
           </div>
+          {/* 消費ターン */}
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: "10px", paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: C.dim, fontSize: "12px" }}>消費ターン</span>
+            <span style={{
+              color: battle.turn <= 10 ? C.success : battle.turn <= 20 ? C.accent2 : C.dim,
+              fontSize: "14px",
+              fontWeight: "bold",
+            }}>
+              {battle.turn} T {battle.turn <= 10 ? "⚡速攻" : battle.turn <= 20 ? "" : ""}
+            </span>
+          </div>
         </div>
 
         {/* ボタン */}
