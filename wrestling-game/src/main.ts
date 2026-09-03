@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { createRenderer, createCamera, createScene, setupLighting } from "./engine/renderer.js";
-import { buildRing } from "./game/Ring.js";
+import { buildRing, RING_BOUNDS } from "./game/Ring.js";
 import { InputManager } from "./engine/input.js";
 import { Wrestler } from "./game/Wrestler.js";
 import { CpuAI, type Difficulty } from "./game/CpuAI.js";
@@ -8,6 +8,7 @@ import { EffectsSystem } from "./engine/effects.js";
 import { audio } from "./engine/audio.js";
 import { ROSTER, type CharacterDef } from "./game/characters.js";
 import { MatchTracker } from "./game/MatchStats.js";
+import { loadRecord, recordResult } from "./game/WinRecord.js";
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 const container = document.getElementById("canvas-container")!;
@@ -16,24 +17,26 @@ const camera    = createCamera();
 const scene     = createScene();
 
 setupLighting(scene);
-buildRing(scene);
+const ring = buildRing(scene);
 
 // ─── Wrestlers (created lazily after character select) ────────────────────────
 let player1!: Wrestler;
 let player2!: Wrestler;
 
 function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
-  // Remove old wrestlers if restarting
-  if (player1) scene.remove(player1.root);
-  if (player2) scene.remove(player2.root);
+  // 作り直し時は GPU リソースまで解放する (scene.remove だけでは残る)
+  if (player1) player1.disposeFromScene(scene);
+  if (player2) player2.disposeFromScene(scene);
 
   player1 = new Wrestler({
     ...def1, startX: -2.5,
     finisherName: def1.finisher.name, finisherColor: def1.finisher.color,
+    specialName:  def1.special.name,  specialColor:  def1.special.color,
   });
   player2 = new Wrestler({
     ...def2, startX: 2.5,
     finisherName: def2.finisher.name, finisherColor: def2.finisher.color,
+    specialName:  def2.special.name,  specialColor:  def2.special.color,
   });
   player1.addToScene(scene);
   player2.addToScene(scene);
@@ -42,13 +45,18 @@ function createWrestlers(def1: CharacterDef, def2: CharacterDef): void {
 // ─── FX ───────────────────────────────────────────────────────────────────────
 const effects = new EffectsSystem(scene);
 
+// 全ダメージ発生源 (プレイヤー入力・CPU・チェーンボーナス) を 1 箇所でフック
+Wrestler.onDamage = (victim, dmg) => {
+  effects.spawnDamageNumber(victim.position, dmg);
+};
+
 // ─── Input (always create both; P2 used only in 2P mode) ─────────────────────
 const input1 = new InputManager(1);
 const input2 = new InputManager(2);
 
 // ─── Game mode ────────────────────────────────────────────────────────────────
 type GameMode   = "1p" | "2p";
-type GamePhase  = "title" | "countdown" | "match" | "result" | "between_rounds";
+type GamePhase  = "title" | "countdown" | "match" | "result" | "between_rounds" | "paused";
 
 let mode: GameMode  = "1p";
 let phase: GamePhase = "title";
@@ -95,21 +103,77 @@ let sub: SubState = { active: false, holderSide: "p1", subProgress: 0, escapePro
 const SUB_RATE    = 0.185; // fills in ~5.4 s without escape
 const ESCAPE_JUMP = 0.12;  // added per distinct mash press
 
+// ─── Pin kickout ──────────────────────────────────────────────────────────────
+// 各サイドのキックアウト試行済みカウント (1カウント・2カウントで一度ずつ試行可能)
+const kickoutAttempted: { p1: Set<number>; p2: Set<number> } = {
+  p1: new Set(), p2: new Set(),
+};
+
+function resetKickout(): void {
+  kickoutAttempted.p1.clear();
+  kickoutAttempted.p2.clear();
+}
+
+/**
+ * ピンカウント中のキックアウト判定。
+ * カウント 1: HP% × 0.9 の確率で成功
+ * カウント 2: HP% × 0.45 の確率で成功
+ * カウント 3: 自動失敗 (checkMatchEnd が勝利を決定)
+ */
+function tryKickout(victim: Wrestler, pinner: Wrestler, victimSide: "p1" | "p2"): boolean {
+  const count = Math.floor(pinner.pinCount); // 0, 1, 2
+  if (count >= 2) return false; // カウント 3 はキックアウト不可
+  if (kickoutAttempted[victimSide].has(count)) return false; // 同カウントで再試行不可
+  kickoutAttempted[victimSide].add(count);
+
+  const hpRatio = victim.hp / victim.maxHp;
+  const chance  = count === 0 ? hpRatio * 0.9 : hpRatio * 0.45;
+  if (Math.random() >= chance) return false;
+
+  // キックアウト成功
+  pinner.state = "idle";
+  pinner.actionCooldown = 1.2;
+  pinner.grappleTarget  = null;
+  victim.state = "getting_up";
+  victim.stateTimer = 0.9;
+  victim.grappleTarget = null;
+  resetKickout();
+  return true;
+}
+
 // ─── Camera ───────────────────────────────────────────────────────────────────
 const CAM_LERP  = 5;
 const camTarget = new THREE.Vector3();
 const camBase   = new THREE.Vector3();
+
+// フィニッシャー演出ズーム: 0 = 通常, 1 = 完全ズームイン
+let camZoom = 0;
 
 function updateCamera(dt: number): void {
   const mid = new THREE.Vector3()
     .addVectors(player1.position, player2.position)
     .multiplyScalar(0.5);
 
-  const desired = new THREE.Vector3(mid.x * 0.5, 8, mid.z * 0.3 + 14);
+  // シグネチャー/フィニッシャー中はドラマチックにズームイン
+  const dramatic = player1.state === "signature" || player2.state === "signature";
+  const zoomTarget = dramatic ? 1 : 0;
+  // ズームインは速く (4/s)、ズームアウトはゆっくり (1.5/s) 戻す
+  const zoomSpeed = zoomTarget > camZoom ? 4 : 1.5;
+  camZoom += (zoomTarget - camZoom) * Math.min(1, zoomSpeed * dt);
+
+  // 通常: 高く引いた視点 / ズーム時: 低く近い視点
+  const height = THREE.MathUtils.lerp(8, 4.2, camZoom);
+  const dist   = THREE.MathUtils.lerp(14, 7.5, camZoom);
+  const desired = new THREE.Vector3(
+    THREE.MathUtils.lerp(mid.x * 0.5, mid.x * 0.85, camZoom),
+    height,
+    mid.z * 0.3 + dist
+  );
   camBase.lerp(desired, Math.min(1, CAM_LERP * dt));
   camera.position.copy(camBase);
 
-  camTarget.lerp(new THREE.Vector3(mid.x, 0.8, mid.z), Math.min(1, CAM_LERP * dt));
+  const lookY = THREE.MathUtils.lerp(0.8, 1.3, camZoom);
+  camTarget.lerp(new THREE.Vector3(mid.x, lookY, mid.z), Math.min(1, CAM_LERP * dt));
   camera.lookAt(camTarget);
 }
 
@@ -119,14 +183,17 @@ const hudP1Sta  = document.getElementById("player-sta")   as HTMLElement | null;
 const hudP1Mom  = document.getElementById("player-mom")   as HTMLElement | null;
 const hudP2Hp   = document.getElementById("cpu-hp")       as HTMLElement | null;
 const hudP2Sta  = document.getElementById("cpu-sta")      as HTMLElement | null;
+const hudP2Mom  = document.getElementById("cpu-mom")      as HTMLElement | null;
 const hudTimer  = document.getElementById("match-timer")  as HTMLElement | null;
 const hudPinDisp = document.getElementById("pin-display") as HTMLElement | null;
 const hudCombo  = document.getElementById("combo-display") as HTMLElement | null;
 const hudP1Name  = document.getElementById("hud-p1-name")  as HTMLElement | null;
 const hudP2Name  = document.getElementById("hud-p2-name")  as HTMLElement | null;
-const hudSubDisp = document.getElementById("sub-display")  as HTMLElement | null;
-const hudSubBar  = document.getElementById("sub-bar")      as HTMLElement | null;
-const hudEscBar  = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudSubDisp   = document.getElementById("sub-display")  as HTMLElement | null;
+const hudSubBar    = document.getElementById("sub-bar")      as HTMLElement | null;
+const hudEscBar    = document.getElementById("escape-bar")   as HTMLElement | null;
+const hudSubMash   = document.getElementById("sub-mash")     as HTMLElement | null;
+const hudSubMashWho = document.getElementById("sub-mash-who") as HTMLElement | null;
 const hudCrowdBar = document.getElementById("crowd-bar")   as HTMLElement | null;
 
 function pct(v: number): string {
@@ -140,6 +207,14 @@ function hpColor(hp: number): string {
 }
 
 const MATCH_TIME_LIMIT = 180;
+const SUDDEN_DEATH_EXTRA = 45; // 延長時間 (秒)
+
+let suddenDeath = false;
+
+/** サドンデス中は延長された制限時間を返す */
+function timeLimit(): number {
+  return suddenDeath ? MATCH_TIME_LIMIT + SUDDEN_DEATH_EXTRA : MATCH_TIME_LIMIT;
+}
 
 function updateHUD(elapsed: number): void {
   const p1HpPct = (player1.hp / player1.maxHp) * 100;
@@ -167,13 +242,22 @@ function updateHUD(elapsed: number): void {
       : "linear-gradient(90deg,#2980b9,#27ae60)";
     hudP2Sta.style.animation = player2.isGassed ? "dangerBlink 0.35s infinite alternate" : "";
   }
+  if (hudP2Mom) {
+    hudP2Mom.style.width = pct(player2.momentum);
+    hudP2Mom.style.background = player2.momentumDecaying
+      ? "linear-gradient(90deg,#c0392b,#e74c3c)"
+      : "linear-gradient(90deg,#f39c12,#f1c40f)";
+    hudP2Mom.style.animation = player2.momentum >= 100 ? "momPulse 0.5s infinite alternate" : "";
+  }
 
   if (hudTimer) {
-    const rem = Math.max(0, MATCH_TIME_LIMIT - elapsed);
+    const rem = Math.max(0, timeLimit() - elapsed);
     const m = Math.floor(rem / 60);
     const s = Math.floor(rem % 60);
-    hudTimer.textContent = `${m}:${s.toString().padStart(2, "0")}`;
-    hudTimer.style.color = rem < 30 ? "#ff4444" : "#ffffff";
+    hudTimer.textContent = suddenDeath
+      ? `SD ${m}:${s.toString().padStart(2, "0")}`
+      : `${m}:${s.toString().padStart(2, "0")}`;
+    hudTimer.style.color = suddenDeath || rem < 30 ? "#ff4444" : "#ffffff";
   }
 
   if (hudPinDisp) {
@@ -241,13 +325,37 @@ let p2WasMomDecay  = false;
 let p1WasCorner    = false;
 let p2WasCorner    = false;
 
+let p1WasCornered = false;
+let p2WasCornered = false;
+
 function checkCornerFlash(): void {
-  const p1c = player1.isInCorner();
-  const p2c = player2.isInCorner();
+  const p1c  = player1.isInCorner();
+  const p2c  = player2.isInCorner();
+  // 通常コーナー入り警告
   if (p1c && !p1WasCorner) flashMoveName("P1 IN THE CORNER!");
   if (p2c && !p2WasCorner) flashMoveName(`${p2Label()} IN THE CORNER!`);
   p1WasCorner = p1c;
   p2WasCorner = p2c;
+
+  // ウィップによるコーナー激突
+  if (player1.cornered && !p1WasCornered) {
+    flashMoveName("P1 CORNER CRASH!!");
+    effects.spawnHitSparks(player1.position, 0xffcc44);
+    effects.shake(0.2);
+    audio.slam();
+    player2.momentum = Math.min(100, player2.momentum + 18);
+    addCrowdPop(16);
+  }
+  if (player2.cornered && !p2WasCornered) {
+    flashMoveName("CORNER CRASH!!");
+    effects.spawnHitSparks(player2.position, 0xffcc44);
+    effects.shake(0.2);
+    audio.slam();
+    player1.momentum = Math.min(100, player1.momentum + 18);
+    addCrowdPop(16);
+  }
+  p1WasCornered = player1.cornered;
+  p2WasCornered = player2.cornered;
 }
 
 function checkMomentumDecayFlash(): void {
@@ -282,6 +390,24 @@ function checkGrappleFatigue(): void {
   tryBreak(player2, player1, p2Label());
 }
 
+// ─── ロープ揺れ (リバウンド検出) ──────────────────────────────────────────────
+let p1WasRebounding = false;
+let p2WasRebounding = false;
+
+function checkRopeWobble(): void {
+  // ホイップは X 軸方向なので east/west ロープに当たる
+  const check = (w: typeof player1, was: boolean): boolean => {
+    const now = w.isRebounding();
+    if (now && !was) {
+      ring.wobbleRopes(w.position.x > 0 ? "east" : "west");
+      effects.shake(0.06);
+    }
+    return now;
+  };
+  p1WasRebounding = check(player1, p1WasRebounding);
+  p2WasRebounding = check(player2, p2WasRebounding);
+}
+
 function checkDangerFlash(): void {
   if (player1.isDanger && !p1WasDanger) {
     flashMoveName("P1 FIRED UP!!");
@@ -294,6 +420,20 @@ function checkDangerFlash(): void {
   }
   p1WasDanger = player1.isDanger;
   p2WasDanger = player2.isDanger;
+
+  // 低HP 赤フチビネット — 1P: P1 のみ / 2P: どちらかが瀕死なら表示
+  const humanDanger = mode === "2p"
+    ? player1.isDanger || player2.isDanger
+    : player1.isDanger;
+  setDangerVignette(phase === "match" && humanDanger);
+}
+
+const dangerVignetteEl = document.getElementById("danger-vignette") as HTMLElement | null;
+
+function setDangerVignette(on: boolean): void {
+  if (!dangerVignetteEl) return;
+  const cur = dangerVignetteEl.style.display === "block";
+  if (cur !== on) dangerVignetteEl.style.display = on ? "block" : "none";
 }
 
 // ─── クラウドメーター ─────────────────────────────────────────────────────────
@@ -306,6 +446,10 @@ let wasHotCrowd  = false;
 
 function addCrowdPop(amount: number): void {
   crowdMeter = Math.min(100, crowdMeter + amount);
+  // 大きな盛り上がり (フィニッシャー・コーナークラッシュ等) でスタンドにフラッシュ
+  if (amount >= 16) {
+    effects.spawnCrowdFlashes(Math.min(1, amount / 30));
+  }
 }
 
 function updateCrowd(dt: number): void {
@@ -390,19 +534,59 @@ function updateRingOut(dt: number): void {
   if (!anyOutside && hudRingoutDisp) hudRingoutDisp.style.display = "none";
 }
 
-// ─── コンボカウンター ─────────────────────────────────────────────────────────
-let comboCount = 0;
-let comboTimer = 0;
-const COMBO_WINDOW = 2.5;
+// ─── トリプルストライクチェーン ───────────────────────────────────────────────
+const STRIKE_CHAIN_WINDOW = 1.2; // 秒 — 連続ストライクのタイムウィンドウ
+const strikeChain: { p1: number; p2: number; timer: { p1: number; p2: number } } = {
+  p1: 0, p2: 0, timer: { p1: 0, p2: 0 },
+};
 
-function addCombo(): void {
-  comboCount++;
-  comboTimer = COMBO_WINDOW;
-  tracker.recordCombo("p1", comboCount);
-  if (hudCombo && comboCount >= 2) {
+function resetStrikeChains(): void {
+  strikeChain.p1 = 0;
+  strikeChain.p2 = 0;
+  strikeChain.timer.p1 = 0;
+  strikeChain.timer.p2 = 0;
+}
+
+function incrementStrikeChain(side: "p1" | "p2"): boolean {
+  strikeChain.timer[side] = STRIKE_CHAIN_WINDOW;
+  strikeChain[side]++;
+  return strikeChain[side] >= 3;
+}
+
+function updateStrikeChains(dt: number): void {
+  for (const side of ["p1", "p2"] as const) {
+    if (strikeChain.timer[side] > 0) {
+      strikeChain.timer[side] -= dt;
+      if (strikeChain.timer[side] <= 0) strikeChain[side] = 0;
+    }
+  }
+}
+
+// ─── コンボカウンター ─────────────────────────────────────────────────────────
+const COMBO_WINDOW = 2.5;
+const comboCount: { p1: number; p2: number } = { p1: 0, p2: 0 };
+const comboTimer: { p1: number; p2: number } = { p1: 0, p2: 0 };
+// 表示中のコンボの持ち主 (2P モードで両者が交互にコンボした場合の表示切替用)
+let comboOwner: "p1" | "p2" = "p1";
+
+function resetCombos(): void {
+  comboCount.p1 = 0; comboCount.p2 = 0;
+  comboTimer.p1 = 0; comboTimer.p2 = 0;
+  if (hudCombo) hudCombo.style.display = "none";
+}
+
+function addCombo(side: "p1" | "p2"): void {
+  comboCount[side]++;
+  comboTimer[side] = COMBO_WINDOW;
+  tracker.recordCombo(side, comboCount[side]);
+
+  comboOwner = side;
+  const n = comboCount[side];
+  if (hudCombo && n >= 2) {
+    const who = mode === "2p" ? `${side === "p1" ? "P1" : "P2"} ` : "";
     hudCombo.style.display  = "block";
-    hudCombo.textContent    = `${comboCount} HIT COMBO!`;
-    hudCombo.style.fontSize = `${Math.min(36, 18 + comboCount * 2)}px`;
+    hudCombo.textContent    = `${who}${n} HIT COMBO!`;
+    hudCombo.style.fontSize = `${Math.min(36, 18 + n * 2)}px`;
     hudCombo.style.animation = "none";
     void (hudCombo as HTMLElement).offsetWidth;
     hudCombo.style.animation = "comboZoom 0.15s ease-out";
@@ -410,19 +594,27 @@ function addCombo(): void {
 }
 
 function updateCombo(dt: number): void {
-  if (comboTimer > 0) {
-    comboTimer -= dt;
-    if (comboTimer <= 0) {
-      comboCount = 0;
-      if (hudCombo) hudCombo.style.display = "none";
+  for (const side of ["p1", "p2"] as const) {
+    if (comboTimer[side] <= 0) continue;
+    comboTimer[side] -= dt;
+    if (comboTimer[side] <= 0) {
+      comboCount[side] = 0;
+      // 表示中のコンボが切れたときだけ非表示にする
+      if (hudCombo && comboOwner === side) hudCombo.style.display = "none";
     }
   }
 }
 
 // ─── サブミッション更新 ───────────────────────────────────────────────────────
+function hideMashIndicator(): void {
+  if (hudSubMash)    hudSubMash.style.display    = "none";
+  if (hudSubMashWho) hudSubMashWho.style.display = "none";
+}
+
 function updateSubmission(dt: number): void {
   if (!sub.active) {
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     return;
   }
   const holder = sub.holderSide === "p1" ? player1 : player2;
@@ -432,6 +624,7 @@ function updateSubmission(dt: number): void {
   if (holder.state !== "submitting" || victim.state !== "in_submission") {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     return;
   }
 
@@ -448,10 +641,22 @@ function updateSubmission(dt: number): void {
   if (hudSubBar)  hudSubBar.style.width  = `${sub.subProgress    * 100}%`;
   if (hudEscBar)  hudEscBar.style.width  = `${sub.escapeProgress * 100}%`;
 
+  // MASH indicator — show for human victim only
+  const victimSide = sub.holderSide === "p1" ? "p2" : "p1";
+  const victimIsHuman = mode === "2p" || victimSide === "p1";
+  if (hudSubMash) {
+    hudSubMash.style.display = victimIsHuman ? "block" : "none";
+  }
+  if (hudSubMashWho) {
+    hudSubMashWho.style.display = victimIsHuman ? "block" : "none";
+    hudSubMashWho.textContent   = victimSide === "p1" ? "P1 — PRESS ANY BUTTON" : "P2 — PRESS ANY BUTTON";
+  }
+
   // Escape wins
   if (sub.escapeProgress >= 1) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     holder.actionCooldown = 1.0;
     victim.breakSubmission();
@@ -465,10 +670,69 @@ function updateSubmission(dt: number): void {
   if (sub.subProgress >= 1) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     victim.hp = 0;
     showResult(sub.holderSide === "p1" ? "P1" : p2Label(), "SUBMISSION  ");
   }
+}
+
+// ─── マッチイントロ ──────────────────────────────────────────────────────────
+function showMatchIntro(cb: () => void): void {
+  // 2ラウンド目以降はイントロをスキップ
+  if (tournament.active && tournament.roundNum > 1) { cb(); return; }
+
+  const overlay = document.getElementById("match-intro");
+  const p1NameEl  = document.getElementById("intro-p1-name");
+  const p1TitleEl = document.getElementById("intro-p1-title");
+  const p2NameEl  = document.getElementById("intro-p2-name");
+  const p2TitleEl = document.getElementById("intro-p2-title");
+  if (!overlay) { cb(); return; }
+
+  if (p1NameEl)  p1NameEl.textContent  = player1.name;
+  if (p1TitleEl) p1TitleEl.textContent = player1.title;
+  if (p2NameEl)  p2NameEl.textContent  = player2.name;
+  if (p2TitleEl) p2TitleEl.textContent = player2.title;
+
+  // キャラクターカラーを名前に反映
+  const p1El = document.getElementById("intro-p1");
+  const p2El = document.getElementById("intro-p2");
+  const toHex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
+  if (p1El) {
+    const nameDiv = p1El.querySelector<HTMLElement>(".intro-fighter-name");
+    if (nameDiv) nameDiv.style.color = toHex(player1.primaryColor);
+  }
+  if (p2El) {
+    const nameDiv = p2El.querySelector<HTMLElement>(".intro-fighter-name");
+    if (nameDiv) nameDiv.style.color = toHex(player2.primaryColor);
+  }
+
+  // アニメーションをリセットしてから表示
+  overlay.style.display = "flex";
+  const els = overlay.querySelectorAll<HTMLElement>("#intro-p1, #intro-vs, #intro-p2");
+  els.forEach(el => { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; });
+
+  audio.crowd();
+
+  // コーナーパイロ — 4 コーナーから時間差でキャラカラーの火花が上がる
+  const RB = RING_BOUNDS; // コーナー位置はリング境界に追従させる
+  const pyroSpots: Array<{ x: number; z: number; color: number }> = [
+    { x: -RB, z: -RB, color: player1.primaryColor },
+    { x: -RB, z:  RB, color: player1.primaryColor },
+    { x:  RB, z: -RB, color: player2.primaryColor },
+    { x:  RB, z:  RB, color: player2.primaryColor },
+  ];
+  pyroSpots.forEach((spot, i) => {
+    setTimeout(() => {
+      effects.spawnFinisherBurst(new THREE.Vector3(spot.x, 0.5, spot.z), spot.color);
+      effects.spawnCrowdFlashes(0.4);
+    }, 250 + i * 320);
+  });
+
+  setTimeout(() => {
+    overlay.style.display = "none";
+    cb();
+  }, 2000);
 }
 
 // ─── カウントダウン ───────────────────────────────────────────────────────────
@@ -512,6 +776,9 @@ function updateWinPips(): void {
 
 function showRoundResult(winnerSide: "p1" | "p2" | "draw"): void {
   phase = "between_rounds";
+  setDangerVignette(false);
+  // between_rounds では effects.update が回らない — 飛行中の数値を今すぐ破棄する
+  effects.clearDamageNumbers();
 
   const winnerName = winnerSide === "p1" ? "P1" : winnerSide === "p2" ? p2Label() : "DRAW";
 
@@ -552,18 +819,27 @@ function startNextRound(): void {
   tournament.roundNum++;
   tracker = new MatchTracker();
   matchElapsed = 0;
-  comboCount = 0;
-  comboTimer = 0;
+  resetCombos();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  p1WasGassed   = false;
+  p2WasGassed   = false;
   p1WasDanger   = false;
   p2WasDanger   = false;
   p1WasMomDecay = false;
   p2WasMomDecay = false;
   p1WasCorner   = false;
   p2WasCorner   = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
+  camZoom       = 0;
   crowdMeter    = 0;
   wasHotCrowd   = false;
+  suddenDeath   = false;
   resetRingOut();
+  resetKickout();
+  resetStrikeChains();
   if (hudCombo) hudCombo.style.display = "none";
 
   createWrestlers(tournament.def1, tournament.def2);
@@ -573,7 +849,9 @@ function startNextRound(): void {
 
   phase = "countdown";
   clock.start();
-  showMatchStart(() => { phase = "match"; audio.crowd(); });
+  showMatchIntro(() => {
+    showMatchStart(() => { phase = "match"; audio.crowd(); });
+  });
 }
 
 function showResult(winner: string, reason = ""): void {
@@ -590,8 +868,43 @@ function showResult(winner: string, reason = ""): void {
   }
 }
 
+// ─── 戦績 (1P モードのみ) ─────────────────────────────────────────────────────
+function renderWinRecord(): void {
+  const el = document.getElementById("win-record");
+  if (!el) return;
+  const rec = loadRecord();
+  if (rec.wins === 0 && rec.losses === 0 && rec.draws === 0) {
+    el.textContent = "";
+    return;
+  }
+  const streakHtml = rec.streak >= 3
+    ? ` &nbsp;<span class="streak-hot">🔥 ${rec.streak} WIN STREAK</span>`
+    : "";
+  el.innerHTML =
+    `RECORD  ${rec.wins}W - ${rec.losses}L - ${rec.draws}D` +
+    `  |  BEST STREAK ${rec.bestStreak}${streakHtml}`;
+}
+
 function showFinalResult(winner: string, reason = ""): void {
   phase = "result";
+  setDangerVignette(false);
+
+  // 1P モードの勝敗を localStorage に記録
+  if (mode === "1p") {
+    if (winner === "P1")           recordResult("win");
+    else if (winner === "DRAW")    recordResult("draw");
+    else                           recordResult("loss");
+  }
+
+  // 勝者は勝利ポーズ (DRAW のときはなし)
+  if (winner === "P1") {
+    player1.startVictoryPose();
+    effects.spawnFinisherBurst(player1.position, 0xffd700);
+  } else if (winner === "P2" || winner === "CPU") {
+    player2.startVictoryPose();
+    effects.spawnFinisherBurst(player2.position, 0xffd700);
+  }
+
   const el  = document.getElementById("result-screen");
   const txt = document.getElementById("result-text");
   const sub = document.getElementById("result-sub");
@@ -627,11 +940,13 @@ function showFinalResult(winner: string, reason = ""): void {
           ${champRow}
           ${statRow(s1.strikesLanded,    s2.strikesLanded,    "STRIKES")}
           ${statRow(s1.slamsLanded,      s2.slamsLanded,      "SLAMS")}
+          ${statRow(s1.cornerSplashes,   s2.cornerSplashes,   "CORNER SPLASH")}
           ${statRow(s1.signaturesMade,   s2.signaturesMade,   "SIGNATURES")}
           ${statRow(s1.reversals,        s2.reversals,        "REVERSALS")}
           ${statRow(Math.round(s1.totalDamage), Math.round(s2.totalDamage), "DAMAGE")}
           ${statRow(s1.knockdownsCaused, s2.knockdownsCaused, "KNOCKDOWNS")}
           ${statRow(s1.pinAttempts,      s2.pinAttempts,      "PINS")}
+          ${statRow(s1.ringoutsScored,   s2.ringoutsScored,   "RING OUTS")}
           ${statRow(s1.maxCombo,         s2.maxCombo,         "MAX COMBO")}
         </tbody>
       </table>`;
@@ -670,25 +985,45 @@ function animate(): void {
         const len = Math.sqrt(cx * cx + cz * cz) || 1;
         player2.move(cx / len, cz / len, false, dt);
       }
+      // CPU キックアウト試行 (難易度に応じた確率で自動試行)
+      if (cpuAI && player2.state === "being_pinned" && Math.random() < cpuAI.ropeBreakChance * dt * 2) {
+        if (tryKickout(player2, player1, "p2")) {
+          flashMoveName("CPU KICKOUT!!");
+          effects.spawnHitSparks(player2.position, 0x00ff88);
+          effects.shake(0.12);
+          audio.punch();
+          addCrowdPop(14);
+        }
+      }
     }
     player1.update(dt);
     player2.update(dt);
     updateCamera(dt);
     effects.update(dt, camera);
     updateCombo(dt);
+    updateStrikeChains(dt);
     updateSubmission(dt);
     updateRingOut(dt);
     checkGrappleFatigue();
     checkGassedFlash();
+    checkRopeWobble();
+    ring.update(dt);
     checkDangerFlash();
     checkMomentumDecayFlash();
     checkCornerFlash();
     updateCrowd(dt);
     checkCrowdFlash();
     updateHUD(matchElapsed);
-    checkMatchEnd();
+    checkMatchEnd(dt);
   } else if (phase === "countdown") {
     updateCamera(dt);
+    effects.update(dt, camera); // イントロパイロの粒子を動かす
+  } else if (phase === "result") {
+    // リザルト画面の背後で勝利ポーズをループ再生
+    player1.update(dt);
+    player2.update(dt);
+    updateCamera(dt);
+    effects.update(dt, camera);
   }
 
   input1.flush(); // グローバルキーストアの flush は1回でよい
@@ -705,7 +1040,7 @@ function handleInput(
   side: "p1" | "p2"
 ): void {
   const s = inp.state;
-  const trackCombo = side === "p1";
+  const oppSide: "p1" | "p2" = side === "p1" ? "p2" : "p1";
 
   let dx = 0, dz = 0;
   if (s.left)  dx -= 1;
@@ -722,6 +1057,23 @@ function handleInput(
     const anyPress = s.strikePressed || s.grapplePressed || s.slamPressed ||
                      s.signaturePressed || s.pinPressed || s.tauntPressed;
     if (anyPress) { doRopeBreak(side); return; }
+  }
+
+  // ピンのキックアウト — カウント中にボタン連打で脱出試行
+  if (self.state === "being_pinned") {
+    const anyPress = s.strikePressed || s.grapplePressed || s.slamPressed ||
+                     s.signaturePressed || s.pinPressed || s.tauntPressed;
+    if (anyPress) {
+      const pinner = side === "p1" ? player2 : player1;
+      if (tryKickout(self, pinner, side)) {
+        flashMoveName("KICKOUT!!");
+        effects.spawnHitSparks(self.position, 0x00ff88);
+        effects.shake(0.12);
+        audio.punch();
+        addCrowdPop(16);
+      }
+    }
+    return;
   }
 
   // サブミッション中の脱出 (被攻撃側がボタンを連打)
@@ -747,7 +1099,7 @@ function handleInput(
     audio.punch();
     addCrowdPop(10);
     tracker.recordStrike(side, dmg, false);
-    if (side === "p1") addCombo();
+    addCombo(side);
     flashMoveName("COUNTER!!");
     return;
   }
@@ -766,10 +1118,20 @@ function handleInput(
   if (!self.isActionReady()) return;
 
   // Taunt (T / B) — ハイリスク・ハイリターン
+  // HOT CROWD 中のタントは即時スタミナ +25 + モメンタム +10 ボーナス
   if (s.tauntPressed && self.state === "idle") {
+    const isHot = crowdMeter >= CROWD_HOT_THRESHOLD;
     self.startTaunt();
     audio.crowd();
-    flashMoveName("TAUNT!");
+    if (isHot) {
+      self.stamina  = Math.min(100, self.stamina  + 25);
+      self.momentum = Math.min(100, self.momentum + 10);
+      effects.spawnHitSparks(self.position, 0xffd700);
+      addCrowdPop(10);
+      flashMoveName("🔥 HOT CROWD TAUNT!!");
+    } else {
+      flashMoveName("TAUNT!");
+    }
   }
 
   // Strike (F / U)
@@ -792,8 +1154,8 @@ function handleInput(
       audio.slam();
       audio.crowd();
       addCrowdPop(22);
-      tracker.recordStrike(side, dmg, true);
-      if (trackCombo) addCombo();
+      tracker.recordCornerSplash(side, dmg);
+      addCombo(side);
       flashMoveName("CORNER SPLASH!!");
     } else if (isClothesline) {
       // クロスライン — リバウンド中の相手を迎撃する高威力打撃
@@ -810,7 +1172,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(knockdown ? (outsideKD ? 20 : 15) : 8);
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
       if (!knockdown) flashMoveName("CLOTHESLINE!!");
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else if (isRunning) {
@@ -828,23 +1190,37 @@ function handleInput(
       audio.slam();
       addCrowdPop(knockdown ? (outsideKD ? 18 : 12) : 5);
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
+      addCombo(side);
       if (!knockdown) flashMoveName("RUNNING STRIKE!!");
       else if (outsideKD) flashMoveName("KNOCKED OUT OF THE RING!!");
     } else {
       self.startStrike();
-      const dmg = (8 + Math.random() * 4) * self.damageMult;
+      const isTriple = incrementStrikeChain(side);
+      // 3連続ストライクはダメージ 1.6 倍 + 特別演出
+      const chainMult = isTriple ? 1.6 : 1.0;
+      const dmg = (8 + Math.random() * 4) * self.damageMult * chainMult;
       opponent.takeDamage(dmg);
-      const knockdown = opponent.hp < 25;
+      const knockdown = opponent.hp < (isTriple ? 40 : 25);
       if (knockdown) { opponent.startKnockdown(); onKnockdown(opponent, opponent.name, self.name); }
       else opponent.openCounterWindow();
-      effects.spawnHitSparks(opponent.position, 0xff6600);
-      effects.shake(0.08);
-      audio.punch();
-      addCrowdPop(knockdown ? 10 : 3);
+      if (isTriple) {
+        effects.spawnHitSparks(opponent.position, 0xff2200);
+        effects.spawnHitSparks(opponent.position, 0xffaa00);
+        effects.spawnHitSparks(opponent.position, 0xffffff);
+        effects.shake(0.22);
+        audio.slam();
+        addCrowdPop(knockdown ? 20 : 12);
+        strikeChain[side] = 0;
+        flashMoveName("TRIPLE STRIKE!!");
+      } else {
+        effects.spawnHitSparks(opponent.position, 0xff6600);
+        effects.shake(0.08);
+        audio.punch();
+        addCrowdPop(knockdown ? 10 : 3);
+        if (!knockdown) flashMoveName("STRIKE!");
+      }
       tracker.recordStrike(side, dmg, knockdown);
-      if (trackCombo) addCombo();
-      if (!knockdown) flashMoveName("STRIKE!");
+      addCombo(side);
     }
   }
 
@@ -869,7 +1245,7 @@ function handleInput(
       audio.slam();
       addCrowdPop(8);
       tracker.recordSlam(side, dmg);
-      if (trackCombo) addCombo();
+      addCombo(side);
       flashMoveName("SLAM!");
     } else if (self.canGrapple(opponent)) {
       self.startGrapple(opponent);
@@ -885,19 +1261,60 @@ function handleInput(
     flashMoveName("IRISH WHIP!");
   }
 
+  // 50% Special move (weaker, no crowd burst, costs half momentum)
+  if (s.signaturePressed && self.momentum >= 50 && self.momentum < 100 && self.canGrapple(opponent)) {
+    self.startSignature(opponent, 50); // 100% 消費ではなく半分だけ
+    const dmg = 20 * self.damageMult;
+    opponent.takeDamage(dmg);
+    const r = (self.specialColor >> 16) & 0xff;
+    const g = (self.specialColor >> 8)  & 0xff;
+    const b =  self.specialColor        & 0xff;
+    effects.spawnHitSparks(opponent.position, self.specialColor);
+    effects.spawnHitSparks(opponent.position, 0xffffff);
+    effects.shake(0.28);
+    audio.slam();
+    addCrowdPop(14);
+    tracker.recordSignature(side, dmg);
+    addCombo(side);
+    const el = document.getElementById("move-name");
+    if (el) {
+      el.style.color = `rgb(${r},${g},${b})`;
+      flashMoveName(self.specialName);
+      setTimeout(() => { if (el) el.style.color = "#ffd700"; }, 1100);
+    }
+  }
+
   // Finisher (Signature with character-specific name + burst)
   if (s.signaturePressed && self.momentum >= 100 && self.canGrapple(opponent)) {
-    self.startSignature(opponent);
-    const dmg = 35 * self.damageMult;
-    opponent.takeDamage(dmg);
-    effects.spawnFinisherBurst(opponent.position, self.finisherColor);
-    effects.shake(0.5);
-    audio.slam();
-    audio.crowd();
-    addCrowdPop(30);
-    tracker.recordSignature(side, dmg);
-    if (trackCombo) addCombo();
-    flashFinisher(self.name, self.finisherName, self.finisherColor);
+    // フィニッシャー・リバーサル: 相手モメンタム >= 30% で確率的に反転
+    const reversalProb = (opponent.momentum / 100) * 0.28;
+    if (!opponent.isDown() && !opponent.isGassed && Math.random() < reversalProb) {
+      // リバーサル成功 — フィニッシャー無効化 + モメンタム移転
+      self.momentum = 0;
+      self.state = "stunned";
+      self.stateTimer = 1.0;
+      self.actionCooldown = 1.0;
+      opponent.momentum = Math.min(100, opponent.momentum + 30);
+      effects.spawnHitSparks(self.position, 0x00ffff);
+      effects.spawnHitSparks(self.position, 0xffffff);
+      effects.shake(0.22);
+      audio.punch();
+      addCrowdPop(25);
+      tracker.recordReversal(oppSide);
+      flashMoveName("FINISHER REVERSED!!");
+    } else {
+      self.startSignature(opponent);
+      const dmg = 35 * self.damageMult;
+      opponent.takeDamage(dmg);
+      effects.spawnFinisherBurst(opponent.position, self.finisherColor);
+      effects.shake(0.5);
+      audio.slam();
+      audio.crowd();
+      addCrowdPop(30);
+      tracker.recordSignature(side, dmg);
+      addCombo(side);
+      flashFinisher(self.name, self.finisherName, self.finisherColor);
+    }
   }
 
   // Pin
@@ -915,6 +1332,13 @@ const KD_LABELS = ["1ST KNOCKDOWN!", "2ND KNOCKDOWN!", "TKO!!"];
 
 /** ノックダウン後に呼ぶ — 回数に応じたメッセージ + TKO 判定 */
 function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: string): void {
+  // サドンデス中は最初のノックダウンで即決着
+  if (suddenDeath) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult(winnerLabel, "SUDDEN DEATH  ");
+    return;
+  }
   const n = victim.knockdownCount; // startKnockdown() で既にインクリメント済み
   const label = KD_LABELS[Math.min(n, KD_LABELS.length) - 1];
   if (label) flashMoveName(`${victimLabel} ${label}`);
@@ -927,7 +1351,7 @@ function onKnockdown(victim: typeof player1, victimLabel: string, winnerLabel: s
 }
 
 // ─── Match end ────────────────────────────────────────────────────────────────
-function checkMatchEnd(): void {
+function checkMatchEnd(dt: number): void {
   if (phase !== "match") return;
 
   const p2Label = mode === "2p" ? "P2" : "CPU";
@@ -935,12 +1359,35 @@ function checkMatchEnd(): void {
   if (player1.hp <= 0) { showResult(p2Label); return; }
   if (player2.hp <= 0) { showResult("P1");    return; }
 
+  // TKO: 累計 3 ノックダウンで決着 — onKnockdown() を通らない
+  // CPU 起因のノックダウン (CpuAI が startKnockdown を直接呼ぶ) もここで拾う
+  if (player1.knockdownCount >= 3) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult(p2Label, "TKO  ");
+    return;
+  }
+  if (player2.knockdownCount >= 3) {
+    effects.shake(0.4);
+    audio.crowd();
+    showResult("P1", "TKO  ");
+    return;
+  }
+
+  // サドンデス: どの発生源のノックダウンでも即決着 (CPU 技・ホイップ激突含む)
+  if (suddenDeath) {
+    if (player1.state === "knockdown") { showResult(p2Label, "SUDDEN DEATH  "); return; }
+    if (player2.state === "knockdown") { showResult("P1",    "SUDDEN DEATH  "); return; }
+  }
+
+  // ピンカウント進行 — 実時間ベース (1 カウント / 秒)。
+  // 以前は += 1/60 固定でフレームレート依存 (144Hz で 2.4 倍速) だった
   if (player1.state === "pinning" && player2.state === "being_pinned") {
-    player1.pinCount += 1 / 60;
+    player1.pinCount += dt;
     if (player1.pinCount >= 3) { showResult("P1", "PINFALL  "); return; }
   }
   if (player2.state === "pinning" && player1.state === "being_pinned") {
-    player2.pinCount += 1 / 60;
+    player2.pinCount += dt;
     if (player2.pinCount >= 3) { showResult(p2Label, "PINFALL  "); return; }
   }
 
@@ -948,20 +1395,31 @@ function checkMatchEnd(): void {
   if (ringout.p1.count >= RINGOUT_MAX) {
     if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
     effects.shake(0.35); audio.crowd();
+    tracker.recordRingout("p2");
     showResult(p2Label, "COUNT OUT  ");
     return;
   }
   if (ringout.p2.count >= RINGOUT_MAX) {
     if (hudRingoutDisp) hudRingoutDisp.style.display = "none";
     effects.shake(0.35); audio.crowd();
+    tracker.recordRingout("p1");
     showResult("P1", "COUNT OUT  ");
     return;
   }
 
-  if (matchElapsed >= MATCH_TIME_LIMIT) {
-    if (player1.hp > player2.hp)      showResult("P1",    "TIME UP  ");
-    else if (player2.hp > player1.hp) showResult(p2Label, "TIME UP  ");
-    else                               showResult("DRAW",  "TIME UP  ");
+  if (matchElapsed >= timeLimit()) {
+    if (player1.hp > player2.hp)      { showResult("P1",    "TIME UP  "); return; }
+    if (player2.hp > player1.hp)      { showResult(p2Label, "TIME UP  "); return; }
+    // 同点: 一度だけサドンデス延長 (先にノックダウンを奪った側が勝利)
+    if (!suddenDeath) {
+      suddenDeath = true;
+      flashMoveName("SUDDEN DEATH!!");
+      effects.shake(0.3);
+      audio.crowd();
+      addCrowdPop(30);
+      return;
+    }
+    showResult("DRAW", "TIME UP  ");
   }
 }
 
@@ -978,6 +1436,7 @@ function doRopeBreak(victimSide: "p1" | "p2"): void {
   } else if (victim.state === "in_submission" && sub.active) {
     sub.active = false;
     if (hudSubDisp) hudSubDisp.style.display = "none";
+    hideMashIndicator();
     holder.state = "idle";
     holder.actionCooldown = 1.5;
     victim.breakSubmission(); // → startKnockdown() resets ropeBreakUsed
@@ -1059,6 +1518,7 @@ function startMatch(
 
   tracker = new MatchTracker();
   sub = { active: false, holderSide: "p1", subProgress: 0, escapeProgress: 0 };
+  resetCombos();
   p1WasGassed = false;
   p2WasGassed = false;
   p1WasDanger  = false;
@@ -1067,12 +1527,22 @@ function startMatch(
   p2WasMomDecay = false;
   p1WasCorner  = false;
   p2WasCorner  = false;
+  p1WasCornered = false;
+  p2WasCornered = false;
+  p1WasRebounding = false;
+  p2WasRebounding = false;
+  camZoom      = 0;
   crowdMeter   = 0;
   wasHotCrowd  = false;
+  suddenDeath  = false;
   resetRingOut();
+  resetKickout();
+  resetStrikeChains();
   phase = "countdown";
   clock.start();
-  showMatchStart(() => { phase = "match"; audio.crowd(); });
+  showMatchIntro(() => {
+    showMatchStart(() => { phase = "match"; audio.crowd(); });
+  });
 }
 
 // ─── キャラクター選択フロー ───────────────────────────────────────────────────
@@ -1113,9 +1583,13 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
   grid.innerHTML = "";
 
   ROSTER.forEach((ch, i) => {
-    const card = document.createElement("div");
+    // button 要素にすることで Tab フォーカス・Enter/Space 起動が標準で効く
+    const card = document.createElement("button");
+    card.type = "button";
     card.className = "char-card";
     card.dataset["idx"] = String(i);
+    card.setAttribute("aria-pressed", "false");
+    card.setAttribute("aria-label", `${ch.name} — ${ch.title}`);
 
     // カラースウォッチ
     const r = (ch.primaryColor >> 16) & 0xff;
@@ -1138,8 +1612,12 @@ function buildCharGrid(confirmBtn: HTMLButtonElement): void {
       </div>`;
 
     card.addEventListener("click", () => {
-      grid.querySelectorAll(".char-card").forEach((c) => c.classList.remove("selected"));
+      grid.querySelectorAll(".char-card").forEach((c) => {
+        c.classList.remove("selected");
+        c.setAttribute("aria-pressed", "false");
+      });
       card.classList.add("selected");
+      card.setAttribute("aria-pressed", "true");
       sel.selectedIdx = i;
       confirmBtn.disabled = false;
     });
@@ -1215,3 +1693,54 @@ document.getElementById("btn-bo3-2p")?.addEventListener("click", () => {
 document.getElementById("retry-btn")?.addEventListener("click", () => {
   location.reload();
 });
+
+// ─── ポーズメニュー ───────────────────────────────────────────────────────────
+const pauseScreen = document.getElementById("pause-screen") as HTMLElement | null;
+
+function togglePause(): void {
+  if (phase === "match") {
+    phase = "paused";
+    if (pauseScreen) pauseScreen.style.display = "flex";
+  } else if (phase === "paused") {
+    phase = "match";
+    if (pauseScreen) pauseScreen.style.display = "none";
+    clock.getDelta(); // ポーズ中の経過時間を破棄 (再開直後の巨大 dt を防ぐ)
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") togglePause();
+});
+
+document.getElementById("pause-resume-btn")?.addEventListener("click", (e) => {
+  // フォーカスを外す — 残ると再開後の SPACE (シグネチャー) / Enter が RESUME を再発火して即再ポーズする
+  (e.currentTarget as HTMLButtonElement).blur();
+  togglePause();
+});
+document.getElementById("pause-quit-btn")?.addEventListener("click", () => {
+  location.reload();
+});
+
+// ─── ミュートボタン ───────────────────────────────────────────────────────────
+const muteBtn = document.getElementById("mute-btn") as HTMLButtonElement | null;
+
+function syncMuteBtn(): void {
+  if (!muteBtn) return;
+  const muted = audio.muted;
+  // アイコンは装飾 (aria-hidden) — textContent で span ごと潰さないよう子要素を更新する
+  const icon = muteBtn.querySelector<HTMLElement>("span");
+  if (icon) icon.textContent = muted ? "🔇" : "🔊";
+  muteBtn.classList.toggle("muted", muted);
+  muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+  muteBtn.setAttribute("aria-label", muted ? "サウンドのミュートを解除" : "サウンドをミュート");
+}
+
+muteBtn?.addEventListener("click", () => {
+  audio.toggleMute();
+  syncMuteBtn();
+  muteBtn.blur(); // フォーカスを外してスペースキー誤爆を防ぐ
+});
+syncMuteBtn();
+
+// タイトル画面に戦績を表示 (retry は location.reload なのでロード時のみでよい)
+renderWinRecord();

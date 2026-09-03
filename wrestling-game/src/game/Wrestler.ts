@@ -22,10 +22,12 @@ export type WrestlerState =
   | "taunting"       // 挑発モーション
   | "submitting"     // サブミッション中 (攻撃側)
   | "in_submission"  // サブミッション中 (被攻撃側)
-  | "corner_splash"; // コーナースプラッシュ
+  | "corner_splash"  // コーナースプラッシュ
+  | "victory";       // 勝利ポーズ (試合終了後ループ)
 
 export interface WrestlerConfig {
   name: string;
+  title?: string;
   primaryColor: number;
   secondaryColor: number;
   skinColor: number;
@@ -39,6 +41,9 @@ export interface WrestlerConfig {
   // Per-character finisher (passed from CharacterDef.finisher)
   finisherName?:  string;
   finisherColor?: number;
+  // Per-character special at 50% momentum
+  specialName?:  string;
+  specialColor?: number;
 }
 
 const MOVE_SPEED   = 4.5;
@@ -50,6 +55,8 @@ const MAT_Y        = 0.15;
 export class Wrestler {
   root: THREE.Group;
   name: string;
+  readonly title: string;
+  readonly primaryColor: number;
 
   // Derived stat multipliers
   readonly speedMult:    number;
@@ -58,6 +65,8 @@ export class Wrestler {
   readonly staminaMult:  number;
   readonly finisherName:  string;
   readonly finisherColor: number;
+  readonly specialName:   string;
+  readonly specialColor:  number;
 
   /** ガス欠: ×0.75 / 瀕死コンバック: ×1.25 / 両方: ×0.9375 */
   get damageMult(): number {
@@ -95,6 +104,7 @@ export class Wrestler {
   pinCount        = 0;   // 現在のピンカウント (0-3)
   reversalWindow  = 0;   // > 0 の間リバーサル受付中
   ropeBreakUsed   = false; // 1ノックダウンにつき1回まで
+  cornered        = false;  // コーナーポスト激突中
   knockdownCount  = 0;     // 試合中の累計ノックダウン数 (3 で TKO)
   counterWindow   = 0;     // > 0 の間カウンター受付中 (ストライク被弾後 0.3 s)
   private _knockdownOutside = false; // 次の startKnockdown で場外へ押し出す
@@ -131,7 +141,9 @@ export class Wrestler {
 
   constructor(config: WrestlerConfig) {
     this.config = config;
-    this.name = config.name;
+    this.name  = config.name;
+    this.title = config.title ?? "";
+    this.primaryColor = config.primaryColor;
     this.speedMult    = config.speedMult   ?? 1.0;
     this._damageMult  = config.damageMult  ?? 1.0;
     this.defenceMult  = config.defenceMult ?? 1.0;
@@ -140,6 +152,8 @@ export class Wrestler {
     this.hp           = this.maxHp;
     this.finisherName  = config.finisherName  ?? "SIGNATURE MOVE!!";
     this.finisherColor = config.finisherColor ?? 0xffd700;
+    this.specialName   = config.specialName   ?? "SPECIAL MOVE!";
+    this.specialColor  = config.specialColor  ?? 0x88aaff;
     this.root  = new THREE.Group();
     this.root.position.set(config.startX, MAT_Y, 0);
     this.buildBody();
@@ -275,6 +289,23 @@ export class Wrestler {
     scene.add(this.root);
   }
 
+  /**
+   * シーンから取り外し、GPU リソースを解放する。
+   * scene.remove() だけではジオメトリ/マテリアルは GPU に残り続けるため、
+   * レスラーを作り直す (試合・ラウンド開始) たびにリークする。
+   */
+  disposeFromScene(scene: THREE.Scene): void {
+    scene.remove(this.root);
+    this.root.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.geometry.dispose();
+      const mat = obj.material;
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat.dispose();
+    });
+    this.bodyMeshes.length = 0;
+  }
+
   get position(): THREE.Vector3 {
     return this.root.position;
   }
@@ -353,11 +384,16 @@ export class Wrestler {
            this.state === "in_submission";
   }
 
+  /** 被ダメージ時フック — main.ts がダメージ数値ポップアップ表示に使う */
+  static onDamage: ((victim: Wrestler, dmg: number) => void) | null = null;
+
   takeDamage(amount: number): void {
     const tauntMult = this.state === "taunting" ? 2.0 : 1.0;
-    this.hp = Math.max(0, this.hp - amount * this.defenceMult * tauntMult);
+    const dmg = amount * this.defenceMult * tauntMult;
+    this.hp = Math.max(0, this.hp - dmg);
     this.flashTimer = 0.15;
     this.momentum = Math.min(100, this.momentum + amount * 0.3);
+    Wrestler.onDamage?.(this, dmg);
   }
 
   move(dx: number, dz: number, sprint: boolean, dt: number): void {
@@ -376,15 +412,18 @@ export class Wrestler {
     this.root.position.z = Math.max(-limit, Math.min(limit, nz));
 
     if (!crawling) {
-      if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+      const moving = Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01;
+      if (moving) {
         this.facingAngle = Math.atan2(dx, dz);
         this.state = canSprint ? "sprinting" : "walking";
-      } else {
-        if (this.state === "walking" || this.state === "sprinting") {
-          this.state = "idle";
-        }
+      } else if (this.state === "walking" || this.state === "sprinting") {
+        this.state = "idle";
       }
-      this.stamina = Math.max(0, this.stamina - (sprint ? 8 : 2) * dt);
+      // 実際に移動しているときだけ消費。ダッシュ料金は実際に走れた場合のみ
+      // (ガス欠中は canSprint=false → 速度は歩き相当なので歩きコストで揃える)
+      if (moving) {
+        this.stamina = Math.max(0, this.stamina - (canSprint ? 8 : 2) * dt);
+      }
     }
   }
 
@@ -445,9 +484,14 @@ export class Wrestler {
     this.actionCooldown = 1.4;
   }
 
-  /** タント中かどうか (外部から参照用) */
-  isTaunting(): boolean {
-    return this.state === "taunting";
+  /** 勝利ポーズ — 試合終了後、リザルト画面の背後でループする */
+  startVictoryPose(): void {
+    this.state = "victory";
+    this.stateTimer = 0;       // タイマーなし = ループし続ける
+    this.actionCooldown = 999; // 操作不能に
+    this.grappleTarget = null;
+    this.root.rotation.x = 0;
+    this.root.rotation.z = 0;
   }
 
   startGrapple(target: Wrestler): void {
@@ -521,11 +565,16 @@ export class Wrestler {
     this.stamina = Math.max(0, this.stamina - 15);
   }
 
-  startSignature(target: Wrestler): void {
+  /**
+   * シグネチャー演出。フィニッシャー (100%) と 50% スペシャルで共用する。
+   * @param momentumCost 消費するモーメンタム量。既定は全消費 (フィニッシャー)。
+   *                     50% スペシャルは 50 を渡して残りを次の技へ持ち越す。
+   */
+  startSignature(target: Wrestler, momentumCost = Infinity): void {
     this.state = "signature";
     this.stateTimer = 1.0;
     this.actionCooldown = 1.2;
-    this.momentum = 0;
+    this.momentum = Math.max(0, this.momentum - momentumCost);
     target.state = "being_slammed";
     target.stateTimer = 2.0;
     target.actionCooldown = 2.5;
@@ -541,7 +590,8 @@ export class Wrestler {
     this.knockdownTimer = 3.5 - this.hp * 0.015; // HP が低いほど長く倒れる
     this.knockdownTimer = Math.max(1.5, this.knockdownTimer);
     this.grappleTarget = null;
-    this.ropeBreakUsed = false; // 新しいノックダウンごとにリセット
+    this.ropeBreakUsed = false;
+    this.cornered      = false;
     this.knockdownCount++;
     if (outsidePush || this._knockdownOutside) {
       this._knockdownOutside = false;
@@ -614,18 +664,27 @@ export class Wrestler {
     if (this.state === "whipped" || this.state === "rebounding") {
       const newX = this.root.position.x + this.whipVelX * dt;
       if (this.state === "whipped" && Math.abs(newX) >= RING_BOUNDS - 0.15) {
-        // Hit the rope — bounce back
         this.root.position.x = Math.sign(newX) * (RING_BOUNDS - 0.15);
-        this.whipVelX = -this.whipVelX * 0.95;
-        this.state    = "rebounding";
-        this.stateTimer = 2.0;
-        this.actionCooldown = 2.0;
-        this.facingAngle = this.whipVelX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+        if (this.isInCorner()) {
+          // コーナーポストに激突 → スタン (リバウンドなし)
+          this.whipVelX = 0;
+          this.state    = "stunned";
+          this.stateTimer = 1.6;
+          this.actionCooldown = 1.6;
+          this.cornered = true;
+        } else {
+          // ロープで跳ね返り
+          this.whipVelX = -this.whipVelX * 0.95;
+          this.state    = "rebounding";
+          this.stateTimer = 2.0;
+          this.actionCooldown = 2.0;
+          this.facingAngle = this.whipVelX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+        }
       } else {
         this.root.position.x = Math.max(-RING_BOUNDS, Math.min(RING_BOUNDS, newX));
       }
       this.stateTimer -= dt;
-      if (this.stateTimer <= 0) this.state = "idle";
+      if (this.stateTimer <= 0) { this.state = "idle"; this.cornered = false; }
     }
 
     // State timers
@@ -747,6 +806,20 @@ export class Wrestler {
       this.upperArmL.rotation.z =  0.8;
       this.upperArmR.rotation.z = -0.8;
       this.head.rotation.x = 0.3; // 上を向く
+      return;
+    }
+
+    if (state === "victory") {
+      // 両腕を高く突き上げてジャンプを繰り返す勝利ポーズ
+      this.breathTimer += dt * 6;
+      const jump = Math.max(0, Math.sin(this.breathTimer)) * 0.35;
+      this.root.position.y = MAT_Y + jump;
+      this.upperArmL.rotation.x = -2.6;
+      this.upperArmR.rotation.x = -2.6;
+      this.upperArmL.rotation.z =  0.25 + Math.sin(this.breathTimer * 2) * 0.15;
+      this.upperArmR.rotation.z = -0.25 - Math.sin(this.breathTimer * 2) * 0.15;
+      this.head.rotation.x = 0.35;
+      this.torso.rotation.x = -0.08;
       return;
     }
 

@@ -77,7 +77,7 @@ export class CpuAI {
 
   /** サブミッション中の CPU 脱出速度 (per second, 0–1 scale) */
   get escapeRate(): number {
-    // Hard: ~0.22/s, Normal: ~0.13/s, Easy: ~0.06/s
+    // Hard: 0.24/s, Normal: ~0.21/s, Easy: ~0.16/s
     return (1 - this.p.missChance) * 0.25;
   }
 
@@ -86,9 +86,22 @@ export class CpuAI {
     return Math.max(0, 1 - this.p.missChance * 3);
   }
 
-  /** ストライクカウンター発動確率 (Hard: ~0.36, Normal: ~0.18, Easy: ~0.05) */
+  /** ストライクカウンター発動確率 (Hard: 0.36, Normal: 0.25, Easy: 0.05) */
   get counterChance(): number {
     return Math.max(0, 0.4 - this.p.missChance);
+  }
+
+  /**
+   * HP ギャップ適応: CPU が大きくリードしているときは慎重に、
+   * 劣勢のときはより攻撃的に振る舞う。
+   * gap > 0 = CPU リード, gap < 0 = 劣勢
+   */
+  private get hpGapFactor(): number {
+    const hpRatio = (this.cpu.hp / this.cpu.maxHp) - (this.player.hp / this.player.maxHp);
+    // decisionTimer への乗数: 大きいほど待機が長い = 遅い
+    if (hpRatio > 0.3)  return 1.4;  // 大きなリード → 守備的 (待機 ×1.4 = 遅い)
+    if (hpRatio < -0.3) return 0.7;  // 大きな劣勢 → 積極的 (待機 ×0.7 = 速い)
+    return 1.0;
   }
 
   update(dt: number): void {
@@ -108,7 +121,7 @@ export class CpuAI {
       return;
     }
 
-    // 難易度ベースでリバーサルを試みる (Hard: 55%、Normal: 30%、Easy: 10%)
+    // 難易度ベースでリバーサルを試みる (Hard: 90%、Normal: 62.5%、Easy: 12.5%)
     if (this.cpu.canReversal()) {
       const reversalChance = 1 - this.p.missChance * 2.5;
       if (Math.random() < reversalChance) {
@@ -174,9 +187,12 @@ export class CpuAI {
     const sprint = (urgentFinisher || this.cpu.stamina > this.p.sprintThreshold) && len > 1.5;
     this.cpu.move(dx / len, dz / len, sprint, dt);
     this.cpu.faceTarget(this.player);
+    const gapMult = this.hpGapFactor;
 
     // スプリント中 + コーナー追い詰め → コーナースプラッシュ (優先)
-    if (sprint && this.player.isInCorner() && len < 2.5 && this.cpu.isActionReady()) {
+    // decisionTimer も見る — actionCooldown だけでは難易度別ペーシング (decisionBase 倍率) が効かない
+    if (sprint && this.player.isInCorner() && len < 2.5 &&
+        this.cpu.isActionReady() && this.decisionTimer <= 0) {
       this.cpu.startCornerSplash();
       const dmg = (22 + Math.random() * 8) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
@@ -187,12 +203,12 @@ export class CpuAI {
       this.effects.shake(0.3);
       audio.slam();
       audio.crowd();
-      this.decisionTimer = this.p.decisionBase * 1.4;
+      this.decisionTimer = this.p.decisionBase * 1.4 * gapMult;
       return;
     }
 
     // スプリント中 + 射程内 → ランニングストライク
-    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady()) {
+    if (sprint && len < STRIKE_DIST && this.cpu.isActionReady() && this.decisionTimer <= 0) {
       this.cpu.startRunningStrike();
       const dmg = (14 + Math.random() * 6) * this.p.dmgMult * this.cpu.damageMult;
       this.player.takeDamage(dmg);
@@ -203,7 +219,7 @@ export class CpuAI {
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.18);
       audio.slam();
-      this.decisionTimer = this.p.decisionBase * 1.2;
+      this.decisionTimer = this.p.decisionBase * 1.2 * gapMult;
     }
   }
 
@@ -211,6 +227,8 @@ export class CpuAI {
     if (this.decisionTimer > 0) return;
     // 瀕死 (isDanger) のときは 0.7 倍速で反応 (ファイアアップ)
     const dangerMult = this.cpu.isDanger ? 0.7 : 1.0;
+    // HP ギャップ: リードしていれば慎重、劣勢なら積極的
+    const gapMult = this.hpGapFactor;
     // ガス欠中プレイヤーには判断を速める (半分の待機)
     const effectiveMiss = this.player.isGassed
       ? this.p.missChance * 0.4
@@ -218,7 +236,7 @@ export class CpuAI {
     if (Math.random() < effectiveMiss) {
       this.decisionTimer = (this.player.isGassed
         ? this.p.decisionBase * 0.5
-        : this.p.decisionBase) * dangerMult;
+        : this.p.decisionBase) * dangerMult * gapMult;
       return;
     }
 
@@ -235,7 +253,20 @@ export class CpuAI {
       this.effects.shake(0.5);
       audio.slam();
       audio.crowd();
-      this.decisionTimer = 1.4;
+      this.decisionTimer = 1.4 * gapMult;
+      return;
+    }
+
+    // 50% スペシャル — missChance が低い (Hard/Normal) CPU が積極的に使用
+    if (this.cpu.momentum >= 50 && this.cpu.momentum < 100 && dist < GRAPPLE_DIST &&
+        Math.random() < (1 - this.p.missChance) * 0.35) {
+      this.cpu.startSignature(this.player, 50);
+      this.player.takeDamage(20 * this.p.dmgMult * charDmg);
+      this.effects.spawnHitSparks(this.player.position, this.cpu.specialColor);
+      this.effects.spawnHitSparks(this.player.position, 0xffffff);
+      this.effects.shake(0.28);
+      audio.slam();
+      this.decisionTimer = this.p.decisionBase * 1.2 * dangerMult * gapMult;
       return;
     }
 
@@ -245,14 +276,14 @@ export class CpuAI {
         this.cpu.startWhip(this.player);
         this.effects.spawnDust(this.player.position);
         audio.slam();
-        this.decisionTimer = 0.4; // 短い待機後にリバウンドを迎撃
+        this.decisionTimer = 0.4 * gapMult;
       } else {
         this.cpu.startSlam(this.player);
         this.player.takeDamage(18 * this.p.dmgMult * charDmg);
         this.effects.spawnDust(this.player.position);
         this.effects.shake(0.18);
         audio.slam();
-        this.decisionTimer = this.p.decisionBase * 1.5 * dangerMult;
+        this.decisionTimer = this.p.decisionBase * 1.5 * dangerMult * gapMult;
       }
       return;
     }
@@ -269,14 +300,14 @@ export class CpuAI {
       this.effects.spawnHitSparks(this.player.position, 0xffaa00);
       this.effects.shake(0.22);
       audio.slam();
-      this.decisionTimer = this.p.decisionBase * dangerMult;
+      this.decisionTimer = this.p.decisionBase * dangerMult * gapMult;
       return;
     }
 
     if (dist < GRAPPLE_DIST && roll < 0.45) {
       if (this.cpu.canGrapple(this.player)) {
         this.cpu.startGrapple(this.player);
-        this.decisionTimer = this.p.decisionBase * 0.6 * dangerMult;
+        this.decisionTimer = this.p.decisionBase * 0.6 * dangerMult * gapMult;
       }
     } else if (dist < STRIKE_DIST && roll < 0.85) {
       if (this.cpu.canStrike(this.player)) {
@@ -288,11 +319,11 @@ export class CpuAI {
         this.effects.spawnHitSparks(this.player.position, 0xff6600);
         this.effects.shake(0.08);
         audio.punch();
-        this.decisionTimer = this.p.decisionBase * dangerMult;
+        this.decisionTimer = this.p.decisionBase * dangerMult * gapMult;
       }
     } else {
       this.doChase(dt);
-      this.decisionTimer = this.p.decisionBase * 0.4 * dangerMult;
+      this.decisionTimer = this.p.decisionBase * 0.4 * dangerMult * gapMult;
     }
   }
 
@@ -303,12 +334,12 @@ export class CpuAI {
     if (this.cpu.distanceTo(this.player) < 3.5) {
       this.cpu.move(dx / len, dz / len, false, dt);
     }
-    // Hard 限定: 遠ければたまにタントして煽る
+    // Hard 限定: 遠ければたまにタントして煽る (~0.5 回/秒の期待値、dt スケールでフレームレート非依存)
     if (this.p.missChance < 0.1 &&
         this.cpu.distanceTo(this.player) > 4 &&
         this.cpu.state === "idle" &&
         this.decisionTimer <= 0 &&
-        Math.random() < 0.008) {
+        Math.random() < 0.5 * dt) {
       this.cpu.startTaunt();
       audio.crowd();
       this.decisionTimer = 1.5;

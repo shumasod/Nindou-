@@ -1,16 +1,53 @@
+const MUTE_KEY = "wrestling-muted";
+
 /** Web Audio API のみ使用（外部ファイル不要）*/
 export class AudioEngine {
   private ctx: AudioContext | null = null;
+  private master: GainNode | null = null;
+  private _muted: boolean;
+
+  constructor() {
+    try {
+      this._muted = localStorage.getItem(MUTE_KEY) === "1";
+    } catch {
+      this._muted = false;
+    }
+  }
+
+  get muted(): boolean {
+    return this._muted;
+  }
+
+  /** ミュート切替 — localStorage に永続化し、次回訪問時も維持される */
+  toggleMute(): boolean {
+    this._muted = !this._muted;
+    if (this.master) this.master.gain.value = this._muted ? 0 : 1;
+    try {
+      localStorage.setItem(MUTE_KEY, this._muted ? "1" : "0");
+    } catch {
+      // localStorage 不可 — セッション内のみ有効
+    }
+    return this._muted;
+  }
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
       this.ctx = new AudioContext();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this._muted ? 0 : 1;
+      this.master.connect(this.ctx.destination);
     }
     // ユーザー操作後に resume が必要なブラウザ対策
     if (this.ctx.state === "suspended") {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  /** すべての音の出口 — master ゲイン (ミュート制御点) */
+  private out(): GainNode {
+    this.getCtx();
+    return this.master!;
   }
 
   /** 短いノイズバースト — ストライク */
@@ -32,7 +69,7 @@ export class AudioEngine {
 
     src.connect(dist);
     dist.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out());
     src.start();
   }
 
@@ -60,25 +97,38 @@ export class AudioEngine {
     noiseGain.gain.value = 0.5;
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out());
     noiseSrc.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.connect(this.out());
     osc.start();
     osc.stop(ctx.currentTime + 0.4);
     noiseSrc.start();
+  }
+
+  /**
+   * 観客歓声用ノイズバッファ (1.2 s ≒ 53k サンプル)。
+   * 毎回生成すると 1 回の歓声ごとに ~210KB の確保と 53k 回の乱数生成が発生するため、
+   * 初回だけ作って以降は使い回す (BufferSource 側は毎回新規で使い捨て)。
+   */
+  private crowdBuffer: AudioBuffer | null = null;
+
+  private getCrowdBuffer(ctx: AudioContext, dur: number): AudioBuffer {
+    if (this.crowdBuffer) return this.crowdBuffer;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.4;
+    }
+    this.crowdBuffer = buf;
+    return buf;
   }
 
   /** 観客の歓声 — シグネチャー */
   crowd(): void {
     const ctx = this.getCtx();
     const dur = 1.2;
-    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.4;
-    }
     const src = ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = this.getCrowdBuffer(ctx, dur);
 
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
@@ -93,7 +143,7 @@ export class AudioEngine {
 
     src.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out());
     src.start();
   }
 
@@ -110,7 +160,7 @@ export class AudioEngine {
       g.gain.setValueAtTime(0.3, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
       osc.connect(g);
-      g.connect(ctx.destination);
+      g.connect(this.out());
       osc.start(t);
       osc.stop(t + 0.1);
     }
