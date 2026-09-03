@@ -399,7 +399,12 @@ function logColor(line: string, index: number): string {
   if (line.includes("倒した")) return C.success;
   if (line.includes("奇襲")) return C.accent2;
   if (line.includes("フェーズ")) return C.accent1;
-  if (line.includes("ダメージ") && line.includes(line.split("の")[0])) return C.text;
+  if (line.includes("回避") || line.includes("かわした")) return C.success;
+  if (line.includes("防御態勢")) return C.chakra;
+  if (line.includes("毒") && line.includes("ダメージ")) return "#8b6914";
+  if (line.includes("逃走に成功")) return C.dim;
+  if (line.includes("逃走に失敗") || line.includes("スタン") || line.includes("混乱")) return C.danger;
+  if (line.includes("回復した") || line.includes("チャクラが")) return C.success;
   return C.text;
 }
 
