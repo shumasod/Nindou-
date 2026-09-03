@@ -11,6 +11,7 @@ interface Props {
 
 export default function GameOverScreen({ state, dispatch }: Props) {
   const { player, battle, progress } = state;
+  const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
   const clanData = player.clan ? CLANS[player.clan] : null;
   const totalKills = Object.values(progress.questProgress).reduce((a, b) => a + b, 0);
 
@@ -68,6 +69,14 @@ export default function GameOverScreen({ state, dispatch }: Props) {
           <p style={{ ...S.label, marginBottom: "8px" }}>最終記録</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {[
+              { label: "名前",   val: player.name,              color: C.text },
+              { label: "レベル", val: `Lv.${player.level}`,     color: C.text },
+              { label: "経験値", val: `${player.exp} EXP`,      color: C.purple },
+              { label: "所持金", val: `${player.gold} G`,       color: C.accent2 },
+              { label: "クラン", val: player.clan ?? "─",       color: C.dim },
+              { label: "討伐数(戦闘)", val: `${battle.killCount}体`,  color: C.success },
+              { label: "累計討伐",    val: `${totalKills}体`,        color: C.success },
+              { label: "任務完了",    val: `${progress.completedQuests.length}件`, color: C.accent2 },
               { label: "名前",       val: player.name,                                         color: C.text },
               { label: "レベル",     val: `Lv.${player.level}`,                              color: C.text },
               { label: "経験値",     val: `${player.exp} EXP`,                               color: C.purple },
