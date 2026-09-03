@@ -10,8 +10,9 @@ interface Props {
 }
 
 export default function VictoryScreen({ state, dispatch }: Props) {
-  const { ui, player } = state;
+  const { ui, player, battle, progress } = state;
   const reward = ui.lastReward;
+  const totalKills = Object.values(progress.questProgress).reduce((a, b) => a + b, 0);
 
   return (
     <div
@@ -116,6 +117,33 @@ export default function VictoryScreen({ state, dispatch }: Props) {
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
             <span style={{ color: C.dim, fontSize: "12px" }}>所持金</span>
             <span style={{ color: C.accent2, fontSize: "12px" }}>{player.gold} G</span>
+          </div>
+        </div>
+
+        {/* 討伐サマリー */}
+        <div style={{ ...S.panelSm, marginBottom: "24px" }}>
+          <p style={{ ...S.label, marginBottom: "8px" }}>討伐記録</p>
+          <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+            <div>
+              <p style={{ color: C.success, fontSize: "20px", margin: "0 0 2px", fontWeight: "bold" }}>
+                {battle.killCount}
+              </p>
+              <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>この任務</p>
+            </div>
+            <div style={{ borderLeft: `1px solid ${C.border}` }} />
+            <div>
+              <p style={{ color: C.accent2, fontSize: "20px", margin: "0 0 2px", fontWeight: "bold" }}>
+                {totalKills}
+              </p>
+              <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>累計討伐</p>
+            </div>
+            <div style={{ borderLeft: `1px solid ${C.border}` }} />
+            <div>
+              <p style={{ color: C.purple, fontSize: "20px", margin: "0 0 2px", fontWeight: "bold" }}>
+                {progress.completedQuests.length}
+              </p>
+              <p style={{ color: C.dim, fontSize: "11px", margin: 0 }}>任務完了</p>
+            </div>
           </div>
         </div>
 

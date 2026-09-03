@@ -1,5 +1,6 @@
 "use client";
 import { C, S } from "../styles";
+import { CLANS } from "../data";
 import type { GameState } from "../types";
 import type { GameAction } from "../reducer";
 
@@ -11,6 +12,8 @@ interface Props {
 export default function GameOverScreen({ state, dispatch }: Props) {
   const { player, battle, progress } = state;
   const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
+  const clanData = player.clan ? CLANS[player.clan] : null;
+  const totalKills = Object.values(progress.questProgress).reduce((a, b) => a + b, 0);
 
   return (
     <div
@@ -74,6 +77,14 @@ export default function GameOverScreen({ state, dispatch }: Props) {
               { label: "討伐数(戦闘)", val: `${battle.killCount}体`,  color: C.success },
               { label: "累計討伐",    val: `${totalKills}体`,        color: C.success },
               { label: "任務完了",    val: `${progress.completedQuests.length}件`, color: C.accent2 },
+              { label: "名前",       val: player.name,                                         color: C.text },
+              { label: "レベル",     val: `Lv.${player.level}`,                              color: C.text },
+              { label: "経験値",     val: `${player.exp} EXP`,                               color: C.purple },
+              { label: "所持金",     val: `${player.gold} G`,                                color: C.accent2 },
+              { label: "流派",       val: clanData ? `${clanData.icon} ${clanData.name}` : "─", color: clanData?.color ?? C.dim },
+              { label: "この戦討伐", val: `${battle.killCount}体`,                           color: C.success },
+              { label: "累計討伐",   val: `${totalKills}体`,                                 color: C.success },
+              { label: "任務完了",   val: `${progress.completedQuests.length}件`,             color: C.accent2 },
             ].map(({ label, val, color }) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.dim, fontSize: "13px" }}>{label}</span>
@@ -96,14 +107,24 @@ export default function GameOverScreen({ state, dispatch }: Props) {
         )}
 
         {/* リスタートボタン */}
-        <button
-          style={{ ...S.btn(C.accent1), padding: "12px 40px", fontSize: "15px", width: "100%" }}
-          onClick={() => dispatch({ type: "RESET_GAME" })}
-          onMouseEnter={(e) => { e.currentTarget.style.background = C.accent1; e.currentTarget.style.color = C.bg; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.accent1; }}
-        >
-          ▶ 再び立ち上がる
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            style={{ ...S.btn(C.dim), padding: "12px 20px", fontSize: "14px", flex: 1 }}
+            onClick={() => dispatch({ type: "GO_TO_SCREEN", screen: "home" })}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.dim; e.currentTarget.style.color = C.bg; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.dim; }}
+          >
+            里に戻る
+          </button>
+          <button
+            style={{ ...S.btn(C.accent1), padding: "12px 20px", fontSize: "14px", flex: 2 }}
+            onClick={() => dispatch({ type: "RESET_GAME" })}
+            onMouseEnter={(e) => { e.currentTarget.style.background = C.accent1; e.currentTarget.style.color = C.bg; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.accent1; }}
+          >
+            ▶ 再び立ち上がる
+          </button>
+        </div>
       </div>
     </div>
   );
