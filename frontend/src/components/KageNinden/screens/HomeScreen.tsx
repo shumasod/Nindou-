@@ -17,6 +17,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
   const { player, ui, progress } = state;
   const clanData = player.clan ? CLANS[player.clan] : null;
+  const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
   const activeQuest = progress.activeQuest;
   const questKills = activeQuest ? (progress.questProgress[activeQuest.id] ?? 0) : 0;
 
@@ -170,6 +171,14 @@ export default function HomeScreen({ state, dispatch }: Props) {
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: C.dim, fontSize: "12px" }}>💰 所持金</span>
               <span style={{ color: player.gold < 50 ? C.danger : C.accent2, fontSize: "13px" }}>{player.gold} G</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+              <span style={{ color: C.dim, fontSize: "12px" }}>⚔ 累計討伐</span>
+              <span style={{ color: C.text, fontSize: "12px" }}>{totalKills} 体</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+              <span style={{ color: C.dim, fontSize: "12px" }}>📜 任務完了</span>
+              <span style={{ color: C.text, fontSize: "12px" }}>{progress.completedQuests.length} 件</span>
             </div>
             {player.gold < 50 && (
               <p style={{ color: C.danger, fontSize: "10px", margin: "4px 0 0", textAlign: "right" }}>
