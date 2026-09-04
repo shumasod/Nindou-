@@ -113,6 +113,35 @@ export default function QuestDetailScreen({ state, dispatch }: Props) {
           </div>
         </div>
 
+        {/* 戦力比較 */}
+        {enemy && (() => {
+          const player = state.player;
+          const playerPower = player.stats.attack + player.stats.defense + player.stats.speed;
+          const enemyPower = enemy.attack + enemy.defense + enemy.speed;
+          const ratio = playerPower / Math.max(1, enemyPower);
+          const diff =
+            ratio >= 1.3 ? { text: "有利", color: "#4caf50", bar: Math.min(1, ratio / 2) } :
+            ratio >= 0.9 ? { text: "互角", color: "#d4a017", bar: 0.5 } :
+            ratio >= 0.6 ? { text: "不利", color: "#c94c4c", bar: ratio / 2 } :
+                           { text: "危険", color: "#8b1a1a", bar: ratio / 2 };
+          return (
+            <div style={{ ...S.panelSm, marginBottom: "16px" }}>
+              <p style={{ ...S.label, marginBottom: "8px" }}>戦力分析</p>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                <span style={{ color: C.dim, fontSize: "12px" }}>自分: {playerPower}</span>
+                <span style={{ color: diff.color, fontSize: "13px", fontWeight: "bold" }}>{diff.text}</span>
+                <span style={{ color: C.dim, fontSize: "12px" }}>敵: {enemyPower}</span>
+              </div>
+              <div style={{ background: "#1a1a28", borderRadius: "2px", height: "6px", overflow: "hidden" }}>
+                <div style={{ width: `${diff.bar * 100}%`, height: "100%", background: diff.color, transition: "width 0.4s" }} />
+              </div>
+              <p style={{ color: C.dim, fontSize: "10px", marginTop: "4px", textAlign: "right" }}>
+                最小レベル: Lv.{quest.minLevel}（現在 Lv.{state.player.level}）
+              </p>
+            </div>
+          );
+        })()}
+
         {/* 出陣ボタン */}
         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
           <button

@@ -70,6 +70,33 @@ jobs:
       - name: Build
         run: npm run build --workspace=server
 
+  # ---- Wrestling game ----
+  wrestling:
+    name: Wrestling game (type-check + test + build)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm exec --workspace=wrestling-game -- tsc --noEmit
+
+      - name: Test
+        run: npm test --workspace=wrestling-game
+
+      - name: Build
+        run: npm run build --workspace=wrestling-game
+
   # ---- Docker build check ----
   docker:
     name: Docker build (dry-run)

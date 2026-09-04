@@ -8,9 +8,13 @@
 |---|---|
 | `frontend/` | Next.js 14 (App Router) — ゲーム本体 UI |
 | `server/` | Express + better-sqlite3 — セーブデータ API |
+| `wrestling-game/` | Three.js + Vite — 3D プロレスゲーム（独立アプリ） |
 | `infra/nginx/` | Nginx リバースプロキシ |
 | `infra/terraform/` | AWS 本番インフラ IaC |
 | `docs/prototypes/` | 旧プロトタイプ群（参照のみ） |
+
+`wrestling-game/` は忍道本編とは独立したスタンドアロンのゲームで、
+`frontend`/`server` とはコードを共有しません。詳細は `wrestling-game/README.md` を参照。
 
 ## 開発コマンド
 
@@ -32,6 +36,12 @@ npm test
 
 # サーバーテスト (Jest 12件)
 node node_modules/.bin/jest --config server/jest.config.ts --forceExit
+
+# プロレスゲーム開発サーバー (Vite)
+npm run dev:wrestling
+
+# プロレスゲームテスト (Vitest 21件)
+npm run test:wrestling
 
 # Docker Compose でフルスタック起動
 docker compose up --build
@@ -123,4 +133,5 @@ terraform apply
 `.github/workflows/ci.yml` — PR 時に自動実行:
 1. frontend: 型チェック → Jest → Next.js ビルド
 2. server: 型チェック → Jest → tsc ビルド
-3. Docker dry-run (push なし)
+3. wrestling-game: 型チェック → Vitest → Vite ビルド
+4. Docker dry-run (push なし)

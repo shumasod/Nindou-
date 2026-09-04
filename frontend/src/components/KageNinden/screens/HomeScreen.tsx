@@ -18,6 +18,8 @@ export default function HomeScreen({ state, dispatch }: Props) {
   const { player, ui, progress } = state;
   const clanData = player.clan ? CLANS[player.clan] : null;
   const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
+  const activeQuest = progress.activeQuest;
+  const questKills = activeQuest ? (progress.questProgress[activeQuest.id] ?? 0) : 0;
 
   return (
     <div
@@ -56,6 +58,37 @@ export default function HomeScreen({ state, dispatch }: Props) {
           <p style={{ color: C.dim, fontSize: "12px", margin: "4px 0 0" }}>
             ステータスポイント +3 獲得！「鍛錬」で割り振れ。
           </p>
+        </div>
+      )}
+
+      {/* 進行中の任務 */}
+      {activeQuest && (
+        <div
+          style={{
+            background: `${C.accent1}15`,
+            border: `1px solid ${C.accent1}40`,
+            borderRadius: "4px",
+            padding: "10px 14px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <p style={{ color: C.accent1, fontSize: "13px", margin: 0 }}>
+              ► 進行中: {activeQuest.title}
+            </p>
+            <span style={{ color: C.accent2, fontSize: "12px" }}>
+              {questKills} / {activeQuest.count} 討伐
+            </span>
+          </div>
+          <div style={{ background: "#1a1a28", borderRadius: "2px", height: "5px", overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${Math.min(100, (questKills / activeQuest.count) * 100)}%`,
+                height: "100%",
+                background: C.accent1,
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -137,7 +170,7 @@ export default function HomeScreen({ state, dispatch }: Props) {
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "10px", marginTop: "6px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: C.dim, fontSize: "12px" }}>💰 所持金</span>
-              <span style={{ color: C.accent2, fontSize: "13px" }}>{player.gold} G</span>
+              <span style={{ color: player.gold < 50 ? C.danger : C.accent2, fontSize: "13px" }}>{player.gold} G</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
               <span style={{ color: C.dim, fontSize: "12px" }}>⚔ 累計討伐</span>
@@ -147,6 +180,11 @@ export default function HomeScreen({ state, dispatch }: Props) {
               <span style={{ color: C.dim, fontSize: "12px" }}>📜 任務完了</span>
               <span style={{ color: C.text, fontSize: "12px" }}>{progress.completedQuests.length} 件</span>
             </div>
+            {player.gold < 50 && (
+              <p style={{ color: C.danger, fontSize: "10px", margin: "4px 0 0", textAlign: "right" }}>
+                ⚠ 所持金が少ない
+              </p>
+            )}
           </div>
 
           {player.statPoints > 0 && (
@@ -203,6 +241,7 @@ function MenuView({
     { label: "技能", icon: "✨", action: () => setSubView("skills_list") },
     { label: "道具", icon: "🎒", action: () => setSubView("items") },
     { label: "鍛錬", icon: "💪", action: () => setSubView("train") },
+    { label: "休息する", icon: "🌙", action: () => dispatch({ type: "REST_AT_HOME" }), color: C.chakra },
     { label: "宿屋で休む", icon: "🏮", action: () => setSubView("inn"), color: C.purple },
   ];
 
@@ -315,39 +354,48 @@ function TrainView({
         </button>
         <h3 style={{ color: C.accent2, margin: 0, fontSize: "15px" }}>── 鍛錬 ──</h3>
       </div>
-      <p style={{ color: C.dim, fontSize: "13px", marginBottom: "14px" }}>
-        残りステータスポイント:{" "}
-        <span style={{ color: player.statPoints > 0 ? C.accent2 : C.dim, fontWeight: "bold" }}>
-          {player.statPoints}
-        </span>
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <p style={{ color: C.dim, fontSize: "13px", margin: 0 }}>
+          残りポイント:{" "}
+          <span style={{ color: player.statPoints > 0 ? C.accent2 : C.dim, fontWeight: "bold" }}>
+            {player.statPoints}
+          </span>
+        </p>
+        <p style={{ color: C.dim, fontSize: "12px", margin: 0 }}>
+          総戦力: <span style={{ color: C.text }}>{Object.values(player.stats).reduce((a, b) => a + b, 0)}</span>
+        </p>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {stats.map(({ key, label, icon }) => (
-          <div
-            key={key}
-            style={{
-              ...S.panelSm,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span style={{ fontSize: "14px" }}>
-              {icon} {label}: <strong style={{ color: C.text }}>{player.stats[key]}</strong>
-            </span>
-            <button
-              style={
-                player.statPoints > 0
-                  ? { ...S.btn(C.accent2), padding: "4px 12px", fontSize: "13px" }
-                  : { ...S.btnDisabled, padding: "4px 12px", fontSize: "13px" }
-              }
-              disabled={player.statPoints <= 0}
-              onClick={() => dispatch({ type: "ALLOCATE_STAT", stat: key })}
+        {stats.map(({ key, label, icon }) => {
+          const val = player.stats[key];
+          const barWidth = Math.min(100, (val / 80) * 100);
+          return (
+            <div
+              key={key}
+              style={{ ...S.panelSm }}
             >
-              + 振る
-            </button>
-          </div>
-        ))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ fontSize: "13px" }}>
+                  {icon} {label}: <strong style={{ color: C.text }}>{val}</strong>
+                </span>
+                <button
+                  style={
+                    player.statPoints > 0
+                      ? { ...S.btn(C.accent2), padding: "4px 12px", fontSize: "13px" }
+                      : { ...S.btnDisabled, padding: "4px 12px", fontSize: "13px" }
+                  }
+                  disabled={player.statPoints <= 0}
+                  onClick={() => dispatch({ type: "ALLOCATE_STAT", stat: key })}
+                >
+                  + 振る
+                </button>
+              </div>
+              <div style={{ background: "#1a1a28", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
+                <div style={{ width: `${barWidth}%`, height: "100%", background: C.accent2, transition: "width 0.3s" }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
