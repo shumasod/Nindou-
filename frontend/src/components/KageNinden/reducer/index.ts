@@ -129,6 +129,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "REST_AT_HOME": {
       const healAmt = Math.floor(state.player.maxHp * 0.3);
       const chakraAmt = Math.floor(state.player.maxChakra * 0.5);
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          hp: Math.min(state.player.maxHp, state.player.hp + healAmt),
+          chakra: Math.min(state.player.maxChakra, state.player.chakra + chakraAmt),
+        },
+      };
+    }
+
     case "REST_AT_INN": {
       const cost = Math.max(10, Math.floor((state.player.maxHp - state.player.hp) * 0.5 + (state.player.maxChakra - state.player.chakra) * 0.3));
       if (state.player.gold < cost) return state;
@@ -136,8 +146,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         player: {
           ...state.player,
-          hp: Math.min(state.player.maxHp, state.player.hp + healAmt),
-          chakra: Math.min(state.player.maxChakra, state.player.chakra + chakraAmt),
           hp: state.player.maxHp,
           chakra: state.player.maxChakra,
           gold: state.player.gold - cost,
