@@ -4,7 +4,9 @@ import type { ClanId } from "../types";
 
 // SELECT_CLAN
 export function handleSelectClan(state: GameState, clan: ClanId): GameState {
+  if (state.player.clan !== null) return state;
   const clanData = CLANS[clan];
+  if (!clanData) return state;
   const bonus = clanData.bonus;
   const p = { ...state.player };
 
@@ -49,7 +51,7 @@ export function handleAllocateStat(
     player: {
       ...state.player,
       statPoints: state.player.statPoints - 1,
-      stats: { ...state.player.stats, [stat]: state.player.stats[stat] + 1 },
+      stats: { ...state.player.stats, [stat]: Math.min(99, state.player.stats[stat] + 1) },
     },
   };
 }
