@@ -207,7 +207,7 @@ export function handlePlayerDefend(state: GameState): GameState {
   let s: GameState = {
     ...state,
     player: { ...state.player, chakra: newChakra },
-    battle: { ...state.battle, playerStatus: newStatus, phase: "enemy" },
+    battle: { ...state.battle, playerStatus: newStatus, phase: state.battle.active ? "enemy" : state.battle.phase },
   };
   s = addLog(s, `${state.player.name}は防御態勢をとった。チャクラが少し回復した。`);
   return s;
