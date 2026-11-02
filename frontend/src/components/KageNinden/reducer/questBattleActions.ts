@@ -82,6 +82,8 @@ export function handlePlayerSkill(state: GameState, skillId: string): GameState 
 
   const skill = SKILLS[skillId];
   if (!skill || state.player.chakra < skill.cost) return state;
+  // 未習得スキルの不正使用を防止
+  if (!state.player.skills.includes(skillId)) return state;
 
   let s = { ...state, player: { ...state.player, chakra: state.player.chakra - skill.cost } };
 

@@ -334,7 +334,9 @@ describe("PLAYER_SKILL", () => {
 
   test("iron_stance(buff)使用でdefense_upステータス付与", () => {
     const s = startBattle();
-    const after = gameReducer(s, { type: "PLAYER_SKILL", skillId: "iron_stance" });
+    // スキル所持チェックのためiron_stanceをplayer.skillsに追加
+    const withSkill: GameState = { ...s, player: { ...s.player, skills: [...s.player.skills, "iron_stance"] } };
+    const after = gameReducer(withSkill, { type: "PLAYER_SKILL", skillId: "iron_stance" });
     expect(after.battle.playerStatus.some((e) => e.id === "defense_up")).toBe(true);
   });
 
