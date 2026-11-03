@@ -82,6 +82,7 @@ export function handlePlayerSkill(state: GameState, skillId: string): GameState 
 
   const skill = SKILLS[skillId];
   if (!skill || state.player.chakra < skill.cost) return state;
+  if (!state.player.skills.includes(skillId)) return state;
 
   let s = { ...state, player: { ...state.player, chakra: state.player.chakra - skill.cost } };
 
