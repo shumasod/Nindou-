@@ -193,7 +193,8 @@ export function handlePlayerItem(state: GameState, itemId: string): GameState {
       return { ...s, battle: { ...s.battle, active: false }, ui: { ...s.ui, screen: "home" } };
   }
 
-  return { ...s, battle: { ...s.battle, phase: "enemy" } };
+  // バトル外での使用時はphaseを変更しない（戦闘中のみ敵ターンへ遷移）
+  return { ...s, battle: { ...s.battle, phase: state.battle.active ? "enemy" : state.battle.phase } };
 }
 
 // PLAYER_DEFEND
