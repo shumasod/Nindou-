@@ -123,9 +123,15 @@ function cacheKey(slot: number): string {
 }
 
 // ===== Helpers =====
+/**
+ * スロット番号を厳格に解釈する。
+ * parseInt は先頭の数字だけを読んで残りを捨てるため、"1abc" / "5e0" / " 3 "
+ * / "+7" がすべて有効なスロットとして通ってしまう。1桁の数字のみを受理する。
+ */
 function parseSlot(raw: string | undefined): number | null {
-  const n = parseInt(raw ?? "", 10);
-  if (isNaN(n) || n < SAVE_SLOT_MIN || n > SAVE_SLOT_MAX) return null;
+  if (typeof raw !== "string" || !/^[1-9]$/.test(raw)) return null;
+  const n = Number(raw);
+  if (n < SAVE_SLOT_MIN || n > SAVE_SLOT_MAX) return null;
   return n;
 }
 
