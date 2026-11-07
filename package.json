@@ -22,6 +22,8 @@
   },
   "overrides": {
     "postcss": "^8.5.10",
-    "tinypool": "^2.1.2"
+    "tinypool": "^2.1.2",
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.4"
   }
 }
