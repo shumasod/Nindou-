@@ -41,6 +41,10 @@ services:
       REDIS_URL: redis://redis:6379
       ALLOWED_ORIGIN: http://localhost
       DB_DIR: /data/db
+      # nginx is the only proxy in front of the API here, so trust exactly
+      # one X-Forwarded-For hop — without this all clients share one
+      # rate-limit bucket.
+      TRUST_PROXY_HOPS: "1"
     volumes:
       - sqlite_data:/data/db
     networks:

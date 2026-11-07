@@ -22,6 +22,29 @@ const CACHE_TTL_SEC = 86_400; // 24h
 const SAVE_SLOT_MIN = 1;
 const SAVE_SLOT_MAX = 9;
 
+// ===== Proxy trust =====
+// express-rate-limit buckets requests by req.ip. Behind nginx / ALB / CloudFront
+// the socket peer is always the proxy, so with trust proxy left at its default
+// (false) every client collapses into a single bucket: one caller can exhaust
+// the global 120 req/min budget for everyone, and per-IP limiting protects
+// nothing. Blindly trusting X-Forwarded-For is the opposite failure — clients
+// can then forge the header and sidestep the limit entirely — so the number of
+// trusted hops is stated explicitly instead of inferred.
+//   0 (default) = direct exposure, no proxy header is trusted
+//   1           = one reverse proxy in front (the docker compose topology)
+const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY_HOPS ?? "0");
+if (!Number.isInteger(TRUST_PROXY_HOPS) || TRUST_PROXY_HOPS < 0) {
+  console.error("FATAL: TRUST_PROXY_HOPS must be a non-negative integer");
+  process.exit(1);
+}
+app.set("trust proxy", TRUST_PROXY_HOPS > 0 ? TRUST_PROXY_HOPS : false);
+if (IS_PROD && TRUST_PROXY_HOPS === 0) {
+  console.warn(
+    "[security] TRUST_PROXY_HOPS is 0 in production: per-IP rate limits will " +
+    "key on the reverse proxy's address, so all clients share one bucket."
+  );
+}
+
 // ===== Middleware =====
 app.use(cors({
   origin: ALLOWED_ORIGIN,
@@ -30,15 +53,18 @@ app.use(cors({
   credentials: false,
   maxAge: 86400,
 }));
-app.use(express.json({ limit: "100kb" }));
-
-// General API rate limit: 120 req/min per IP
+// General API rate limit: 120 req/min per IP.
+// Registered *before* the body parser so a request that is over the limit is
+// rejected without reading or parsing its payload — otherwise every throttled
+// request still costs a 100 KB read plus a JSON parse.
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
 }));
+
+app.use(express.json({ limit: "100kb" }));
 
 // Stricter limit for save writes: 20 req/min per IP
 const saveLimiter = rateLimit({
@@ -97,9 +123,15 @@ function cacheKey(slot: number): string {
 }
 
 // ===== Helpers =====
+/**
+ * スロット番号を厳格に解釈する。
+ * parseInt は先頭の数字だけを読んで残りを捨てるため、"1abc" / "5e0" / " 3 "
+ * / "+7" がすべて有効なスロットとして通ってしまう。1桁の数字のみを受理する。
+ */
 function parseSlot(raw: string | undefined): number | null {
-  const n = parseInt(raw ?? "", 10);
-  if (isNaN(n) || n < SAVE_SLOT_MIN || n > SAVE_SLOT_MAX) return null;
+  if (typeof raw !== "string" || !/^[1-9]$/.test(raw)) return null;
+  const n = Number(raw);
+  if (n < SAVE_SLOT_MIN || n > SAVE_SLOT_MAX) return null;
   return n;
 }
 
