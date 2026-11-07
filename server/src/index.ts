@@ -53,15 +53,18 @@ app.use(cors({
   credentials: false,
   maxAge: 86400,
 }));
-app.use(express.json({ limit: "100kb" }));
-
-// General API rate limit: 120 req/min per IP
+// General API rate limit: 120 req/min per IP.
+// Registered *before* the body parser so a request that is over the limit is
+// rejected without reading or parsing its payload — otherwise every throttled
+// request still costs a 100 KB read plus a JSON parse.
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
 }));
+
+app.use(express.json({ limit: "100kb" }));
 
 // Stricter limit for save writes: 20 req/min per IP
 const saveLimiter = rateLimit({
@@ -120,9 +123,15 @@ function cacheKey(slot: number): string {
 }
 
 // ===== Helpers =====
+/**
+ * スロット番号を厳格に解釈する。
+ * parseInt は先頭の数字だけを読んで残りを捨てるため、"1abc" / "5e0" / " 3 "
+ * / "+7" がすべて有効なスロットとして通ってしまう。1桁の数字のみを受理する。
+ */
 function parseSlot(raw: string | undefined): number | null {
-  const n = parseInt(raw ?? "", 10);
-  if (isNaN(n) || n < SAVE_SLOT_MIN || n > SAVE_SLOT_MAX) return null;
+  if (typeof raw !== "string" || !/^[1-9]$/.test(raw)) return null;
+  const n = Number(raw);
+  if (n < SAVE_SLOT_MIN || n > SAVE_SLOT_MAX) return null;
   return n;
 }
 
