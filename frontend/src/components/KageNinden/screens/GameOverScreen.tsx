@@ -13,7 +13,6 @@ export default function GameOverScreen({ state, dispatch }: Props) {
   const { player, battle, progress } = state;
   const totalKills = Object.values(progress.questProgress).reduce((sum, n) => sum + n, 0);
   const clanData = player.clan ? CLANS[player.clan] : null;
-  const totalKills = Object.values(progress.questProgress).reduce((a, b) => a + b, 0);
 
   return (
     <div
