@@ -126,6 +126,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "ALLOCATE_STAT":
       return handleAllocateStat(state, action.stat);
 
+    // 自宅での休息 — 無料。HP 30% / チャクラ 50% を回復する
     case "REST_AT_HOME": {
       const healAmt = Math.floor(state.player.maxHp * 0.3);
       const chakraAmt = Math.floor(state.player.maxChakra * 0.5);
@@ -139,6 +140,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    // 宿屋での休息 — 有料。HP / チャクラを全快する
+    // 料金計算は HomeScreen の宿屋ビューと一致させること
     case "REST_AT_INN": {
       const cost = Math.max(10, Math.floor((state.player.maxHp - state.player.hp) * 0.5 + (state.player.maxChakra - state.player.chakra) * 0.3));
       if (state.player.gold < cost) return state;
