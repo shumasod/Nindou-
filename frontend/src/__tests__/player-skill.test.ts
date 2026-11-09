@@ -93,13 +93,15 @@ describe("PLAYER_SKILL: damage skills", () => {
 
   it("damage skill transitions to enemy phase", () => {
     const s = baseState();
-    const next = gameReducer(s, { type: "PLAYER_SKILL", skillId: "spin_slash" });
+    const highHp = { ...s, battle: { ...s.battle, enemy: { ...s.battle.enemy!, hp: 9999, maxHp: 9999 } } };
+    const next = gameReducer(highHp, { type: "PLAYER_SKILL", skillId: "spin_slash" });
     expect(next.battle.phase).toBe("enemy");
   });
 
   it("logs damage skill use", () => {
     const s = baseState();
-    const next = gameReducer(s, { type: "PLAYER_SKILL", skillId: "spin_slash" });
+    const highHp = { ...s, battle: { ...s.battle, enemy: { ...s.battle.enemy!, hp: 9999, maxHp: 9999 } } };
+    const next = gameReducer(highHp, { type: "PLAYER_SKILL", skillId: "spin_slash" });
     expect(next.battle.log[0]).toContain("ダメージ");
   });
 });
