@@ -49,7 +49,7 @@ export function handleAllocateStat(
     player: {
       ...state.player,
       statPoints: state.player.statPoints - 1,
-      stats: { ...state.player.stats, [stat]: state.player.stats[stat] + 1 },
+      stats: { ...state.player.stats, [stat]: Math.min(99, state.player.stats[stat] + 1) },
     },
   };
 }
